@@ -9,11 +9,11 @@ import { commonsThumbAt, commonsSrcSet } from "@/lib/utils/commonsThumb";
 import { showsField, sourcesFor, needsVisibleCredit, usesMapHero, isVerified, isPublished, hasAiCheck } from "@/lib/utils/spotGuide";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
-import { MapIcon, ArrowUpOnSquareIcon, MapPinIcon, ChevronRightIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
-import { distanceLabel } from "@/lib/utils/journey";
+import { MapIcon, ArrowUpOnSquareIcon, ChevronRightIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import { useToast } from "@/lib/hooks/useToast";
 import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
+import SpotRows, { type SpotRow } from "./SpotRows";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
 import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
@@ -101,38 +101,7 @@ type Props = {
     country?: { href: string; name: string; nameEn: string } | null;
 };
 
-/** 一覧の1行（`km` はこのスポットからの距離・両方に座標があるときだけ） */
-type SpotRow = { slug: string; name: string; region?: string; km?: number };
-
-/**
- * ほかのスポットの一覧（iOS の `nearbyRow`: 面の箱に、印 → 名前 → 距離 → 矢印）。
- * **距離は計算したもの**（言い方は `distanceLabel`＝iOS の `NearbyPhotos.label` と同じ刻み）。
- * 地域の行は Web だけ残す（同じ県の一覧で市の違いが分かる）
- */
-function SpotRows({ rows, isJa }: { rows: SpotRow[]; isJa: boolean }) {
-    return (
-        <ul className="m-0 p-0 rounded-2xl bg-surface overflow-hidden" style={{ listStyle: "none" }}>
-            {rows.map((n, i) => {
-                const dist = n.km === undefined ? "" : distanceLabel(n.km, isJa);
-                return (
-                    <li key={n.slug} className={i > 0 ? "border-t border-white/5" : undefined}>
-                        <Link href={`/spots/${n.slug}`} prefetch={false}
-                              className="flex items-center gap-3 px-3.5 hover:bg-surface-2 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-                              style={{ minHeight: 54 }}>
-                            <MapPinIcon className="w-5 h-5 flex-shrink-0 text-white/55" aria-hidden />
-                            <span className="min-w-0 flex-1 py-2">
-                                <span className="block text-white truncate" style={{ fontSize: "15px", lineHeight: "20px" }}>{n.name}</span>
-                                {n.region && <span className="block text-white/55 truncate" style={{ fontSize: "12px", lineHeight: "15px" }}>{n.region}</span>}
-                            </span>
-                            {dist && <span className="flex-shrink-0 text-white/55" style={{ fontSize: "13px" }}>{dist}</span>}
-                            <ChevronRightIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/55" aria-hidden />
-                        </Link>
-                    </li>
-                );
-            })}
-        </ul>
-    );
-}
+// 一覧の1行と、ほかのスポットの一覧は `SpotRows.tsx`（写真ページの「近くの撮影スポット」と共用・2026-10-22）
 
 const SEASON_LABEL: Record<string, string> = {
     spring: "春", summer: "夏", autumn: "秋", winter: "冬",
@@ -419,7 +388,17 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
 /** 作例の出どころの名前（`source` が無ければ Wikimedia Commons・2026-10-04 から Flickr と環境省・県の観光協会なども） */
 const sampleSourceName = (s: SpotSample) => s.source?.name ?? "Wikimedia Commons";
 
-function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
+/**
+ * 作例の画像の alt（2026-10-22）。**場所の名前を入れる**——画像検索は alt で写真の中身を読むので、
+ * 「作例の写真（撮影: Σ64）」では何の写真か伝わらない。例「あぶくま洞の写真（作例・撮影: Σ64）」。
+ * 題（Commons のファイル名）は英語や番号まじりが多いので使わない。出典の文（`credit`）はそのまま
+ */
+export function sampleAlt(spot: { name: string; nameEn?: string }, s: Pick<SpotSample, "author" | "credit">, isJa: boolean): string {
+    if (!isJa) return `Example photo of ${spot.nameEn || spot.name} by ${s.author}`;
+    return `${spot.name}の写真（作例・${s.credit ?? `撮影: ${s.author}`}）`;
+}
+
+function Samples({ samples, isJa, spot }: { samples: SpotSample[]; isJa: boolean; spot: { name: string; nameEn?: string } }) {
     // 読み込めなかった1枚（Commons 側で消えた・差し替わった）は、出典ごと隠す。
     // 全部読めなければ節ごと隠す（割れた画像の枠と出典だけが並ばないように）
     const [broken, setBroken] = React.useState<ReadonlySet<string>>(() => new Set());
@@ -460,7 +439,7 @@ function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
                                 <img src={small ?? s.src} srcSet={srcSet}
                                      sizes="(min-width:1024px) 240px, (min-width:640px) 30vw, 46vw"
                                      width={s.width} height={s.height} loading="lazy" decoding="async"
-                                     alt={isJa ? `作例の写真（${s.credit ?? `撮影: ${s.author}`}）` : `Example photo by ${s.author}`}
+                                     alt={sampleAlt(spot, s, isJa)}
                                      onError={() => setBroken((prev) => new Set(prev).add(s.sourceUrl))}
                                      className="block w-full h-auto rounded-lg bg-surface" />
                                 <figcaption className="mt-1.5 text-white/60 wrap-anywhere" style={{ fontSize: "12px", lineHeight: "15px" }}
@@ -832,7 +811,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
 
                         {/* ── 作例（Wikimedia Commons）──────────
                             投稿が0枚の場所でも、どんな写真が撮れるかが分かるように。撮影ガイドの前 */}
-                        {samples.length > 0 && <Samples samples={samples} isJa={isJa} />}
+                        {samples.length > 0 && <Samples samples={samples} isJa={isJa} spot={spot} />}
 
                         {/* ── 5. 撮影ガイド ──────────────────
                             **事実ではなく運営のアドバイス**なので、出典は求めない

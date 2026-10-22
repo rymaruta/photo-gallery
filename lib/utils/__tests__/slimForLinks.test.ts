@@ -38,7 +38,7 @@ describe("回遊リンクに渡す写真を絞る", () => {
     // **画面が読む項目**（`RelatedPhotos` と `Thumb` と前後のリンク）
     it("画面が読む項目は全部残る", () => {
         const out = slimForLinks(FULL) as unknown as Record<string, unknown>;
-        for (const k of ["id", "title", "dominantColor",
+        for (const k of ["id", "title", "dominantColor", "alt", "location",
             "src", "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif", "blurDataURL"]) {
             expect(out[k], `${k} が落ちている（サムネか題が消える）`)
                 .toEqual((FULL as unknown as Record<string, unknown>)[k]);
@@ -47,7 +47,7 @@ describe("回遊リンクに渡す写真を絞る", () => {
 
     it("読まない項目は落とす", () => {
         const out = slimForLinks(FULL) as unknown as Record<string, unknown>;
-        for (const k of ["description", "exif", "tags", "category", "location",
+        for (const k of ["description", "exif", "tags", "category",
             "userId", "createdAt", "updatedAt", "likes", "commentCount", "width", "height"]) {
             expect(k in out, `${k} が残っている（HTML に載り続ける）`).toBe(false);
         }
@@ -133,7 +133,7 @@ describe("写真ページに渡す回遊リンク（組み立て）", () => {
 describe("集約ページのグリッドに渡す写真を絞る", () => {
     it("グリッドが読む項目は全部残る", () => {
         const out = slimForGrid(FULL) as unknown as Record<string, unknown>;
-        for (const k of ["id", "title", "dominantColor",
+        for (const k of ["id", "title", "dominantColor", "alt", "location",
             "src", "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif", "blurDataURL",
             // グリッド固有（切り抜きの中心・分類名・alt の材料）
             "focalPoint", "category", "alt", "location"]) {

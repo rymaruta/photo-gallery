@@ -319,7 +319,12 @@ export function relatedCollectionPhotos(
  * 「落とす一覧」で持っていて、増えた属性が公開JSONに出た）。
  */
 const THUMB_FIELDS = ["src", "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif", "blurDataURL"] as const;
-const LINK_FIELDS = ["id", "title", "dominantColor"] as const;
+/**
+ * 回遊リンク（関連写真の帯・近くの写真・前後）が読む項目。
+ * `alt` / `location` は画像の alt（`photoAltText`）のため（2026-10-22）。落としていた間は、題の無い写真の
+ * alt が全部「写真」になっていた（本番の写真ページで4枚・GSC の画像検索に名前が乗らない）
+ */
+const LINK_FIELDS = ["id", "title", "dominantColor", "alt", "location"] as const;
 /**
  * グリッド（`GalleryGrid`）が追加で読むもの。
  *   `focalPoint` … 切り抜きの中心

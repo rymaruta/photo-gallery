@@ -3,10 +3,13 @@ import SpotIndexClient from "@/app/components/SpotIndexClient";
 import { spotAreas, spotIndexItemsForArea, visibleSpotsInArea } from "@/lib/data/spotLink";
 import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, pageRobots } from "@/lib/utils/seo";
 import SpotTopicPage from "@/app/components/SpotTopicPage";
-import { overseasView, topicMetadata } from "@/lib/data/spotTopics";
+import { overseasView, topicMetadata, areaStructuredData } from "@/lib/data/spotTopics";
 import { OVERSEAS_SLUG } from "@/lib/data/prefectures";
+
+/** JSON-LD を `<script>` に埋める形（`SpotTopicPage.tsx` と同じ。`</script>` で閉じられないように） */
+const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
 // 静的エクスポート: 列挙した区画のみ生成し、それ以外は 404
 export const dynamicParams = false;
@@ -72,14 +75,17 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
         : `${found.name}で写真を撮りに行ける場所のガイドの下書き（${found.count}件）。`
             + "運営がまだ確認していない情報を含みます。";
     const url = `${siteConfig.url}/spots/area/${found.slug}`;
+    // 代表写真（2026-10-16）。共有したときに県の頁だけ絵が無かった
+    const { ogImage } = areaStructuredData(found, visibleSpotsInArea(found.slug));
     return {
         title,
         description,
         alternates: { canonical: url },
-        robots: indexable ? undefined : { index: false, follow: true },
+        robots: pageRobots(indexable),
         openGraph: {
             type: "website", url, siteName: siteConfig.name,
             locale: siteConfig.locale.ja, title, description,
+            ...(ogImage ? { images: [ogImage] } : {}),
         },
     };
 }
@@ -90,10 +96,16 @@ export default async function SpotAreaPage({ params }: { params: Promise<{ area:
     // 訪問のたびに落ちる。スポットは国の頁（`/spots/area/overseas/<国>`）に分けた。URL はそのまま
     if (area === OVERSEAS_SLUG) return <SpotTopicPage view={overseasView()} eyebrow="Photo spots · Outside Japan" />;
     const found = spotAreas().find((a) => a.slug === area);
+    // パンくずと並べたスポットの `ItemList`（2026-10-16・切り口の頁と同じ形。県の頁だけ無かった）
+    const ld = found ? areaStructuredData(found, visibleSpotsInArea(found.slug)) : null;
     return (
-        <SpotIndexClient
-            spots={spotIndexItemsForArea(area)}
-            area={found ? { name: found.name, nameEn: found.nameEn } : undefined}
-        />
+        <>
+            {ld && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld.breadcrumb) }} />}
+            {ld?.itemList && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld.itemList) }} />}
+            <SpotIndexClient
+                spots={spotIndexItemsForArea(area)}
+                area={found ? { name: found.name, nameEn: found.nameEn } : undefined}
+            />
+        </>
     );
 }

@@ -22,7 +22,7 @@ import { spotCoverImage } from "./spotImages";
 import { spotThumbSrc, spotThumbExists } from "./spotThumbs";
 import { COUNTRY_SHARD_KEYS } from "./spotFeedShards";
 import { REGIONS, prefectureByName, OVERSEAS_SLUG, OVERSEAS_NAME, type RegionName } from "./prefectures";
-import { siteConfig, generateItemListStructuredData, generateBreadcrumbStructuredData } from "../utils/seo";
+import { siteConfig, generateItemListStructuredData, generateBreadcrumbStructuredData, pageRobots } from "../utils/seo";
 import { ROUTES } from "../routes";
 
 /**
@@ -378,8 +378,11 @@ export const countryHeading = (t: Pick<CountryTopic, "name">) => `${t.name}の�
 export const themePath = (t: Pick<ThemeTopic, "categorySlug" | "place">) => ROUTES.SPOT_THEME(t.categorySlug, t.place.slug);
 export const seasonPath = (t: Pick<SeasonTopic, "season" | "area">) => ROUTES.SPOT_SEASON(t.season, t.area ?? undefined);
 
-/** 代表写真（スポットの頁と同じ判断）。サムネが在ればサムネ */
-function cardCover(s: Spot): TopicCard["cover"] {
+/**
+ * 代表写真（スポットの頁と同じ判断）。サムネが在ればサムネ。
+ * 県の頁（`/spots/area/<県>`・`spotIndexItemsForArea`）のカードも同じものを使う（2026-10-22）
+ */
+export function topicCardCover(s: Spot): TopicCard["cover"] {
     const c = spotCoverImage(s);
     if (!c?.src) return null;
     const thumb = spotThumbSrc(c.src);
@@ -408,7 +411,7 @@ export function toTopicCard(s: Spot): TopicCard {
         name: s.name,
         region: [isJapan(s) ? undefined : s.region?.country, s.region?.prefecture, s.region?.city].filter(Boolean).join(" "),
         ...(s.summary ? { summary: s.summary } : {}),
-        cover: cardCover(s),
+        cover: topicCardCover(s),
     };
 }
 
@@ -670,6 +673,42 @@ export function topicStructuredData(view: TopicView) {
     return { breadcrumb, itemList };
 }
 
+/**
+ * **OGP の画像に使う代表写真**（台帳の順で、代表写真を持つ最初の行の元の大きさ）。
+ * 撮影スポットの入口（`/spots`）は子の `openGraph` が親の画像を消すので、絵が無かった（2026-10-16）
+ */
+export function firstSpotOgImage(spots: readonly Spot[], alt: string): { url: string; alt: string } | undefined {
+    for (const s of spots) {
+        const c = spotCoverImage(s);
+        if (c?.src) return { url: c.src.startsWith("http") ? c.src : `${siteConfig.url}${c.src}`, alt };
+    }
+    return undefined;
+}
+
+/**
+ * **県の頁（`/spots/area/<県>`）の構造化データと OGP の画像**（2026-10-16・SEO）。
+ *
+ * 切り口の頁（国・テーマ・季節）はパンくずと `ItemList` と代表写真の OGP を持っていたのに、
+ * 一番数の多い入口の県の頁（47頁）だけ、どれも無かった（実ビルドで数えた）。
+ * 並びは**画面と同じ**（`spotIndexItemsForArea` ＝ `visibleSpotsInArea` の順）。
+ * 画像は切り口の頁と同じ判断（写真のある先頭の行の、元の大きさの代表写真）
+ */
+export function areaStructuredData(area: { slug: string; name: string }, spots: readonly Spot[]) {
+    const abs = (p: string) => `${siteConfig.url}${p}`;
+    const path = `${ROUTES.SPOTS}/area/${area.slug}`;
+    const heading = `${area.name}の撮影スポット`;
+    const breadcrumb = generateBreadcrumbStructuredData([
+        { name: "ホーム", url: siteConfig.url },
+        { name: "撮影スポット", url: abs(ROUTES.SPOTS) },
+        { name: area.name, url: abs(path) },
+    ]);
+    const items = spots.map((s) => ({ name: s.name, url: abs(`${ROUTES.SPOTS}/${s.slug}`) }));
+    const itemList = items.length > 0 ? generateItemListStructuredData(heading, items) : null;
+    const og = ogImageOf(spots, topicCards(spots));
+    const ogImage = og ? { url: og.src.startsWith("http") ? og.src : abs(og.src), alt: heading } : undefined;
+    return { breadcrumb, itemList, ogImage };
+}
+
 /** 頁の題（`<title>`）。検索に出す頁は「N選」（県の頁 `/spots/area/<x>` と同じ言い方） */
 export function topicTitle(view: TopicView): string {
     const n = view.cards.length;
@@ -847,7 +886,7 @@ export function topicMetadata(view: TopicView | null) {
         title,
         description,
         alternates: { canonical: url },
-        robots: view.indexable ? undefined : { index: false, follow: true },
+        robots: pageRobots(view.indexable),
         openGraph: {
             type: "website" as const, url, siteName: siteConfig.name,
             locale: siteConfig.locale.ja, title, description,

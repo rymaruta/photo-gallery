@@ -4,10 +4,10 @@ import React from "react";
 import Link from "next/link";
 import type { Photo, Locale } from "@/lib/data/photos";
 import {
-    collectEntries, collectionPath, collectionIndexPath, slugify, isIndexableCollection, type CollectionEntry,
+    collectEntries, collectionPath, collectionIndexPath, slugify, isIndexableCollection, photosInCollection, type CollectionEntry,
 } from "@/lib/utils/collections";
-import { dedupeCameraName } from "@/lib/utils/cameraName";
 import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
+import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "./Thumb";
 import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 import { placeParts, placeLine } from "../../lib/utils/placeName";
@@ -65,8 +65,7 @@ import { placeParts, placeLine } from "../../lib/utils/placeName";
  * タグのリンクが消えた。**検索に載るタグページ（`isIndexableCollection`）8本への
  * リンクがホームから全部なくなった**ので、ここで持つ。**載らないタグは出さない**
  * （薄いページへ内部リンクを集めない）。行き先は `/search` へ振り替えず、タグページそのもの。
- * 撮影地・カテゴリ・機材は owner の指示（2026-09-22）で `/search` へ振り替えているが、
- * タグは**集約ページへの内部リンクそのものが目的**なので分けた。
+ * 撮影地・カテゴリ・機材も 2026-10-22 から、検索に出す集約ページへは直接張る（下の `linkTo`）。
  * **「すべて見る」は出さない**——タグの索引ページ（`/tag`）は作っていない
  * （`collectionIndexPath` の注記・サイトマップも3種だけ）。出すと全訪問者に 404 へのリンクになる。
  * ⚠️ 柱は高さに収める箱で、よくある PC の画面（1280×800 など）ではこの節は中を送らないと
@@ -100,12 +99,18 @@ function coverOf(photos: Photo[], type: "category" | "location" | "camera", slug
 }
 
 /**
- * 行き先。**「さがす」の検索結果へ振り替える**（owner の指示・2026-09-22）。
- * 写像は 404 救済が持っている1本（`resolveNotFoundRedirect`）を使い回す
- * ので、救済の行き先と柱の行き先が食い違わない。
+ * 行き先。**検索に出す集約ページならそのページ、出さない（noindex の）ものは「さがす」の検索結果。**
+ *
+ * 2026-10-22 判断・2026-10-22 owner 了承（SEO の直し・本番と GSC で確認）: 以前は owner の指示（2026-09-22）で
+ * 全部「さがす」の検索結果（`/search?…`）へ振り替えていたが、`/search` は `robots.txt` で `Disallow`＝
+ * 検索エンジンには行き止まりで、トップから12本のリンクが検索に何も渡していなかった。
+ * 2026-10-22 レビュー: noindex の薄い集約ページへ内部リンクを集めても意味が無いので、**検索に出すページ
+ * （`isIndexableCollection`・数え方は `collectionMetadata` と同じ `photosInCollection`）にだけ**張り、
+ * それ以外は前のとおり検索結果へ（写像は 404 救済の `resolveNotFoundRedirect` の1本）
  */
-function linkTo(type: "category" | "location" | "camera", slug: string): string {
+function linkTo(photos: Photo[], type: "category" | "location" | "camera", slug: string): string {
     const path = collectionPath(type, slug);
+    if (isIndexableCollection(photosInCollection(photos, type, slug).length, type)) return path;
     return resolveNotFoundRedirect(path) ?? path;
 }
 
@@ -167,7 +172,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                             const c = cover("location", s);
                             return (
                                 <li key={s.slug}>
-                                    <Link href={linkTo("location", s.slug)} prefetch={false}
+                                    <Link href={linkTo(photos, "location", s.slug)} prefetch={false}
                                        className="group block relative overflow-hidden rounded-xl bg-surface ring-1 ring-line focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                        style={{ aspectRatio: "1 / 1", touchAction: "manipulation" }}>
                                         {c && <Thumb photo={c} alt="" sizes="200px" />}
@@ -202,7 +207,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                             const cv = cover("category", c);
                             return (
                                 <li key={c.slug}>
-                                    <Link href={linkTo("category", c.slug)} prefetch={false}
+                                    <Link href={linkTo(photos, "category", c.slug)} prefetch={false}
                                        className="block text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
                                        style={{ touchAction: "manipulation" }}>
                                         <span className="block relative rounded-full overflow-hidden bg-surface ring-1 ring-line mx-auto"
@@ -232,7 +237,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                     <ul className="flex flex-wrap gap-1.5 m-0 p-0" style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
                             <li key={c.slug}>
-                                <Link href={linkTo("camera", c.slug)} prefetch={false}
+                                <Link href={linkTo(photos, "camera", c.slug)} prefetch={false}
                                    className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
                                    style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     {c.label}

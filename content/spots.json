@@ -7352,21 +7352,35 @@
     ],
     "compositionTips": [
       "走る電車を止めて写すなら、シャッター速度は1/500秒以上にしてください",
-      "犬吠駅の駅舎は白い壁が明るいので、露出は壁が飛ばないように決めてください"
+      "犬吠駅の駅舎は白い壁が明るいので、露出は壁が飛ばないように決めてください",
+      "犬吠駅から犬吠埼灯台までは歩いて7分ほどなので、駅舎と灯台を続けて撮りに行けます",
+      "全線6.4kmを約20分で走るので、1日乗車券で駅ごとに降りながら撮り歩けます"
     ],
     "officialWebsiteUrl": "https://www.choshi-dentetsu.jp/",
     "status": "published",
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-26T00:00:00.000Z",
+    "updatedAt": "2026-10-22T00:00:00.000Z",
     "aiCheck": {
-      "checkedAt": "2026-09-26",
+      "checkedAt": "2026-10-22",
       "delegatedBy": "rymaruta",
       "sources": [
         {
           "url": "https://ja.wikipedia.org/wiki/%E9%8A%9A%E5%AD%90%E9%9B%BB%E6%B0%97%E9%89%84%E9%81%93",
           "title": "Wikipedia「銚子電気鉄道」"
+        },
+        {
+          "url": "https://www.choshi-dentetsu.jp/vspot/29/",
+          "title": "銚子電気鉄道「犬吠埼灯台」"
+        },
+        {
+          "url": "https://wwwtb.mlit.go.jp/kanto/content/000307063.pdf",
+          "title": "国土交通省 関東運輸局「お出かけガイド 銚子電気鉄道」"
+        },
+        {
+          "url": "https://www.choshi-dentetsu.jp/pass/",
+          "title": "銚子電気鉄道「おとくなきっぷ」"
         }
       ],
       "imageChecked": true
@@ -75277,25 +75291,36 @@
       "山手線の線路と平行に描かれる建物の曲線"
     ],
     "compositionTips": [
-      "建物の曲線は線路の曲線と平行なので、曲線の流れに沿って奥行きを出す構図を試してください"
+      "建物の曲線は線路の曲線と平行なので、曲線の流れに沿って奥行きを出す構図を試してください",
+      "ガラス棟と地上広場の公共スペースは、開館中（7時〜23時30分）なら自由に見学できます"
     ],
     "officialWebsiteUrl": "https://www.t-i-forum.co.jp/",
     "status": "published",
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-28T01:35:31.881Z",
+    "updatedAt": "2026-10-22T00:00:00.000Z",
     "aiCheck": {
-      "checkedAt": "2026-09-28",
+      "checkedAt": "2026-10-22",
       "delegatedBy": "rymaruta",
       "sources": [
         {
           "url": "https://ja.wikipedia.org/wiki/%E6%9D%B1%E4%BA%AC%E5%9B%BD%E9%9A%9B%E3%83%95%E3%82%A9%E3%83%BC%E3%83%A9%E3%83%A0",
           "title": "Wikipedia「東京国際フォーラム」"
+        },
+        {
+          "url": "https://www.t-i-forum.co.jp/contact/faq/service/",
+          "title": "東京国際フォーラム「よくあるご質問（館内施設・サービス）」"
         }
       ],
       "imageChecked": true
-    }
+    },
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "23時30分まで開館しているので、日が暮れてからもガラス棟の中に入れます。"
+      }
+    ]
   },
   {
     "spotId": "sp_98d642415c06",
@@ -93242,12 +93267,13 @@
     "seasonalGuide": [
       {
         "season": "winter",
-        "text": "1904年から毎年、12月31日から1月1日にかけてカウントダウンが行われ、ワン・タイムズスクエアでボールドロップが行われます。"
+        "text": "1904年から毎年、12月31日から1月1日にかけてカウントダウンが行われ、ワン・タイムズスクエアでボールドロップが行われます。見物の区画は12月31日の15時に開き、先着順で入ると案内されています。"
       }
     ],
     "compositionTips": [
       "ダフィー・スクエアの赤い階段状の座席に上がると、交差点とビルボードを少し高い位置から見渡せます",
-      "ビルボードの光が主役なので、明るさの差が大きい場面では露出を看板に合わせます"
+      "ビルボードの光が主役なので、明るさの差が大きい場面では露出を看板に合わせます",
+      "広場の路面には歩行者が通り抜けるための区画（Pedestrian Flow Zone）が設けられているので、立ち止まって構えるのはその外にします"
     ],
     "officialWebsiteUrl": "https://www.timessquarenyc.org/",
     "timeZone": "America/New_York",
@@ -93255,9 +93281,9 @@
     "draftedAt": "2026-10-07",
     "draftedBy": "claude",
     "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-08T00:00:00.000Z",
+    "updatedAt": "2026-10-22T00:00:00.000Z",
     "aiCheck": {
-      "checkedAt": "2026-10-07",
+      "checkedAt": "2026-10-22",
       "delegatedBy": "rymaruta",
       "sources": [
         {
@@ -93267,9 +93293,23 @@
         {
           "url": "https://www.wikidata.org/wiki/Q11259",
           "title": "Wikidata「Q11259」（座標・所在地）"
+        },
+        {
+          "url": "https://www.timessquarenyc.org/nye/nye-faq",
+          "title": "Times Square Alliance「NYE FAQ」"
+        },
+        {
+          "url": "https://rules.cityofnewyork.us/rule/amendments-to-traffic-rules-relating-to-the-theatre-district-zone/",
+          "title": "NYC Rules「Theatre District Zone」（歩行者の区画）"
         }
       ]
-    }
+    },
+    "timeOfDayGuide": [
+      {
+        "time": "dusk",
+        "text": "日没後、空にまだ青さが残るうちは、看板の光とビルの輪郭を一緒に写せます。"
+      }
+    ]
   },
   {
     "spotId": "sp_6c97fb03b1ee",
@@ -93470,13 +93510,13 @@
     "seasonalGuide": [
       {
         "season": "summer",
-        "text": "夏の間は、太陽が空高く昇ったときに、アッパー・アンテロープ・キャニオンで光芒がよく見られます。"
+        "text": "光の筋は4月から9月に見られると、アッパー・アンテロープ・キャニオンのツアー会社が案内しています。"
       }
     ],
     "timeOfDayGuide": [
       {
         "time": "day",
-        "text": "太陽が高く昇った時間に、頂部の開口部から光が真っ直ぐ差し込みます。"
+        "text": "太陽が高く昇った時間に、頂部の開口部から光が真っ直ぐ差し込みます。アッパーのツアー会社は光の筋を見るなら11時20分（アリゾナ時間）の回を勧め、ロウワーのツアー会社は10時から13時ごろと案内しています。"
       }
     ],
     "compositionTips": [
@@ -93489,9 +93529,9 @@
     "draftedAt": "2026-10-07",
     "draftedBy": "claude",
     "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-08T00:00:00.000Z",
+    "updatedAt": "2026-10-22T00:00:00.000Z",
     "aiCheck": {
-      "checkedAt": "2026-10-07",
+      "checkedAt": "2026-10-22",
       "delegatedBy": "rymaruta",
       "sources": [
         {
@@ -93501,6 +93541,14 @@
         {
           "url": "https://www.wikidata.org/wiki/Q308926",
           "title": "Wikidata「Q308926」（座標・所在地）"
+        },
+        {
+          "url": "https://www.antelopecanyon.com/faq/",
+          "title": "Antelope Canyon Tours「FAQ」"
+        },
+        {
+          "url": "https://lowerantelope.com/faq/",
+          "title": "Ken's Tours「FAQ」"
         }
       ]
     }
@@ -122491,16 +122539,17 @@
     ],
     "compositionTips": [
       "海から近づく船上で断崖と波を一緒に入れると、外洋の孤島らしい荒々しさが出ます",
-      "高台からは港と断崖を見下ろし、水平線を高めに置くと島の険しさが伝わります"
+      "高台からは港と断崖を見下ろし、水平線を高めに置くと島の険しさが伝わります",
+      "西の端のソムドゥン半島は、海岸沿いが半島ごと柱状節理の崖で「ソムドゥン屏風岩」とも呼ばれます。崖と海を一緒に入れる構図が組めます"
     ],
     "timeZone": "Asia/Seoul",
     "status": "published",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
-    "updatedAt": "2026-10-08T00:00:00.000Z",
+    "updatedAt": "2026-10-22T00:00:00.000Z",
     "aiCheck": {
-      "checkedAt": "2026-10-08",
+      "checkedAt": "2026-10-22",
       "delegatedBy": "rymaruta",
       "sources": [
         {
@@ -122514,10 +122563,20 @@
         {
           "url": "https://japanese.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=67472",
           "title": "公式サイト「japanese.visitkorea.or.kr」"
+        },
+        {
+          "url": "https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=2127ed2c-a470-4ee3-88d4-4c6834a6b023",
+          "title": "韓国観光公社「新安 可居島 ソムドゥン半島」"
         }
       ]
     },
-    "officialWebsiteUrl": "https://japanese.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=67472"
+    "officialWebsiteUrl": "https://japanese.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=67472",
+    "timeOfDayGuide": [
+      {
+        "time": "dusk",
+        "text": "西の端のソムドゥン半島は、韓国でいちばん遅く日が沈む所として韓国観光公社が紹介しています。"
+      }
+    ]
   },
   {
     "spotId": "sp_445e14117939",

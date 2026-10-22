@@ -126,6 +126,39 @@ export function handPickedNearby(spot: Spot, spots: readonly Spot[] = SPOTS): Sa
         .map((s) => toRow(s, spot.coords));
 }
 
+/** 写真ページの「近くの撮影スポット」に出す件数と、近いと呼ぶ距離（km） */
+export const PHOTO_NEARBY_SPOTS = 4;
+export const PHOTO_NEARBY_SPOTS_KM = 30;
+
+/**
+ * **写真ページの「近くの撮影スポット」**（2026-10-22）。写真の場所から近い順に、公開済みの撮影地ガイドを数件。
+ *
+ * - 基準の場所: 写真が撮影スポット（`spotId`）を指していればその座標、無ければ写真の座標
+ *   （約1km に丸めた公開の値・地名から引いた推定 `geoApprox` を含む）。どちらも無ければ出さない
+ * - **人が確かめたか AI 照合で公開したものだけ**（`publishedVisibleOf`）。写真が指すスポット自身は除く
+ *   （そちらは写真の下の札で出ている）
+ * - 🔴 **距離は出さない。** 写真の座標からの距離を並べると、数件の距離から写真の場所を細かく割り出せる。
+ *   並びが近い順なだけで、行には名前と地域だけを出す
+ */
+export function nearbySpotsForPhoto(
+    photo: { spotId?: string | null; coords?: { lat: number; lng: number } | null },
+    spots: readonly Spot[] = SPOTS,
+    limit = PHOTO_NEARBY_SPOTS,
+    maxKm = PHOTO_NEARBY_SPOTS_KM,
+): SameAreaSpot[] {
+    const shown = publishedVisibleOf(spots);
+    const own = photo.spotId ? visibleSpots(spots).find((s) => s.spotId === photo.spotId) : undefined;
+    const here = own?.coords ?? photo.coords ?? null;
+    if (!here || !Number.isFinite(here.lat) || !Number.isFinite(here.lng)) return [];
+    return shown
+        .filter((s) => s.coords && s.spotId !== photo.spotId)
+        .map((s) => ({ s, d: haversineKm(here, s.coords!) }))
+        .filter((x) => x.d <= maxKm)
+        .sort((x, y) => x.d - y.d || x.s.name.localeCompare(y.s.name, "ja"))
+        .slice(0, limit)
+        .map(({ s }) => toRow(s, undefined));
+}
+
 /**
  * 母集合ごとの「ページを建てられて公開済み」の行（`visibleSpots` ＋ `isPublished`）。
  * **配列ごとに1回だけ数える。** `sameAreaSpots` はページごと（＝全スポットぶん）呼ばれ、

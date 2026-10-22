@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import rawLedger from "../../../content/spots.json";
 import type { Spot } from "../spots";
-import { spotPageTitle, spotPageDescription, spotCheckedClaim, spotWhere, titleWidth, SPOT_TITLE_MAX } from "../spotPageMeta";
+import { spotPageTitle, spotPageDescription, spotCheckedClaim, spotWhere, titleWidth, SPOT_TITLE_MAX, isClosureSeasonText } from "../spotPageMeta";
+import { SEASON_JA } from "../spotTopics";
 import { isPublished } from "../../utils/spotGuide";
 
 /**
@@ -11,18 +12,35 @@ import { isPublished } from "../../utils/spotGuide";
 const ledger = rawLedger as unknown as Spot[];
 const base = ledger.find((s) => s.slug === "himeji-castle")!;
 
-describe("title", () => {
-    it("検索の語（撮影スポット・撮影ガイド）と地名・短いサイト名。「時間帯・季節」は付けない", () => {
-        const t = spotPageTitle({ name: "姫路城", region: { country: "日本", prefecture: "兵庫県", city: "姫路市" } });
-        expect(t).toBe("姫路城の撮影スポット・撮影ガイド（兵庫県 姫路市） | Journey Photo");
-        expect(t).not.toMatch(/時間帯|季節/);
+describe("title（2026-10-22: 検索される型「〈名所〉 写真／撮影／撮影地」に合わせる）", () => {
+    const himeji = { name: "姫路城", region: { country: "日本", prefecture: "兵庫県", city: "姫路市" } };
+
+    it("名前のすぐ後に「の写真・撮影スポット」、押す理由（作例の節の枚数）、収まれば地名。サイト名は付けない", () => {
+        const t = spotPageTitle(himeji, { samples: 5, cover: true, light: true });
+        // 🔴 作例は節に並ぶ5枚だけ（代表写真は数えない・2026-10-22 レビュー）
+        expect(t).toBe("姫路城の写真・撮影スポット｜作例5枚（兵庫県 姫路市）");
+        expect(t).not.toContain("Journey Photo");
         expect(titleWidth(t)).toBeLessThanOrEqual(SPOT_TITLE_MAX);
     });
 
-    it("長い名前は後ろから削る（上限を超えない）", () => {
-        const long = { name: "オペラ・ガルニエ（パレ・ガルニエ）", region: { country: "フランス", prefecture: "イル・ド・フランス", city: "パリ" } };
-        expect(spotPageTitle(long)).toBe("オペラ・ガルニエ（パレ・ガルニエ）の撮影ガイド | Journey Photo");
-        expect(spotPageTitle({ name: "あ".repeat(40), region: undefined })).toBe(`${"あ".repeat(40)}の撮影ガイド`);
+    it("🔴 作例が0枚なら「作例」を書かない・写真が1枚も無ければ「写真」と名乗らない", () => {
+        expect(spotPageTitle(himeji, { samples: 0, cover: true, light: true })).toBe("姫路城の写真・撮影スポット（兵庫県 姫路市）");
+        expect(spotPageTitle(himeji, { samples: 2, cover: false })).toBe("姫路城の写真・撮影スポット｜作例2枚（兵庫県 姫路市）");
+        expect(spotPageTitle(himeji, { samples: 0, cover: false, light: true })).toBe("姫路城の撮影スポット（兵庫県 姫路市）");
+        expect(spotPageTitle(himeji, {})).toBe("姫路城の撮影スポット（兵庫県 姫路市）");
+    });
+
+    it("短くする規則: 地域 → 作例の順に落とし、「の写真」は最後まで残す", () => {
+        const abukuma = { name: "あぶくま洞", region: { country: "日本", prefecture: "福島県", city: "田村市" } };
+        expect(spotPageTitle(abukuma, { samples: 5, cover: true })).toBe("あぶくま洞の写真・撮影スポット｜作例5枚（福島県 田村市）");
+        const longer = { name: "国営ひたち海浜公園 みはらしの丘", region: { country: "日本", prefecture: "茨城県", city: "ひたちなか市" } };
+        // 地名まで入れると 33 を超える → 地名を落とし、作例は残す
+        expect(spotPageTitle(longer, { samples: 5, cover: true })).toBe("国営ひたち海浜公園 みはらしの丘の写真・撮影スポット｜作例5枚");
+        const opera = { name: "オペラ・ガルニエ（パレ・ガルニエ）", region: { country: "フランス", prefecture: "イル・ド・フランス", city: "パリ" } };
+        expect(spotPageTitle(opera, { cover: true })).toBe("オペラ・ガルニエ（パレ・ガルニエ）の写真・撮影スポット");
+        // 名前そのものが長い → 「〇〇の写真」（写真は落とさない）
+        expect(spotPageTitle({ name: "あ".repeat(40), region: undefined }, { samples: 3 })).toBe(`${"あ".repeat(40)}の写真`);
+        expect(spotPageTitle({ name: "あ".repeat(40), region: undefined }, {})).toBe(`${"あ".repeat(40)}の撮影スポット`);
     });
 
     it("全角換算の長さ（半角は 0.5）", () => {
@@ -35,43 +53,84 @@ describe("title", () => {
         expect(spotWhere({ region: { country: "日本", prefecture: "京都府", city: "宮津市" } })).toBe("京都府 宮津市");
     });
 
-    it("公開中の全件で上限を超えない（名前そのものが長いものを除く）", () => {
+    it("公開中の全件: 写真があれば必ず「〇〇の写真」を含み、上限を超えるのは名前そのものが長いときだけ。無ければ「写真」を含まない", () => {
         for (const s of ledger.filter(isPublished)) {
-            const t = spotPageTitle(s);
-            if (t === `${s.name}の撮影ガイド`) continue;
-            expect(titleWidth(t), s.slug).toBeLessThanOrEqual(SPOT_TITLE_MAX);
+            const t = spotPageTitle(s, { samples: 5, cover: true, light: true });
+            expect(t, s.slug).toContain(`${s.name}の写真`);
+            if (t !== `${s.name}の写真`) expect(titleWidth(t), s.slug).toBeLessThanOrEqual(SPOT_TITLE_MAX);
+            const none = spotPageTitle(s, {});
+            expect(none.replace(s.name, ""), s.slug).not.toContain("写真");
         }
     });
 
-    it("ページはサイトの template を外して渡す（title.absolute）", async () => {
+    it("ページはサイトの template を外し、title と description に同じ事実を渡す", async () => {
         const fs = await import("node:fs");
         const path = await import("node:path");
         const src = fs.readFileSync(path.join(__dirname, "../../../app/spots/[slug]/page.tsx"), "utf8");
         expect(src).toMatch(/title: \{ absolute: title \}/);
+        expect(src).toMatch(/spotPageTitle\(spot, facts\)/);
+        expect(src).toMatch(/spotPageDescription\(spot, facts\)/);
     });
 });
 
-describe("description", () => {
-    it("紹介文＋ページに在るもの（撮影の光・作例の枚数）", () => {
-        const d = spotPageDescription({ ...base, seasonalGuide: undefined, timeOfDayGuide: undefined }, { light: true, samples: 5, cover: true });
-        expect(d).toBe(`${base.summary}撮影の光（月ごとの日の出・日の入り・ゴールデンアワー）・作例・代表写真6枚を掲載。`);
+describe("description（押す理由を頭・Wikipedia 由来の紹介文は後ろ）", () => {
+    const plain = { ...base, seasonalGuide: undefined, timeOfDayGuide: undefined };
+
+    it("頭に「〇〇の写真・撮影地ガイド。」と作例の節の枚数・光の表、紹介文は最後", () => {
+        const d = spotPageDescription(plain, { light: true, samples: 5, cover: true });
+        expect(d).toBe(`姫路城の写真・撮影地ガイド。作例5枚、月ごとの日の出・日の入り・ゴールデンアワー。${base.summary}`);
+        expect(d.indexOf("作例5枚")).toBeLessThan(d.indexOf(base.summary!));
     });
 
-    it("無いものは書かない", () => {
-        const d = spotPageDescription({ ...base, seasonalGuide: undefined, timeOfDayGuide: undefined }, {});
-        expect(d).toBe(base.summary);
+    it("無いものは書かない（作例0枚なら作例を書かない・写真が無ければ「写真」と名乗らない）", () => {
+        expect(spotPageDescription(plain, { samples: 0, cover: true })).toBe(`姫路城の写真・撮影地ガイド。${base.summary}`);
+        const none = spotPageDescription(plain, { samples: 0, cover: false });
+        expect(none).toBe(`姫路城の撮影地ガイド。${base.summary}`);
+        expect(none).not.toContain("作例");
     });
 
-    it("季節・時間帯の案内があれば足す。計算の要約（computed）は紹介文のすぐ後", () => {
+    it("季節ごとの景色は在る季節だけを春夏秋冬の順で・計算の要約（方角・天の川）は紹介文より前", () => {
         const d = spotPageDescription(
-            { ...base, seasonalGuide: [{ season: "spring", text: "桜" }] as unknown as Spot["seasonalGuide"], timeOfDayGuide: [{ time: "morning", text: "順光" }] as unknown as Spot["timeOfDayGuide"] },
-            { computed: "夕日は11月に正面" },
+            { ...base, seasonalGuide: [{ season: "winter", text: "氷柱" }, { season: "spring", text: "桜" }] as unknown as Spot["seasonalGuide"], timeOfDayGuide: [{ time: "morning", text: "順光" }] as unknown as Spot["timeOfDayGuide"] },
+            { samples: 1, computed: "日の入りは6月が西北西寄り、12月が西南西寄り" },
         );
-        expect(d).toBe(`${base.summary}夕日は11月に正面。季節の撮りどき・時間帯ごとの撮り方を掲載。`);
+        expect(d).toBe(`姫路城の写真・撮影地ガイド。作例1枚、季節ごとの景色（春・冬）、時間帯ごとの撮り方。日の入りは6月が西北西寄り、12月が西南西寄り。${base.summary}`);
+    });
+
+    it("🔴 閉鎖・運休・見学できない季節は並べない（公開中の台帳の実例で）", () => {
+        const closed = ledger.filter(isPublished).flatMap((s) => (s.seasonalGuide ?? [])
+            .filter((g) => isClosureSeasonText(g.text)).map((g) => ({ s, season: g.season })));
+        expect(closed.length, "台帳に閉鎖の季節が1件も無い（見張りが空回りしている）").toBeGreaterThan(3);
+        for (const { s, season } of closed) {
+            const d = spotPageDescription(s, { samples: 1 });
+            const m = /季節ごとの景色（([^）]*)）/.exec(d);
+            const listed = m ? m[1].split("・") : [];
+            // 同じ季節に閉鎖でない案内もあれば並べてよい
+            const open = (s.seasonalGuide ?? []).some((g) => g.season === season && !isClosureSeasonText(g.text));
+            if (!open) expect(listed, `${s.slug} ${season}`).not.toContain(SEASON_JA[season]);
+        }
+        const akita = ledger.find((s) => s.slug === "akitainu-no-sato");
+        if (akita && isPublished(akita)) expect(spotPageDescription(akita, {})).not.toMatch(/季節ごとの景色（[^）]*冬/);
+    });
+
+    it("「撮影に向く」のような価値判断の言い方はしない", () => {
+        for (const s of ledger.filter(isPublished).slice(0, 300)) {
+            expect(spotPageDescription(s, { samples: 1 }), s.slug).not.toMatch(/向く季節|おすすめの季節/);
+        }
     });
 
     it("下書きは頭でそう名乗る", () => {
         expect(spotPageDescription({ ...base, status: "review" }, {}).startsWith("【下書き・運営未確認】")).toBe(true);
+    });
+});
+
+describe("🔴 文章に「撮りどき」を使わない（2026-10-22 owner）", () => {
+    it("title・description に出ない（季節・時間帯・光の表・作例がそろった行でも）", () => {
+        for (const s of ledger.filter(isPublished).slice(0, 300)) {
+            const facts = { samples: 5, cover: true, light: true, computed: "日の入りは6月が西北西寄り" };
+            expect(spotPageTitle(s, facts), s.slug).not.toContain("撮りどき");
+            expect(spotPageDescription(s, facts), s.slug).not.toContain("撮りどき");
+        }
     });
 });
 

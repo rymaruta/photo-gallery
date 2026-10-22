@@ -44,6 +44,18 @@ const view = (samples?: SpotSample[]) => render(
     </ToastProvider>,
 );
 
+describe("作例の alt に場所の名前（2026-10-22）", () => {
+    it("「〈場所〉の写真（作例・撮影: 作者）」。出典の文がある写真はそれをそのまま", () => {
+        view([...SAMPLES, { ...SAMPLES[0], sourceUrl: "https://example.go.jp/a", credit: "出典：「タデ原の写真」（環境省）" }]);
+        const alts = Array.from(screen.getByTestId("spot-samples").querySelectorAll("img")).map((i) => i.getAttribute("alt"));
+        expect(alts).toEqual([
+            "鹿苑寺（金閣寺）の写真（作例・撮影: Romain Pontida）",
+            "鹿苑寺（金閣寺）の写真（作例・撮影: 作者不明）",
+            "鹿苑寺（金閣寺）の写真（作例・出典：「タデ原の写真」（環境省））",
+        ]);
+    });
+});
+
 describe("作例（Wikimedia Commons より）", () => {
     it("見出しで Wikimedia Commons からと名乗り、利用者の投稿とは別だと書く", () => {
         view(SAMPLES);

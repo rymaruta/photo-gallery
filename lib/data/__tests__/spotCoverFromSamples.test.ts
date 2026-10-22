@@ -277,13 +277,24 @@ describe("レビューの直し（2026-10-11）", () => {
         expect(checked).toBeGreaterThan(100);
     });
 
-    it("🔴 description の枚数は、代表写真と同じ作例を除いて数える", async () => {
+    it("🔴 title・description の「作例N枚」は作例の節に並ぶ枚数（代表写真と同じ作例を除き、代表写真は足さない）", async () => {
         // 作例が6枚未満のスポット（除かないと1枚多く数える）
         const hit = promoted.find(({ spot }) => spotSamples(spot).length < 6 && spotSamples(spot).length > 0)!;
         expect(hit).toBeDefined();
-        const n = spotSamples(hit.spot, { exclude: [hit.image.pageUrl] }).length + 1;
+        // 節に並ぶのは `SpotGuidePage` が渡す `spotSamples(spot, { exclude: [cover.sourceUrl] })`
+        const n = spotSamples(hit.spot, { exclude: [hit.image.pageUrl] }).length;
         const meta = await generateMetadata({ params: Promise.resolve({ slug: hit.spot.slug }) });
-        expect(String(meta.description)).toContain(`作例・代表写真${n}枚`);
+        if (n > 0) {
+            expect(String(meta.description)).toContain(`作例${n}枚、`);
+            expect(String((meta.title as { absolute?: string })?.absolute ?? "")).toMatch(new RegExp(`作例${n}枚|の写真・撮影スポット`));
+        }
+        expect(String(meta.description)).not.toContain(`作例${n + 1}枚`);
+        const fs = await import("node:fs");
+        const path = await import("node:path");
+        const page = fs.readFileSync(path.join(__dirname, "../../../app/components/SpotGuidePage.tsx"), "utf8");
+        expect(page).toContain("const samples = spotSamples(spot, { exclude: [cover?.sourceUrl] });");
+        const route = fs.readFileSync(path.join(__dirname, "../../../app/spots/[slug]/page.tsx"), "utf8");
+        expect(route).toContain("samples: spotSamples(spot, { exclude: [cover?.sourceUrl] }).length,");
     });
 
     it("使えないパブリックドメイン: PD-Detroit・Flickr の Public Domain Mark を落とす", () => {
