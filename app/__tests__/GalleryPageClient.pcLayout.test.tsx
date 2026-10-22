@@ -102,25 +102,13 @@ describe("PC の設計（指示書 4・11・17）", () => {
             expect(MOSAIC_HERO_SIZES, "`sizes` を対で動かしていない").toContain("40rem");
         });
 
-        it("🔴 柱を押したら「さがす」の検索結果へ行く（集約ページではない）", () => {
+        it("🔴 柱の項目: 検索に出す集約ページへは直接、noindex のものは「さがす」の検索結果へ（2026-10-22）", () => {
             const { container } = render(<GalleryPageClient surface="home" />);
-            // **節の項目だけを見る。** 見出しの「すべて見る ›」は索引ページ
-            // （`/category` `/location` `/camera`）へ向ける——**トップから
-            // 集約ページへ渡す唯一の1本**で、これが無いと `/search` が
-            // `robots.txt` で `Disallow` なぶん、トップはリンクを1本も渡さない
-            // （2026-09-22 に実ビルドで 0本 と数えた）。
-            // 見出しの行き先は下の「索引ページへ行ける」で別に縛る
             const all = [...container.querySelectorAll("main aside a")].map((a) => a.getAttribute("href") ?? "");
-            // **タグの節は例外**: 検索に載るタグページ（`/tag/<slug>`）へ直接張る
-            // （集約ページへの内部リンクそのものが目的・`DiscoverRail` の注記）
-            const links = all.filter((h) => !/^\/(category|location|camera)$/.test(h) && !/^\/tag\/[^/]+$/.test(h));
-            expect(links.length, "柱にリンクが無い").toBeGreaterThan(0);
-            for (const href of links) {
-                expect(href, `集約ページのままになっている: ${href}`).toMatch(/^\/search\?/);
+            expect(all.length, "柱にリンクが無い").toBeGreaterThan(0);
+            for (const href of all) {
+                expect(href, `想定外の行き先: ${href}`).toMatch(/^\/(search\?|(category|location|camera|tag)(\/[^/]+)?$)/);
             }
-            // カテゴリは専用の絞り込み、撮影地は `?q=`（`useGallery` が読む形）
-            expect(links.some((h) => h.startsWith("/search?category=")), "カテゴリの絞り込みに載っていない").toBe(true);
-            expect(links.some((h) => h.startsWith("/search?q=")), "撮影地・機材が検索語に載っていない").toBe(true);
         });
 
         /**
