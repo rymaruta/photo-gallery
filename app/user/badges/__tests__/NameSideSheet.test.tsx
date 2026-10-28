@@ -74,12 +74,34 @@ describe("名前の横の設定: 初期メンバーの印", () => {
         expect(screen.getByTestId("name-side-preview").querySelector("[data-testid=early-mark]")).toBeNull();
     });
 
-    it("既定（決めていない・他の印なし）: 下見に出て「付ける」が選ばれている", () => {
+    it("既定（決めていない・他の印なし）: 下見に出る。どちらも選ばれておらず、自動で付いていると言う", () => {
         open(early);
         expect(screen.getByTestId("name-side-preview").querySelector("[data-testid=early-mark]")).not.toBeNull();
         const fs = screen.getByTestId("name-side-early");
-        expect((fs.querySelector("input[value=on]") as HTMLInputElement).checked).toBe(true);
-        expect(screen.getByTestId("name-side-early-auto")).toBeTruthy();
+        expect((fs.querySelector("input[value=on]") as HTMLInputElement).checked).toBe(false);
+        expect((fs.querySelector("input[value=off]") as HTMLInputElement).checked).toBe(false);
+        expect(screen.getByTestId("name-side-early-auto").textContent).toContain("自動で付いています");
+    });
+
+    // レビューの指摘（2026-10-28）: 既定で出ている人の「付ける」が最初から選ばれていると、押しても
+    // 何も起きず、決めたつもりで既定のまま残る（あとでメダルを選ぶと消える）
+    it("既定で出ている人が「付ける」を押すと、earlyMarkOn: true を送る（並べて出し続ける）", async () => {
+        mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => ({ ...early, earlyMarkOn: true }) });
+        open(early);
+        fireEvent.click(screen.getByTestId("name-side-early").querySelector("input[value=on]")!);
+        expect(screen.queryByTestId("name-side-early-auto")).toBeNull();
+        // 決めた後はメダルを選んでも下見から消えない
+        fireEvent.click(screen.getByRole("button", { name: "最初の一枚" }));
+        expect(screen.getByTestId("name-side-preview").querySelector("[data-testid=early-mark]")).not.toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "決める" }));
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        expect(JSON.parse(mockUserFetch.mock.calls[0][1].body)).toEqual({ displayBadge: "first", earlyMarkOn: true });
+    });
+
+    it("他の印が出ていて自動で外れている人には、そう言う", () => {
+        open({ ...early, pro: true });
+        expect(screen.getByTestId("name-side-preview").querySelector("[data-testid=early-mark]")).toBeNull();
+        expect(screen.getByTestId("name-side-early-auto").textContent).toContain("自動で外れています");
     });
 
     it("既定のままメダルを選ぶと、下見から消える（他の印が出るので）", () => {

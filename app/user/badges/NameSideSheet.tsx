@@ -235,14 +235,18 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                                 <EarlyMemberMark shown size={14} locale={locale} />
                                 {en ? "Early member mark" : "初期メンバーの印"}
                             </span>
+                            {/* 2026-10-28 判断: 選ばれている印は**本人が決めた値**（`earlyMarkOn`）だけで付ける。
+                                出ているか（`earlyShown`）で付けると、既定で出ている人の「付ける」が最初から選ばれて
+                                いて押しても何も起きず（ラジオは選択済みを押しても変わらない）、決めたつもりで
+                                既定のまま残る——あとでメダルを選ぶと印が消える。決めるまでは下の一行で今の状態を言う */}
                             <div className={SEGMENTS}>
                                 {verifiedOptions.map((o) => (
-                                    <label key={String(o.off)} className={segmentClass(earlyShown === !o.off)} style={{ minHeight: 44 }}>
+                                    <label key={String(o.off)} className={segmentClass(draft.earlyMarkOn === !o.off)} style={{ minHeight: 44 }}>
                                         <input
                                             type="radio"
                                             name="early-mark"
                                             value={o.off ? "off" : "on"}
-                                            checked={earlyShown === !o.off}
+                                            checked={draft.earlyMarkOn === !o.off}
                                             onChange={() => setDraft((d) => ({ ...d, earlyMarkOn: !o.off }))}
                                             className="sr-only"
                                         />
@@ -252,9 +256,9 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                             </div>
                             {draft.earlyMarkOn === null && (
                                 <span className="block mt-1.5 text-[12px] text-white/60" data-testid="name-side-early-auto">
-                                    {en
-                                        ? "Until you choose, it shows only when nothing else is next to your name."
-                                        : "決めるまでは、名前の横にほかの印が無いときだけ付きます。"}
+                                    {earlyShown
+                                        ? (en ? "Shown for now: nothing else is next to your name. Choose to keep it or remove it." : "いまは自動で付いています（名前の横にほかの印が無いため）。決めておくこともできます。")
+                                        : (en ? "Hidden for now: something else is next to your name. Choose Show to add it." : "いまは自動で外れています（名前の横にほかの印があるため）。「付ける」で並べて出せます。")}
                                 </span>
                             )}
                         </fieldset>
