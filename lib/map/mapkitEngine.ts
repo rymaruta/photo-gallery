@@ -126,7 +126,12 @@ export function loadMapKit(token: string, language: string): Promise<MapKitGloba
     loading = new Promise<MapKitGlobal>((resolve, reject) => {
         const finish = () => {
             const mk = w.mapkit as MapKitGlobal | undefined;
-            if (!mk || typeof mk.init !== "function") { reject(new Error("mapkit: missing")); return; }
+            if (!mk || typeof mk.init !== "function") {
+                // 届いたと言いながら中身が無い。次の回は足し直す（ずっと断り続けない）
+                scriptState = "none";
+                reject(new Error("mapkit: missing"));
+                return;
+            }
             try {
                 resolve(ready(mk));
             } catch (e) {
@@ -161,6 +166,16 @@ export function loadMapKit(token: string, language: string): Promise<MapKitGloba
         s.dataset.libraries = "map,annotations";
         // 読めなかった。次の回は足し直す（圏外から戻った）
         s.onerror = () => { scriptState = "none"; settle(new Error("mapkit: load failed")); };
+        // **読み終えたのに呼び戻しが来ない**まま残ると、このページでは二度とやり直さない
+        // （開くたびに10秒待って控えの地図）。待っても来なければ外して、次の回に足し直す
+        s.onload = () => {
+            window.setTimeout(() => {
+                if (scriptState !== "loading") return;
+                scriptState = "none";
+                s.remove();
+                settle(new Error("mapkit: no callback"));
+            }, LOAD_TIMEOUT_MS);
+        };
         document.head.appendChild(s);
     }).catch((e) => {
         // 次の画面でやり直せるようにする
@@ -300,6 +315,13 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
         const t = e.target as Element | null;
         pressOnMarker = !!t?.closest?.(`.${MARKER_HOST}`);
     }, true);
+    // **人が地図を触ったかは、地図の箱への入力で決める。** MapKit の scroll-start /
+    // zoom-start が、矢印キー・ダブルタップ・トラックパッドのズームでも来るかは
+    // 確かめられない。来なければ控えが始まらず、写真を開いて戻ると古い場所へ戻される。
+    // 印を押しただけで立っても害は無い（控えるのは場所が変わったときだけ）
+    for (const type of ["pointerdown", "wheel", "keydown", "touchstart"] as const) {
+        el.addEventListener(type, () => { saving = true; }, { capture: true, passive: true });
+    }
 
     /** いま置いている印（入れ替えのたびに全部外す） */
     let placed: MkAnnotation[] = [];

@@ -29,11 +29,14 @@ function fakeEngine(kind: "leaflet" | "mapkit"): MapEngine {
     };
 }
 
-const leafletFails = vi.hoisted(() => ({ on: false }));
+const leafletFails = vi.hoisted(() => ({ on: false, gate: null as null | Promise<void> }));
 vi.mock("@/lib/map/leafletEngine", () => ({
     createLeafletEngine: async () => {
         if (leafletFails.on) throw new Error("Failed to fetch dynamically imported module");
-        return fakeEngine("leaflet");
+        const engine = fakeEngine("leaflet");
+        // 作り終えてから呼び出し側に戻るまでの間を作る（その間に片付けが走る形）
+        if (leafletFails.gate) await leafletFails.gate;
+        return engine;
     },
 }));
 vi.mock("@/lib/map/mapkitEngine", () => ({
@@ -54,7 +57,7 @@ async function loadPhotoMap(token: string) {
 
 beforeEach(() => {
     made.kinds.length = 0; made.removed.length = 0; made.fits = 0; made.userMove = null;
-    leafletFails.on = false;
+    leafletFails.on = false; leafletFails.gate = null;
     mk.refused = false; mk.listeners.clear();
     mk.load = vi.fn(async () => ({}));
 });
@@ -129,5 +132,18 @@ describe("どちらの地図も読めない", () => {
         const PhotoMap = await loadPhotoMap("tok");
         render(<PhotoMap photos={[photo]} locale="ja" />);
         expect(await screen.findByTestId("map-load-failed")).toHaveTextContent("地図を読み込めませんでした");
+    });
+});
+
+describe("作り終えてから戻るまでに要らなくなった", () => {
+    it("作った控えの地図を外す（同じ枠に2つ目を建てて落ちない）", async () => {
+        let open!: () => void;
+        leafletFails.gate = new Promise<void>((r) => { open = r; });
+        const PhotoMap = await loadPhotoMap("");
+        const { unmount } = render(<PhotoMap photos={[photo]} locale="ja" />);
+        await waitFor(() => expect(made.kinds).toEqual(["leaflet"]));
+        unmount();
+        await act(async () => { open(); await Promise.resolve(); });
+        expect(made.removed).toEqual(["leaflet"]);
     });
 });

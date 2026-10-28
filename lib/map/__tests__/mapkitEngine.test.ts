@@ -145,6 +145,17 @@ describe("読み込み", () => {
         expect(scripts).toHaveLength(2);
     });
 
+    it("読み終えたのに呼び戻しが来なければ、外して次の回に足し直す", async () => {
+        vi.useFakeTimers();
+        const p = loadMapKit("tok", "ja");
+        const check = expect(p).rejects.toThrow();
+        scripts[0].dispatchEvent(new Event("load"));
+        vi.advanceTimersByTime(10001);
+        await check;
+        void loadMapKit("tok", "ja").catch(() => {});
+        expect(scripts).toHaveLength(2);
+    });
+
     it("時間内に届かなければ断る（控えの地図に切り替える合図）", async () => {
         vi.useFakeTimers();
         const p = loadMapKit("tok", "ja");
@@ -423,6 +434,20 @@ describe("最初の場所", () => {
         engine.zoomIn();
         fire("region-change-end");
         expect(moved).toHaveBeenCalledTimes(1);
+    });
+
+    it("地図の箱への入力（矢印キー・ホイール・指）でも控え始める（MapKit の合図に頼らない）", () => {
+        for (const type of ["keydown", "wheel", "pointerdown", "touchstart"]) {
+            const { mk, fire } = fakeMapKit();
+            const outer = container();
+            const engine = createMapKitEngine(mk, outer, { reduceMotion: false });
+            const moved = vi.fn();
+            engine.onMoveEnd(moved);
+            engine.setView({ lat: 36, lng: 138 }, 4);
+            (outer.firstElementChild as HTMLElement).dispatchEvent(new Event(type, { bubbles: true }));
+            fire("region-change-end");
+            expect(moved, type).toHaveBeenCalledTimes(1);
+        }
     });
 
     it("人が触ったら控える", () => {

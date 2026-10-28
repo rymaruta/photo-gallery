@@ -247,6 +247,7 @@ export default function PhotoMap({
                 // 作り終えてから戻ってくるまでの間に要らなくなった（両方で見る）
                 if (cancelled || !containerRef.current) { leaflet.remove(); return; }
                 map = leaflet;
+                setMapFailed(false);
             }
             made = map;
             mapRef.current = map;
@@ -743,13 +744,13 @@ export default function PhotoMap({
                 </button>
             )}
 
-            {/* 現在地が取れなかったときの断り。**読み上げにも届ける** */}
-            {/* 地図そのものを読めなかった（Apple のマップも控えの地図も）。白い枠のまま黙らない */}
+            {/* 地図そのものを読めなかった（Apple のマップも控えの地図も）。白い枠のまま黙らない。
+                **右は空けておく**（操作のボタンの列と同じ高さなので、覆うと押せなくなる） */}
             {mapFailed && (
                 <p
                     role="status"
-                    className="absolute inset-x-4 top-1/2 -translate-y-1/2 z-[1001] rounded-xl bg-surface-2/95 ring-1 ring-white/15 text-white/90 text-center"
-                    style={{ padding: "12px 16px", fontSize: "14px", lineHeight: "20px" }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-[1001] rounded-xl bg-surface-2/95 ring-1 ring-white/15 text-white/90"
+                    style={{ right: "88px", padding: "12px 16px", fontSize: "14px", lineHeight: "20px" }}
                     data-testid="map-load-failed"
                 >
                     {en
@@ -758,6 +759,7 @@ export default function PhotoMap({
                 </p>
             )}
 
+            {/* 現在地が取れなかったときの断り。**読み上げにも届ける** */}
             {locateError && (
                 <p
                     role="status"
