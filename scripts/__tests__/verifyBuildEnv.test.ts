@@ -53,6 +53,10 @@ function verifyVars(): Map<string, string> {
 const LOCAL_ONLY_EMPTY: Record<string, string> = {
     // 入れると手元のスモークの全ページが Google へ計測を送る（本番の数字が汚れる）
     NEXT_PUBLIC_GA_ID: "空＝手元のスモークで計測を送らない",
+    // Apple のマップの鍵（2026-10-28）。値は GitHub の変数（`vars.MAPKIT_JS_TOKEN`）にしか無く、
+    // 鍵は配るサイトのドメインに縛られる。空なら今までの地図（Leaflet）で描く——手元の関門は
+    // その控えの道を通る（Apple の地図の道は `PhotoMap.engine.test.tsx` と `mapkitEngine.test.ts` が見る）
+    NEXT_PUBLIC_MAPKIT_JS_TOKEN: "空＝手元は控えの地図（Leaflet）で描く",
 };
 
 describe("手元の関門のビルド環境（verify-local.sh）", () => {

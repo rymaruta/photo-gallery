@@ -209,6 +209,8 @@ PROD_BUILD_ENV=(
     # **`NEXT_PUBLIC_GA_ID` だけは空のまま。** 入れると手元のスモークの
     # 全ページが Google へ計測を送る（本番の数字が汚れる）。
     # 本番では `G-7TFN1YPBE3` が入る
+    # **`NEXT_PUBLIC_MAPKIT_JS_TOKEN` も空のまま。** 値は GitHub の変数にしか無く、鍵は
+    # 本番のドメインに縛られる。空なら地図は今までの地図（Leaflet）で描く
 )
 
 # **スモークも Client ID を要る**（ログイン済みの画面を開くのに
