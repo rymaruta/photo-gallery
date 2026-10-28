@@ -229,7 +229,8 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                     )}
 
                     {early && (
-                        <fieldset className="mt-3" data-testid="name-side-early">
+                        <fieldset className="mt-3" data-testid="name-side-early"
+                            aria-describedby={draft.earlyMarkOn === null ? "name-side-early-auto" : undefined}>
                             <legend className="sr-only">{en ? "Early member mark" : "初期メンバーの印"}</legend>
                             <span aria-hidden="true" className="mb-1.5 text-[12px] text-white/75 flex items-center gap-1.5">
                                 <EarlyMemberMark shown size={14} locale={locale} />
@@ -255,7 +256,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                                 ))}
                             </div>
                             {draft.earlyMarkOn === null && (
-                                <span className="block mt-1.5 text-[12px] text-white/60" data-testid="name-side-early-auto">
+                                <span id="name-side-early-auto" className="block mt-1.5 text-[12px] text-white/60" data-testid="name-side-early-auto">
                                     {earlyShown
                                         ? (en ? "Shown for now: nothing else is next to your name. Choose to keep it or remove it." : "いまは自動で付いています（名前の横にほかの印が無いため）。決めておくこともできます。")
                                         : (en ? "Hidden for now: something else is next to your name. Choose Show to add it." : "いまは自動で外れています（名前の横にほかの印があるため）。「付ける」で並べて出せます。")}
