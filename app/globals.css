@@ -519,11 +519,12 @@ body {
 }
 
 /* 枚数のバッジ（CLAUDE.md の owner の好み: 真鍮の塗り＋墨の数字＋黒 2px の縁・数字は 12px の等幅）。
-   右上の角から外へ（iOS の `badgeOffset` = 右へ 8+2・上へ 6+2）。高さ・最小幅 20 */
+   **真鍮の丸の角**を札の右上の角から右へ 8・上へ 6（iOS の板 `.cnt` の top -6・right -8）。
+   黒の縁は box-shadow で外側に描くので、位置は真鍮の丸で合わせる。高さ・最小幅 20 */
 .map-count-badge {
   position: absolute;
-  top: -8px;
-  right: -10px;
+  top: -6px;
+  right: -8px;
   min-width: 20px;
   height: 20px;
   padding: 0 6px;

@@ -2,6 +2,7 @@ import MapPageClient from "./MapPageClient";
 import { spotPins } from "../../lib/data/spotLink";
 import { SPOTS } from "../../lib/data/spots";
 import { spotPinThumb } from "../../lib/data/spotThumbs";
+import { SPOT_THUMB_BASE } from "../../lib/utils/spotPinThumb";
 
 /**
  * 撮影地マップ（`/map`）の**サーバー側の殻**。
@@ -21,7 +22,9 @@ export default function MapPage() {
     const spots = spotPins().map((p) => {
         const spot = bySlug.get(p.slug);
         const thumb = spot ? spotPinThumb(spot) : undefined;
-        return thumb ? { ...p, thumb } : p;
+        if (!thumb) return p;
+        // 決まった場所なら印だけ（全件の場所を送るとページ本体が重くなる・`spotPinThumb.ts`）
+        return { ...p, thumb: thumb === `${SPOT_THUMB_BASE}${p.slug}.jpg` ? (true as const) : thumb };
     });
     return <MapPageClient spots={spots} />;
 }

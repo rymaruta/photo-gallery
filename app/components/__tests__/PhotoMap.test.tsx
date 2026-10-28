@@ -146,6 +146,12 @@ describe("見る場所", () => {
     });
 
     // iOS の `MapFraming`: 全部を収めると日本とヨーロッパで地球儀の縮尺になり、1枚も探せない
+    // 札とバッジは座標の上へ伸び、地図の上と左下にはボタンが重なる。余白0だと端のピンが切れる
+    it("寄せるときは余白を取る", async () => {
+        await draw([photo("a"), photo("b", { coords: { lat: 35.6, lng: 139.6 } })]);
+        expect(state.fitOpts?.padding).toEqual([32, 32]);
+    });
+
     it("いちばん写真の多い塊に合わせる（日本3か所とパリ1か所なら日本）", async () => {
         await draw([
             photo("a", { coords: { lat: 35.68, lng: 139.76 } }), photo("b", { coords: { lat: 37.63, lng: 138.94 } }),
@@ -294,7 +300,7 @@ describe("押されたピンを親へ渡す", () => {
         expect(html.querySelector(".photo-map-pin__back")).toBeTruthy();
         const n = Number(html.querySelector(".map-count-badge")?.textContent);
         expect(n).toBeGreaterThan(1);
-        expect(String(cluster.opts.title)).toContain(`写真 ${n}枚`);
+        expect(String(cluster.opts.title)).toMatch(new RegExp(`^\\d+地点の写真 ${n}枚。押すと寄ります$`));
     });
 
     it("地図の余白を押すと `null`（＝閉じる）が渡る", async () => {
@@ -370,6 +376,32 @@ describe("押されたピンを親へ渡す", () => {
         fireMap("moveend");
         expect(state.markers.length).toBe(before.length);
         expect(state.markers.every((m, i) => m === before[i])).toBe(true);
+    });
+
+    // ビルドの控えから API の一覧に置き換わると、写真の id は同じまま撮影地が増えることがある
+    it("写真の撮影地が後から書かれたら、ピンの名前と読み上げ名を描き直す", async () => {
+        const { rerender } = render(<PhotoMap photos={[photo("a", { location: "" })]} locale="ja" />);
+        await waitFor(() => expect(state.markers).toHaveLength(1));
+        rerender(<PhotoMap photos={[photo("a", { location: "パリ" })]} locale="ja" />);
+        expect(state.markers).toHaveLength(1);
+        expect(state.markers[0].opts.title).toBe("パリ、写真 1枚");
+        expect((state.markers[0].opts.icon as { html: HTMLElement }).html.querySelector(".map-pin-label")?.textContent).toBe("パリ");
+    });
+
+    it("束の中の撮影地の写真が減ったら、束のバッジを描き直す", async () => {
+        lookAtGrid();
+        const at = { lat: 35.4, lng: 139.4 };
+        const extra = [photo("x1", { coords: at }), photo("x2", { coords: at })];
+        const base = gridPhotos(200);
+        const { rerender } = render(<PhotoMap photos={[...base, ...extra]} locale="ja" />);
+        await waitFor(() => expect(state.markers.some(isCluster)).toBe(true));
+        const holding = () => state.markers.filter(isCluster).map((m) => String(m.opts.title)).find((t) => t.length > 0)!;
+        const total = () => state.markers.filter(isCluster)
+            .reduce((n, m) => n + Number(/写真 (\d+)枚/.exec(String(m.opts.title))![1]), 0);
+        expect(holding()).toBeTruthy();
+        expect(total()).toBe(202);
+        rerender(<PhotoMap photos={base} locale="ja" />);
+        expect(total(), "束の枚数が古いまま").toBe(200);
     });
 
     // iOS: 選んでいた撮影地が束に吸われたら選びを外す（札が見えない場所を指し続けない）
@@ -480,6 +512,18 @@ describe("現在地", () => {
         fireEvent.click(screen.getByRole("button", { name: "拡大" }));
         fireMap("moveend");
         expect(sessionStorage.getItem("photo-map:view"), "現在地の近くを控えている").toBeNull();
+    });
+
+    it("現在地の点は、地図が動くたびに付け直さない", async () => {
+        stubGeolocation({
+            getCurrentPosition: (ok) => ok({ coords: { latitude: 48.86, longitude: 2.35 } } as GeolocationPosition),
+        });
+        await draw([photo("a")]);
+        fireEvent.click(screen.getByTestId("map-locate"));
+        await waitFor(() => expect(state.markers.some((m) => m.kind === "circle")).toBe(true));
+        const dot = state.markers.find((m) => m.kind === "circle");
+        fireMap("moveend");
+        expect(state.markers.find((m) => m.kind === "circle"), "現在地の点を作り直している").toBe(dot);
     });
 
     it("断られたら、その旨を出す（読み上げにも届ける）", async () => {
@@ -605,6 +649,15 @@ describe("撮影スポットのピン", () => {
         const html = (name: string) => (state.markers.find((m) => String(m.opts.title).includes(name))!.opts.icon as { html: HTMLElement }).html;
         expect(html("高屋神社").querySelector(".spot-map-pin__mark--plain svg")).toBeTruthy();
         expect(html("写真のある場所").querySelector(".spot-map-pin__mark--photo img")?.getAttribute("src")).toBe("/images/spots/thumb/b.jpg");
+    });
+
+    // ページ本体を軽くするため、決まった場所のサムネは「在る」の印だけで届く
+    it("サムネが「在る」の印だけなら、決まった場所から読む", async () => {
+        nearSpot();
+        render(<PhotoMap photos={[]} locale="ja" spots={[{ ...SPOT, thumb: true }]} />);
+        await waitFor(() => expect(spotMarker()).toBeTruthy());
+        expect((spotMarker()!.opts.icon as { html: HTMLElement }).html.querySelector("img")?.getAttribute("src"))
+            .toBe("/images/spots/thumb/takaya-jinja.jpg");
     });
 
     it("名前を読み上げに渡し、印の下にも出す", async () => {

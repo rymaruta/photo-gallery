@@ -12,6 +12,7 @@ import {
 } from "../../lib/map/mapPins";
 import type { Photo } from "../../lib/data/photos";
 import type { SpotPin } from "../../lib/data/spotLink";
+import { spotPinThumbSrc } from "../../lib/utils/spotPinThumb";
 
 /** 既定の空配列。**毎回作らない**（作ると ref の更新が毎描画で走る） */
 const EMPTY_SPOTS: readonly SpotPin[] = [];
@@ -44,6 +45,24 @@ export type MapSelection = { photos: MapPhoto[]; index: number };
  */
 const PIN_PX = 44;
 const SPOT_HIT_PX = 44;
+
+/**
+ * 枠へ寄せるときの余白（px）。iOS の枠（1.4倍の余白つき）に**さらに足す**——Web の地図は
+ * 上と左下にボタンが重なり、札とバッジは座標の上へ約54px 伸びる。余白0だと端のピンが
+ * 切れる・ボタンに隠れる（iOS は地図の上にボタンが重ならない）
+ */
+const FIT_PADDING = 32;
+
+/**
+ * 写真のピンの中身を表す鍵。**名前と表紙のサムネまで入れる**——写真の id が同じでも、
+ * ビルドの控えから API の一覧へ置き換わったときに撮影地・サムネが変わることがある
+ * （撮影地を後から書いた）。鍵が同じだと作り直さないので、古い名前のまま残る
+ */
+function pinContentKey(pin: MapPin<MapPhoto>): string {
+    const cover = pin.photos[0];
+    const thumb = cover ? (cover.thumbSm || cover.thumbSrc || cover.src || "") : "";
+    return `${pin.id}:${pin.photos.map((p) => p.id).join(",")}:${pin.place ?? ""}:${thumb}`;
+}
 
 /** iOS の `MapFraming.Frame`（中心と幅）→ 地図に渡す矩形 */
 function frameBounds(f: Frame): { south: number; west: number; north: number; east: number } {
@@ -317,7 +336,7 @@ export default function PhotoMap({
             /** 枠へ寄せる。**寄せたら「写真が届いたら全体へ」を取り消す**（人の操作の結果） */
             const zoomInto = (f: Frame) => {
                 autoFitPendingRef.current = false;
-                map.fitBounds(frameBounds(f), { padding: 0, maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
+                map.fitBounds(frameBounds(f), { padding: FIT_PADDING, maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
             };
 
             /** いま見えている枠（iOS の `MapFraming.Frame` の形）。決まらなければ null */
@@ -347,7 +366,7 @@ export default function PhotoMap({
                 const pins = groupPins(photosRef.current);
                 const layout = layoutPins(pins, frame);
                 for (const pin of layout.pins) {
-                    const key = `p:${pin.id}:${pin.photos.map((p) => p.id).join(",")}`;
+                    const key = `p:${pinContentKey(pin)}`;
                     want.set(key, () => ({
                         lat: pin.lat, lng: pin.lng, el: photoPinElement(pin), className: "photo-map-pin-icon",
                         size: [PIN_PX, PIN_PX], anchor: [PIN_PX / 2, PIN_PX],
@@ -356,13 +375,15 @@ export default function PhotoMap({
                     }));
                 }
                 for (const c of layout.clusters) {
-                    const key = `c:${c.id}:${c.pins.map((p) => p.id).join(",")}`;
+                    // 中の撮影地ごとの写真まで鍵に入れる（絞り込みで枚数が減ったらバッジを描き直す）
+                    const key = `c:${c.id}:${c.pins.map(pinContentKey).join("|")}`;
                     want.set(key, () => ({
                         lat: c.lat, lng: c.lng, el: clusterElement(c), className: "photo-map-pin-icon",
                         size: [PIN_PX, PIN_PX], anchor: [PIN_PX / 2, PIN_PX],
                         title: en
                             ? `${clusterPhotoCount(c)} photos at ${c.pins.length} places. Tap to zoom in`
-                            : `${c.pins.length}か所の写真 ${clusterPhotoCount(c)}枚。押すと寄ります`,
+                            // iOS の `clusterSpokenLabel`（「3地点の写真 12枚。押すと寄ります」）
+                            : `${c.pins.length}地点の写真 ${clusterPhotoCount(c)}枚。押すと寄ります`,
                         // 束は選ばない。その束が収まる枠まで寄るだけ（iOS と同じ）
                         onActivate: () => zoomInto(clusterFrame(c)),
                     }));
@@ -386,7 +407,7 @@ export default function PhotoMap({
                     if (kept) shownSpots.push(kept);
                 }
                 for (const sp of shownSpots) {
-                    const key = `s:${sp.slug}:${sp.thumb ?? ""}`;
+                    const key = `s:${sp.slug}:${spotPinThumbSrc(sp) ?? ""}:${sp.name}:${sp.stage}`;
                     want.set(key, () => ({
                         lat: sp.lat, lng: sp.lng, el: spotElement(sp), className: "spot-map-pin-icon",
                         size: [SPOT_HIT_PX, SPOT_HIT_PX], anchor: [SPOT_HIT_PX / 2, SPOT_HIT_PX],
@@ -399,7 +420,8 @@ export default function PhotoMap({
 
                 // 置き直す（要らない印を外し、無い印だけ置く）
                 for (const [key, handle] of placed) {
-                    if (want.has(key)) continue;
+                    // 現在地の点は下で別に扱う（毎回外して付け直さない）
+                    if (want.has(key) || key.startsWith("h:")) continue;
                     handle.remove();
                     placed.delete(key);
                     if (key.startsWith("s:")) spotEls.delete(key.split(":")[1]);
@@ -446,11 +468,12 @@ export default function PhotoMap({
                 wrap.className = "spot-map-pin";
                 const mark = document.createElement("span");
                 mark.setAttribute("aria-hidden", "true");
-                if (sp.thumb) {
+                const thumb = spotPinThumbSrc(sp);
+                if (thumb) {
                     mark.className = "spot-map-pin__mark spot-map-pin__mark--photo";
                     const img = document.createElement("img");
                     img.className = "spot-map-pin__img";
-                    img.src = sp.thumb;
+                    img.src = thumb;
                     img.alt = "";
                     img.decoding = "async";
                     img.width = 40; img.height = 40;
@@ -475,7 +498,7 @@ export default function PhotoMap({
             if (initial) {
                 map.setView({ lat: initial.lat, lng: initial.lng }, initial.zoom);
             } else if (start) {
-                map.fitBounds(frameBounds(start), { padding: 0, maxZoom: MAP_MAX_ZOOM });
+                map.fitBounds(frameBounds(start), { padding: FIT_PADDING, maxZoom: MAP_MAX_ZOOM });
             } else {
                 map.setView({ lat: 36, lng: 138 }, 4);   // 写真が無ければ日本全体
                 // **写真があとから届いたら、一度だけそこへ寄る。** 公式スポットがあると
@@ -542,7 +565,7 @@ export default function PhotoMap({
         if (autoFitPendingRef.current && photos.length > 0) {
             autoFitPendingRef.current = false;
             const f = photosFrame(photos);
-            if (f) map.fitBounds(frameBounds(f), { padding: 0, maxZoom: MAP_MAX_ZOOM });
+            if (f) map.fitBounds(frameBounds(f), { padding: FIT_PADDING, maxZoom: MAP_MAX_ZOOM });
         }
         redrawRef.current?.();
     }, [photos, areaActiveRef]);

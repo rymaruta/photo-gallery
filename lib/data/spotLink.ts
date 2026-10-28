@@ -173,11 +173,13 @@ export type SpotPin = {
     /** 下書きか公開済みか（`SpotLink.stage` と同じ） */
     stage: SpotLink["stage"];
     /**
-     * 地図のピンの写真（短い辺 240px のサムネ・サイト内の場所）。**アプリの地図と同じ1枚**。
-     * 無ければ付けない（ピンは真鍮の丸にカメラ）。足すのは `app/map/page.tsx`
+     * 地図のピンの写真（短い辺 240px のサムネ）。**アプリの地図と同じ1枚**。
+     * `true` は決まった場所（`/images/spots/thumb/<slug>.jpg`）に在る印、文字列はそれ以外の
+     * 場所。無ければ付けない（ピンは真鍮の丸にカメラ）。場所を組むのは
+     * `lib/utils/spotPinThumb.ts`、足すのは `app/map/page.tsx`
      * （`spotThumbs.ts` はファイルを見るのでサーバーでしか読めない）
      */
-    thumb?: string;
+    thumb?: true | string;
 };
 
 /** 地図に立てられるスポット（ページを建てられる条件を満たし、座標を持つもの） */
