@@ -81,6 +81,8 @@ describe("名前の横の設定: 初期メンバーの印", () => {
         expect((fs.querySelector("input[value=on]") as HTMLInputElement).checked).toBe(false);
         expect((fs.querySelector("input[value=off]") as HTMLInputElement).checked).toBe(false);
         expect(screen.getByTestId("name-side-early-auto").textContent).toContain("自動で付いています");
+        // 選ばれていない間は、この一行が状態を伝える唯一の手段なので読み上げにも結ぶ
+        expect(screen.getByRole("group", { name: "初期メンバーの印" }).getAttribute("aria-describedby")).toBe("name-side-early-auto");
     });
 
     // レビューの指摘（2026-10-28）: 既定で出ている人の「付ける」が最初から選ばれていると、押しても
