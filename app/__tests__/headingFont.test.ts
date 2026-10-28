@@ -8,7 +8,8 @@ import { DISPLAY_MINCHO_STACK } from "../../lib/utils/headingFont";
  * **大見出しの明朝（Shippori Mincho B1 Bold）を自分のサーバーから配る**（2026-10-21・板 DesignSystem 02
  * 「WEB h1 だけ Shippori 700 を自己ホスト」）。
  *
- * 字のファイルは `app/layout.tsx` の next/font（ビルド時に取り込み、このサイトから配る）。
+ * 字のファイルは `app/fonts/webFonts.ts` の next/font（ビルド時に取り込み、このサイトから配る。
+ * 2026-10-28 から水和のあとで読む＝描画を止めない・`webFontsDeferred.test.tsx`）。
  * ここで縛るのは:
  *   - 写真ページの題（h1）が読む `DISPLAY_MINCHO_STACK` の**先頭が自前の明朝**で、後ろに端末の明朝が続くこと
  *   - ストーリーの字（`MINCHO_STACK`・サーバーの写し）は変えないこと
@@ -28,7 +29,7 @@ describe("見出しの明朝", () => {
     });
 
     it("next/font の指定: 700 だけ・swap・先読みしない・変数は --font-mincho", () => {
-        const layout = read("app/layout.tsx");
+        const layout = read("app/fonts/webFonts.ts");
         const m = /Shippori_Mincho_B1\(\{([\s\S]*?)\}\)/.exec(layout);
         expect(m, "Shippori Mincho B1 を読んでいない").toBeTruthy();
         const opts = m![1];

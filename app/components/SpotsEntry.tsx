@@ -84,7 +84,8 @@ export default function SpotsEntry({ locale, seasonal = null }: { locale: "ja" |
                                     </span>
                                 </Link>
                                 {/* CC BY・CC BY-SA は作者とライセンスの表示が条件。ライセンスの行を先に・切らない */}
-                                {s.credit && <div className="mt-1"><TopicCreditLine credit={s.credit} compact /></div>}
+                                {/* 行を 24px にしたぶん（`COMPACT_CREDIT_LINE`）、上の隙間は消す——1行目の字の位置は以前と同じ */}
+                                {s.credit && <div><TopicCreditLine credit={s.credit} compact /></div>}
                             </li>
                         ))}
                     </ul>

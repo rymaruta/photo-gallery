@@ -70,6 +70,19 @@
   --font-serif: var(--font-mincho), "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
 }
 
+/* **Web フォントの変数の既定値（2026-10-28）。** next/font の CSS（`@font-face` が数百個・
+   gzip 96KB）は描画を止めないよう**水和のあとで読む**（`app/fonts/webFonts.ts`・
+   `WebFontLoader`）。届くまで変数が無いと `var(--font-mincho)` を含む並びが**値ごと無効**
+   になり、見出しが本文の字に落ちる（上の注記と同じ壊れ方）。だから字の名前を先に置く。
+   表（`@font-face`）が届くまでは、その名前は飛ばされて並びの次（端末の明朝）で描く。
+   届いたら `WebFontLoader` が next/font のクラスを `<body>` に付けて正式な値で上書きする。
+   名前の突き合わせは `webFontsDeferred.test.ts` */
+:root {
+  --font-mincho: "Shippori Mincho B1", "Shippori Mincho B1 Fallback";
+  --font-marker: "Yusei Magic", "Yusei Magic Fallback";
+  --font-scribble: "Yomogi", "Yomogi Fallback";
+}
+
 /* **眉ラベル**（iOS v2 の `jpEyebrow()`・板 02 Eyebrow: SF 600・11・字間 0.14em・大文字）。
    以前は11か所が手で書いていて、字間 0.12em / 0.16em / 1.5px・等幅の有無が割れていた。
    **色は呼ぶ側が決める**——黒地の上なら `text-accent`、写真の上なら白 */

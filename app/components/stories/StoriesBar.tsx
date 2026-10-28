@@ -26,6 +26,7 @@ import StoryViewer from "./StoryViewer";
 import { RING_UNSEEN, RING_SEEN } from "./ring";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import StoryTextOverlay from "./StoryTextOverlay";
+import { useStoryFonts } from "../WebFontLoader";
 import { useMediaBox } from "../../../lib/hooks/useMediaBox";
 import { movedBeyondTap, type PressPoint } from "../../../lib/utils/tap";
 import {
@@ -158,6 +159,8 @@ const STORY_TOOLS: ReadonlyArray<{
 ];
 
 export default function StoriesBar() {
+    // 字体を選ぶボタンは各書体で名前を描く（手書き2種の字の表・`app/fonts/storyFonts.ts`）
+    useStoryFonts();
     const { isAuthenticated, userId } = useAuth();
     const { locale } = useLocale();
     const { showToast } = useToast();

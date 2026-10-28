@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useState, useSyncExternalStore } from "react";
+import { preload } from "react-dom";
 import type { Photo } from "@/lib/data/photos";
 import { isImageReady } from "@/lib/utils/imageReady";
 import { dropCachedPhoto } from "@/lib/utils/photoCache";
@@ -85,6 +86,20 @@ type Props = {
     /** マスの 幅 ÷ 高さ（`object-cover` で敷くマス）。渡すと派生の選び方が正しくなる */
     cellAspect?: number;
     priority?: boolean;
+    /**
+     * **`priority` のうち、どれを `fetchPriority="high"` にするか**（既定は `priority` と同じ）。
+     * 画面の最初に見える数枚を全部 high にすると、LCP の1枚と帯域を取り合う。
+     * `false` を渡すと「先に読む（`eager`）が、優先度は既定」になる
+     */
+    highPriority?: boolean;
+    /**
+     * **LCP の1枚だけ `<head>` に先読みを出す**（2026-10-28・スマホの LCP 8.8秒）。
+     * `<picture>` の中の `<img>` は React が自動で先読みに上げない
+     * （`logoPreload.test.tsx` の前提とは別の経路）ので、HTML を最後まで読んで
+     * `<picture>` に届くまで、代表写真の取得が始まらなかった。
+     * 出すのは**ブラウザが実際に選ぶのと同じ候補**（AVIF があれば AVIF の srcset・同じ sizes）
+     */
+    preloadImage?: boolean;
     objectPosition?: string;
     className?: string;
 };
@@ -94,7 +109,7 @@ type Props = {
  * 存在する派生だけ <source> にする（無ければ従来 thumbSrc/src にフォールバック）。
  * 親の相対配置ボックスに absolute で敷き詰める前提。blur-up・フェード・エラー処理を内包。
  */
-export default function Thumb({ photo, alt, sizes, priority = false, objectPosition, className = "", cellAspect }: Props) {
+export default function Thumb({ photo, alt, sizes, priority = false, highPriority, objectPosition, className = "", cellAspect, preloadImage = false }: Props) {
     // **ハイドレーションまでは隠さない。** 以前は `loaded=false` から始めて
     // `opacity-0` を静的HTMLに焼いていたので、JS が届いて React が付くまで
     // 画像が透明のままだった（Chromium 実測・Fast 3G + CPU 4倍: 画像は
@@ -145,6 +160,8 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
     }
     const avifSet = (photo.thumbSmAvif || photo.thumbAvif) ? buildSrcSet(photo.thumbSmAvif, photo.thumbAvif, photo, cellAspect) : undefined;
     const webpSet = photo.thumbSm ? buildSrcSet(photo.thumbSm, photo.thumbSrc, photo, cellAspect) : undefined;
+    const high = priority && (highPriority ?? true);
+    if (preloadImage && !error) preloadThumb({ avifSet, webpSet, fallback, sizes });
 
     if (error) {
         return (
@@ -184,7 +201,7 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
                     draggable={false}
                     onContextMenu={(e) => e.preventDefault()}
                     loading={priority ? "eager" : "lazy"}
-                    fetchPriority={priority ? "high" : "auto"}
+                    fetchPriority={high ? "high" : "auto"}
                     decoding="async"
                     onLoad={() => setPhase("loaded")}
                     onError={(e) => { setError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
@@ -194,6 +211,29 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
             </picture>
         </>
     );
+}
+
+/**
+ * LCP の写真の先読み（`<link rel="preload" as="image">`）。サーバーで描くと React が
+ * `<head>` に出す。**`<picture>` が選ぶのと同じ順**——AVIF の srcset があればそれ
+ * （`type` 付きなので AVIF を読めないブラウザは無視して `<source>` の WebP へ進む）、
+ * 無ければ WebP の srcset、それも無ければ `src`。
+ */
+export function preloadThumb({ avifSet, webpSet, fallback, sizes }: {
+    avifSet?: string; webpSet?: string; fallback: string; sizes?: string;
+}): void {
+    const set = avifSet ?? webpSet;
+    if (set) {
+        preload(fallback, {
+            as: "image",
+            imageSrcSet: set,
+            ...(sizes ? { imageSizes: sizes } : {}),
+            ...(avifSet ? { type: "image/avif" } : webpSet ? { type: "image/webp" } : {}),
+            fetchPriority: "high",
+        });
+    } else if (fallback) {
+        preload(fallback, { as: "image", fetchPriority: "high" });
+    }
 }
 
 // テスト用: srcset 組み立ての純関数
