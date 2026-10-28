@@ -107,6 +107,12 @@ export function imageSinks(raw: string, file: string): Sink[] {
  *       （`app/components/__tests__/imageOrigin.test.tsx`）
  */
 const EXEMPT: Array<[string, string, string]> = [
+    ["app/components/PhotoMap.tsx", "sp.thumb",
+     "地図の撮影スポットのピンの写真。**利用者が上げた写真ではない**——サイトに置いた"
+     + "スポットの写真のサムネ（`/images/spots/thumb/<slug>.jpg`）で、サーバー側"
+     + "（`app/map/page.tsx` の `spotPinThumb`）で決めたサイト内のパス"],
+    ["lib/map/mapkitEngine.ts", "MAPKIT_SRC",
+     "Apple のマップ（MapKit JS）の部品の `<script>`。画像ではない（`.src` に入れるので綴りで当たる）"],
     ["app/components/SpotLinkCard.tsx", "spot.cover!.src",
      "写真詳細に出す公式ガイドの代表写真。`SpotGuideClient` と同じ値。"
      + "台帳をクライアントに載せないため、サーバー側（`lib/data/spotLink.ts`）で"

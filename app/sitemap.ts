@@ -31,7 +31,7 @@ async function loadPhotos(): Promise<Photo[]> {
 const toAbsolute = (src: string): string => publicImageUrl(src);
 
 /** プライバシーポリシーの本文を最後に変えた日。**`app/privacy/page.tsx` の `LAST_UPDATED` と揃える**（`page.facts.test.ts` が見る） */
-const PRIVACY_LAST_MODIFIED = "2026-10-18";
+const PRIVACY_LAST_MODIFIED = "2026-10-28";
 
 /** 利用規約の本文を最後に変えた日。**`app/terms/page.tsx` の `LAST_UPDATED` と揃える** */
 const TERMS_LAST_MODIFIED = "2026-09-17";
