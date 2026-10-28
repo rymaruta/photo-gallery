@@ -55,8 +55,12 @@ describe("Web フォントは描画を止めない", () => {
         const main = /export default function WebFontLoader\(\)[\s\S]*?\n\}/.exec(loader)?.[0] ?? "";
         expect(main).toContain("webFonts");
         expect(main).not.toContain("storyFonts");
-        const callers = SOURCES.filter((f) => /\buseStoryFonts\(\)/.test(read(f)) && !f.endsWith("WebFontLoader.tsx")).sort();
+        const callers = SOURCES.filter((f) => /\buseStoryFonts\(\)|<StoryFontsLoader\s*\/>/.test(read(f)) && !f.endsWith("WebFontLoader.tsx")).sort();
         expect(callers).toEqual(["app/components/stories/StoriesBar.tsx", "app/components/stories/StoryTextOverlay.tsx"]);
+        // 作る画面では**字体の欄を開いたときだけ**（画面を開いただけでは読まない）
+        const bar = read("app/components/stories/StoriesBar.tsx");
+        expect(bar).not.toMatch(/\buseStoryFonts\(\)/);
+        expect(bar).toMatch(/\{tool === "font" && \([\s\S]{0,400}<StoryFontsLoader \/>/);
     });
 
     it("ルートのレイアウトが WebFontLoader を置いている", () => {
@@ -104,15 +108,29 @@ describe("WebFontLoader", () => {
         expect(document.body.classList.contains("v-marker")).toBe(false);
     });
 
-    it("useStoryFonts は手書き2種のクラスを付ける（何度描いても読むのは1回）", async () => {
-        const story = vi.fn(() => ({ marker: { variable: "v-marker" }, scribble: { variable: "v-scribble" } }));
-        vi.doMock("../fonts/storyFonts", story);
-        const { useStoryFonts, loadStoryFonts } = await import("../components/WebFontLoader");
+    it("useStoryFonts は手書き2種のクラスを付ける", async () => {
+        vi.doMock("../fonts/storyFonts", () => ({ marker: { variable: "v-marker" }, scribble: { variable: "v-scribble" } }));
+        const { useStoryFonts } = await import("../components/WebFontLoader");
         const Probe = () => { useStoryFonts(); return null; };
         render(<><Probe /><Probe /></>);
         await waitFor(() => expect(document.body.classList.contains("v-scribble")).toBe(true));
         expect(document.body.classList.contains("v-marker")).toBe(true);
-        await loadStoryFonts();
-        expect(story).toHaveBeenCalledTimes(1);
+    });
+
+    // vi.doMock の控えは import() を何度しても1回しか工場を呼ばないので、工場の回数では
+    // 「1回だけ読む」を確かめられない。同じ約束（Promise）が返ることと、クラスを付けた回数で見る
+    it("何度呼んでも読むのは1回（同じ Promise・<body> にクラスを付けるのも1回）", async () => {
+        vi.doMock("../fonts/storyFonts", () => ({ marker: { variable: "v-marker" }, scribble: { variable: "v-scribble" } }));
+        const { loadStoryFonts } = await import("../components/WebFontLoader");
+        const add = vi.spyOn(document.body.classList, "add");
+        try {
+            const a = loadStoryFonts();
+            const b = loadStoryFonts();
+            expect(b).toBe(a);
+            await Promise.all([a, b, loadStoryFonts()]);
+            expect(add).toHaveBeenCalledTimes(2); // marker と scribble で1回ずつ
+        } finally {
+            add.mockRestore();
+        }
     });
 });
