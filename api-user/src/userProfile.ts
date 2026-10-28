@@ -6,7 +6,7 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX 
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
 import { truncate, isRestrictedRow } from "./sanitize";
-import { badgeFields, isBadgeKey, isPro, isProMarkStyle, ownsBadge } from "./badgeKeys";
+import { badgeFields, isBadgeKey, isPro, isProMarkStyle, ownsBadge, showsEarlyMark } from "./badgeKeys";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "./badgeKeys";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -209,6 +209,18 @@ export type UserProfile = {
      * 古いアプリ・Web はこの項目を知らなくても、`verified` が立っていないので印を出さない
      */
     verifiedMarkOff?: boolean;
+    /**
+     * **初期メンバーの印**の本人の設定（2026-10-28 owner「デフォルトでは付与・外すのはユーザーの任意」）。
+     * 行には決めたときだけ置く——`true`（付ける）/ `false`（外す）。**無い＝既定**で、既定では
+     * 名前の横に他の印が何も出ていない人にだけ出る（`badgeKeys.ts` の `showsEarlyMark`）。
+     * 資格（`badges.earlyUser`）とは別の項目で、本人が書けるのはこちらだけ。
+     * 応答には設定ではなく**出すかどうか**を `earlyMark` で載せる（`toPublicProfile`・`withBadgeFields`）。
+     * 2026-10-28 判断: 設定と結果を同じ名前にしない。購入の応答（`toPublicProfile(…, { owner: true })`）を
+     * アプリは自分のプロフィールとして読むので、同じ名前だと「出ている」を「付けると決めた」と取り違える
+     */
+    earlyMarkOn?: boolean;
+    /** 応答だけに載る（行には保存しない）。初期メンバーの印を名前の横に出すか（`showsEarlyMark`） */
+    earlyMark?: boolean;
     /**
      * 手に入れたメダル（`badgeKeys.ts`）。**本人からは書けない**（`verified` と同じ）。
      * 書くのはサーバーの数え直し（`badgeStore.ts`）と運営の台本だけ。
@@ -545,6 +557,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         displayBadge?: unknown; proMarkStyle?: unknown;
         lightAlert?: unknown;
         verifiedMarkOff?: unknown;
+        earlyMarkOn?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -753,6 +766,15 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     if (hasVerifiedMarkOffKey && typeof body.verifiedMarkOff !== "boolean") {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証済みの印の設定が不正です" }) };
     }
+    /**
+     * 初期メンバーの印の本人の設定（`earlyMarkOn`）。**真偽と `null` だけ受ける**（`null` は既定に戻す
+     * ＝項目を消す）。文字の "false" は 400（`verifiedMarkOff` と同じく、黙って読み替えない）。
+     * 結果の `earlyMark` は受け取らない（送られても無視する）
+     */
+    const hasEarlyMarkKey = "earlyMarkOn" in body;
+    if (hasEarlyMarkKey && body.earlyMarkOn !== null && typeof body.earlyMarkOn !== "boolean") {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "初期メンバーの印の設定が不正です" }) };
+    }
     const PIN_MAX = 3;
     /** 保存済みの配列に増減を重ねる。上限超過は null（呼び出し側が 409） */
     const applyPinOp = (stored: unknown): string[] | null => {
@@ -885,6 +907,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("proMarkStyle", hasProMarkStyleKey, proMarkStyle);
     apply("lightAlert", hasLightAlertKey, body.lightAlert === false ? false : undefined);
     apply("verifiedMarkOff", hasVerifiedMarkOffKey, body.verifiedMarkOff === true ? true : undefined);
+    apply("earlyMarkOn", hasEarlyMarkKey, typeof body.earlyMarkOn === "boolean" ? body.earlyMarkOn : undefined);
 
     // この呼び出しで新しく押さえたユーザー名（失敗したら戻す）
     let usernameReserved: string | null = null;
@@ -1154,6 +1177,11 @@ function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFie
     // 認証済みの印を外しているか: 本人の応答には常に真偽で載せる（名前の横の画面の初期値）。
     // 本人の応答の `verified` は資格のまま（外していても true）——画面は両方を見て決める
     rest.verifiedMarkOff = (p as { verifiedMarkOff?: unknown }).verifiedMarkOff === true;
+    // 初期メンバーの印: 本人の設定（`earlyMarkOn`）は `true` / `false` / `null`（既定）で常に載せ、
+    // 出すかどうか（`earlyMark`）も常に真偽で載せる（名前の横はこちらを出す）
+    const early = (p as { earlyMarkOn?: unknown }).earlyMarkOn;
+    rest.earlyMarkOn = typeof early === "boolean" ? early : null;
+    rest.earlyMark = showsEarlyMark(p as Parameters<typeof showsEarlyMark>[0]);
     return { ...(rest as unknown as T), ...badgeFields(p as { badges?: unknown }) };
 }
 
@@ -1203,6 +1231,9 @@ export function toPublicProfile(p: UserProfile, opts: { owner?: boolean } = {}):
         passFace: isPro(p),
         // 本人が外した印（上の注記）。`passFace` には触らない
         ...(opts.owner ? {} : withoutRemovedMarks(p)),
+        // 初期メンバーの印は**出すときだけ** `true`（項目ごと載せない＝出さない）。本人の設定
+        // （`earlyMarkOn`）は載せない——既定の人と外した人を他人に見分けさせない
+        ...(showsEarlyMark(p) ? { earlyMark: true } : {}),
     });
 }
 

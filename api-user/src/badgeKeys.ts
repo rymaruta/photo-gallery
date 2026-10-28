@@ -190,6 +190,33 @@ export function publicSupporter(
 }
 
 /**
+ * **初期メンバーの印**（名前の横の真鍮の盾＋墨の星・2026-10-28 owner）を出すか。
+ *
+ * - 出せるのは初期ユーザーの資格（`badges.earlyUser`・`scripts/grant-early-user.js` が付ける）を持つ人だけ
+ * - 本人の設定（`earlyMarkOn`）が `true` なら出す・`false` なら出さない（「外すのは本人の任意」）
+ * - 設定していない（項目が無い）人は**既定で付いている**。ただし owner の条件どおり
+ *   「**何も印を設定していない人**」だけ——名前の横に公式・Pro の印・選んだメダルの
+ *   どれも出ていないとき。どれかが出ていれば既定では出さない（本人が `true` にすれば並べて出る）
+ *
+ * 応答の `earlyMark`（公開・本人のどちらも）はこの結果。画面はそれをそのまま出す。
+ * 同じ規則を画面でも持つのは、名前の横の設定の下見（保存前の値で見せる）のためだけ
+ * （`lib/data/badgeShelf.ts`・iOS の `NameSideBadgeView`）
+ */
+export function showsEarlyMark(
+    p: { badges?: unknown; earlyMarkOn?: unknown; verified?: unknown; verifiedMarkOff?: unknown;
+        supporter?: unknown; proMarkStyle?: unknown; displayBadge?: unknown },
+    now: number = Date.now(),
+): boolean {
+    if (!ownsBadge(p.badges, "earlyUser")) return false;
+    if (p.earlyMarkOn === true) return true;
+    if (p.earlyMarkOn === false) return false;
+    const verifiedShown = p.verified === true && p.verifiedMarkOff !== true;
+    const proShown = isPro(p, now) && p.proMarkStyle !== "none";
+    const badgeShown = ownsBadge(p.badges, p.displayBadge);
+    return !verifiedShown && !proShown && !badgeShown;
+}
+
+/**
  * プロフィールの応答に足す4項目。公開プロフィールと自分のプロフィールで**同じ関数**を通す
  * （片方だけ直して食い違わせない）。
  *
