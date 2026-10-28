@@ -3,7 +3,6 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { resolveOgImage } from "@/lib/server/photos";
 import Link from "next/link";
-import { Shippori_Mincho_B1, Yusei_Magic, Yomogi } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
 import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
@@ -14,6 +13,7 @@ import LegalGate from "./components/LegalGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import Analytics from "./components/Analytics";
+import WebFontLoader from "./components/WebFontLoader";
 import { AuthProvider } from "./auth/context";
 import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
@@ -21,97 +21,6 @@ import BottomNav from "./components/BottomNav";
 import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
 
-/**
- * **見出しの明朝（Shippori Mincho B1 Bold）——アプリ v2 と同じ字（2026-10-15）。**
- *
- * iOS は `JPFont.display`（写真の題・画面の題・名前）でこの字を同梱している。
- * Web の `font-serif`（31か所・見出しだけ）は端末の明朝任せで、iPhone では
- * ヒラギノ明朝、Windows では游明朝と、**アプリと別の字**になっていた。
- *
- * **本文の Inter はやめた。** Inter は日本語の字を持たず、ほぼ日本語の本文には
- * 当たっていなかった（英数字だけ Inter・日本語は端末の字で割れていた）。
- * iOS の本文はシステムの字（SF Pro＋ヒラギノ角ゴ）なので、Web も
- * `globals.css` の `--font-sans`（`-apple-system` から始まる並び）にそろえる。
- * Inter の webfont を全ページに配っていたぶん、配る量は減る。
- *
- * **配る量を抑える形**（手書き2種と同じ。理由は下の docstring）:
- *   - 太さは **700 の1つだけ**（アプリも Bold だけ）
- *   - `subsets` を書かない＝日本語の `unicode-range` を全部持ち、**ブラウザは
- *     そのページで使った字の範囲だけ**落とす
- *   - `preload: false`——見出しの無いページに先読みを出さない
- *   - `display: "swap"`——落ちてくるまでは端末の明朝で読める
- *   - `fallback` を渡さない——並びは `globals.css` の `--font-serif` だけが持つ
- *
- * 字は SIL OFL（配ってよい）。ファイルは next/font がビルド時に取り込み、
- * **このサイト自身から配る**（Google へ閲覧者の通信は出ない）。
- */
-const mincho = Shippori_Mincho_B1({
-    weight: ["700"],
-    display: "swap",
-    preload: false,
-    variable: "--font-mincho",
-});
-
-/**
- * **手書き2種**（ストーリーの文字だけで使う。owner の要望 2026-09-22
- * 「広告でよくある手書きのフォントも欲しい」「アオハルマーカー mini /
- * みぎかたあがり のフォントがいい」）。
- *
- * ⚠️ **名指しの2つはそのまま使えない。**
- *   - アオハルマーカーmini は**漢字を収録していない**（かな・英数字のみ）
- *   - みぎかたあがり は**漢字が69字だけ**
- *   どちらも文章に混ぜると「かなは手書き・漢字はゴシック」になる。
- *   さらに Web フォントはファイルを閲覧者全員へ配ることになるが、
- *   両方とも配布元（BOOTH）の規約に Web フォント可の明記が無い。
- *
- * そこで**見た目がいちばん近く、漢字を持ち、配ってよい**（SIL OFL）2つ:
- *   - `Yusei Magic`（油性マジック）＝マーカー書き
- *   - `Yomogi`（ヨモギ）＝ペンの走り書き
- *
- * **代償を抑える形**:
- *   - `preload: false`——全ページに `<link rel=preload>` を出さない。
- *     使うのはストーリーの文字だけで、ほとんどのページには1文字も無い
- *   - `display: "swap"`——落ちてくるまでは丸ゴシックで読める
- *   - `subsets` は**書かない**（次のコメント）。日本語は `unicode-range` で
- *     細かく割れて配られるので、**実際に落ちるのは使った字の範囲だけ**
- *
- * ⚠️ **`subsets` を書かない。** next/font が持つ一覧に `japanese` が無く
- * （`font-data.json` は cyrillic/greek-ext/latin/latin-ext だけ）、
- * `latin` と書くと**日本語の字が1つも入らない**。省くと全部の
- * `unicode-range` を取り込み、ブラウザは**使った範囲だけ**落とす。
- * 省くときは `preload: false` が要る（Next が止める）。
- *
- * ⚠️ **`fallback` も渡さない。** 渡すと next/font は**その並びを CSS 変数の
- * 中へ焼き込む**ので、`storyText.ts` の
- * `var(--font-marker),"Hiragino…",cursive` が実際にはこう展開される
- * （実ブラウザで `getComputedStyle` を読んで見つけた）:
- *
- *     "Yusei Magic",Hiragino Maru Gothic ProN,Hiragino Sans,sans-serif,
- *     "Hiragino Maru Gothic ProN","Hiragino Sans",cursive
- *      ^^^^^^^^^^ ここで総称ファミリに当たり、後ろ半分は永久に使われない
- *
- * 受け皿の並びは `storyText.ts` の1か所だけが持つ。渡さないと変数は
- * `"Yusei Magic","Yusei Magic Fallback"` になり、並びは `cursive` まで届く。
- *
- * ⚠️ **`adjustFontFallback: false` は効かない**（実ビルドで確かめた）。
- * 渡しても `@font-face{font-family:Yusei Magic Fallback;src:local(Arial);
- * size-adjust:111.71%}` は出て、変数にも入る。効かない指定は置かない。
- * 害は無い——この面は Arial なので**日本語の字を1つも持たず**、
- * CSS のフォント選択は字ごとに落ちるので、日本語は次の
- * `Hiragino Maru Gothic ProN` へ進む。
- */
-const marker = Yusei_Magic({
-    weight: ["400"],
-    display: "swap",
-    preload: false,
-    variable: "--font-marker",
-});
-const scribble = Yomogi({
-    weight: ["400"],
-    display: "swap",
-    preload: false,
-    variable: "--font-scribble",
-});
 // Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
 // viewportFit=cover でノッチ・ホームインジケーター領域の safe-area-inset を有効化
 export const viewport: Viewport = {
@@ -318,7 +227,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${mincho.variable} ${marker.variable} ${scribble.variable} min-h-screen flex flex-col bg-bg text-white`}>
+      {/* **Web フォント（明朝・手書き2種）の CSS は、ここで読まない**（2026-10-28・`WebFontLoader`）。
+          `--font-mincho` などの既定値は `globals.css` の `:root` が持つ */}
+      <body className="min-h-screen flex flex-col bg-bg text-white">
+        <WebFontLoader />
         <Analytics />
         <DisableSave />
         <AssetRecovery />

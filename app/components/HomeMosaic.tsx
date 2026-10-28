@@ -30,8 +30,8 @@ import { MOSAIC_HERO_SIZES, MOSAIC_PAIR_SIZES } from "./gridSizes";
 type Props = {
     photos: Photo[];
     locale: Locale;
-    /** 最初に読む枚数（`fetchPriority="high"`）。既定は大きい1枚＋最初の2枚の段＝3枚
-     *  （2枚だと同じ段の右だけ遅れて出る） */
+    /** 最初に読む枚数（`loading="eager"`）。既定は大きい1枚＋最初の2枚の段＝3枚
+     *  （2枚だと同じ段の右だけ遅れて出る）。`fetchPriority="high"` と先読みは先頭の1枚だけ */
     priorityCount?: number;
 };
 
@@ -58,7 +58,7 @@ export default function HomeMosaic({ photos, locale, priorityCount = 3 }: Props)
         <ol className="-mx-4 sm:mx-0 grid grid-cols-2 m-0 p-0" style={{ gap: GAP, listStyle: "none" }}>
             {photos.map((p, i) => (
                 <li key={p.id} className={`m-0 p-0 ${large.has(i) ? "col-span-2" : ""}`}>
-                    <HomeTile photo={p} locale={locale} large={large.has(i)} priority={i < priorityCount} />
+                    <HomeTile photo={p} locale={locale} large={large.has(i)} priority={i < priorityCount} lcp={i === 0 && priorityCount > 0} />
                 </li>
             ))}
         </ol>
@@ -75,8 +75,10 @@ function useAfterHydration(): boolean {
 }
 
 /** ホームの1枚。写真・撮影地と撮った人の重ね・右下のいいねの数・複数枚の印 */
-function HomeTile({ photo, locale, large = false, priority = false }: {
+function HomeTile({ photo, locale, large = false, priority = false, lcp = false }: {
     photo: Photo; locale: Locale; large?: boolean; priority?: boolean;
+    /** 先頭の1枚（スマホの LCP）。これだけ `fetchPriority="high"` と `<head>` の先読みを付ける */
+    lcp?: boolean;
 }) {
     const isJa = locale !== "en";
     const alt = photoAltText(photo, locale);
@@ -115,7 +117,10 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
             } as React.CSSProperties}
         >
             <Thumb photo={photo} alt={alt} sizes={large ? MOSAIC_HERO_SIZES : MOSAIC_PAIR_SIZES}
-                   cellAspect={large ? 16 / 9 : 1} priority={priority} objectPosition={objectPosition} />
+                   cellAspect={large ? 16 / 9 : 1} priority={priority} objectPosition={objectPosition}
+                   // **high と先読みは先頭の1枚だけ**（2026-10-28）。以前は最初の3枚が全部 high で、
+                   // 大きい1枚（LCP）と同じ段の2枚が帯域を取り合っていた。2・3枚目も `eager` のまま
+                   highPriority={lcp} preloadImage={lcp} />
 
             {/* 撮影地と撮った人（板: 明朝の撮影地、その下に小さく）。
                 **撮影地が無い写真は文字を重ねず、下を薄く暗くするだけ**（いいねの丸を読ませる） */}

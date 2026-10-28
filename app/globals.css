@@ -51,7 +51,7 @@
 
   /* **字（2026-10-15・アプリ v2 の `JPFont` と同じ役割分担）。**
        sans  … 本文。iOS のシステムの字（SF Pro＋ヒラギノ角ゴ）。Windows・Android は Noto へ
-       serif … 見出し。Shippori Mincho B1 Bold（`layout.tsx` が配る）→ 端末の明朝
+       serif … 見出し。Shippori Mincho B1 Bold（`app/fonts/webFonts.ts` を `WebFontLoader` が水和のあとで読む）→ 端末の明朝
        mono  … 数字と眉ラベル。**等幅の字ではなく本文と同じ字＋等幅数字**
                （owner の好み 2026-10-02: 板の IBM Plex Mono をやめて SF に。iOS の `JPFont.mono`）
        wordmark … ヘッダーの「Journey Photo」だけ。iOS は `design: .serif`（New York） */
@@ -68,6 +68,19 @@
    body の中ならどこでも届く（`fontStack.test.ts` が縛る） */
 @theme inline {
   --font-serif: var(--font-mincho), "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+}
+
+/* **Web フォントの変数の既定値（2026-10-28）。** next/font の CSS（`@font-face` が数百個・
+   gzip 96KB）は描画を止めないよう**水和のあとで読む**（`app/fonts/webFonts.ts`・
+   `WebFontLoader`）。届くまで変数が無いと `var(--font-mincho)` を含む並びが**値ごと無効**
+   になり、見出しが本文の字に落ちる（上の注記と同じ壊れ方）。だから字の名前を先に置く。
+   表（`@font-face`）が届くまでは、その名前は飛ばされて並びの次（端末の明朝）で描く。
+   届いたら `WebFontLoader` が next/font のクラスを `<body>` に付けて正式な値で上書きする。
+   名前の突き合わせは `webFontsDeferred.test.tsx` */
+:root {
+  --font-mincho: "Shippori Mincho B1", "Shippori Mincho B1 Fallback";
+  --font-marker: "Yusei Magic", "Yusei Magic Fallback";
+  --font-scribble: "Yomogi", "Yomogi Fallback";
 }
 
 /* **眉ラベル**（iOS v2 の `jpEyebrow()`・板 02 Eyebrow: SF 600・11・字間 0.14em・大文字）。
