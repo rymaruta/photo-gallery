@@ -388,6 +388,32 @@ body {
   box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
+/* Apple のマップ（MapKit JS）の印の箱（`lib/map/mapkitEngine.ts`）。
+   中身の見た目は Leaflet のときと同じクラス（`.photo-map-pin` など）で描く。
+   キーボードで来たときに、どの印にいるかが見えるようにする */
+.jp-map-marker {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+.jp-map-marker:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+/* 現在地の点（Apple のマップのとき）。Leaflet の `circleMarker` と同じ見た目
+   ——半径 7px の `--color-location` ＋黒 2px の縁 */
+.photo-map-here {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #9cc3e6;
+  box-shadow: inset 0 0 0 2px #000;
+  pointer-events: none;
+}
+
 /* ───────── 写真入りのピン（最終版モック 06-map.jpg の②） ─────────
 
    大きさはモックの画素から測った（端末の画面幅 364画素 ＝ 393 CSS px）:

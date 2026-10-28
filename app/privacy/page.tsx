@@ -23,7 +23,7 @@ import { siteConfig } from "@/lib/utils/seo";
 // 11節のログの保存期間（90日）は `api/serverless.yml`・`api-user/serverless.yml` の
 // `logRetentionInDays`（photo-gallery #397）。Lambda@Edge（OGP）のログは CloudFormation の外で
 // 期限が付いていないので、「全部が90日」とは書かない（`scripts/__tests__/logRetention.test.ts` の注記）。
-const LAST_UPDATED = "2026年10月18日";
+const LAST_UPDATED = "2026年10月28日";
 
 export const metadata: Metadata = {
     // サイト名は `app/layout.tsx` の `template` が付ける。ここでも足すと
@@ -335,7 +335,8 @@ export default function PrivacyPage() {
                     </ul>
                     <p>次のものは、当サイトのサーバーを通さず、閲覧している方のブラウザが直接つなぎます。そのため、閲覧している方の IP アドレスなどが各社に届きます。</p>
                     <ul className="list-disc pl-5 space-y-1">
-                        <li><strong className="text-white/90">OpenStreetMap の地図タイル</strong>（tile.openstreetmap.org） — ウェブサイトの地図の表示</li>
+                        <li><strong className="text-white/90">Apple のマップ（MapKit JS）</strong>（cdn.apple-mapkit.com など） — ウェブサイトの地図の表示。地図の部品と、見ている範囲の地図の画像を Apple から読みます。「現在地」を押したときは、その周りの地図の画像を読むことになります（座標そのものを Apple に送る仕組みは使っていません）</li>
+                        <li><strong className="text-white/90">OpenStreetMap の地図タイル</strong>（tile.openstreetmap.org） — Apple のマップを読めないときに代わりに出す地図</li>
                         <li><strong className="text-white/90">YouTube・Spotify・Apple Music</strong> — プロフィールなどに貼られた曲の埋め込み（YouTube は通常の埋め込み（youtube.com）を使い、Cookie を使うことがあります）</li>
                         <li><strong className="text-white/90">Apple（曲の試聴とジャケット画像）</strong> — 検索で選んだ曲の試聴の音声とジャケット画像（audio-ssl.itunes.apple.com・mzstatic.com）。ウェブサイトのブラウザも iPhone アプリも、Apple に直接つなぎます</li>
                     </ul>

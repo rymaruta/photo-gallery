@@ -11,6 +11,8 @@
  * テストするため（Leaflet は `window` に依存し、描画側は別に見る）。
  */
 
+import { project } from "../map/region";
+
 export type GeoPoint = { id: string; lat: number; lng: number };
 
 export type Cluster<T extends GeoPoint = GeoPoint> = {
@@ -20,18 +22,8 @@ export type Cluster<T extends GeoPoint = GeoPoint> = {
     items: T[];
 };
 
-const TILE_PX = 256;
-
-/** 緯度経度 → そのズームでの Web メルカトルのピクセル座標 */
-export function project(lat: number, lng: number, zoom: number): { x: number; y: number } {
-    const scale = TILE_PX * 2 ** zoom;
-    // 緯度は ±85.05° で頭打ち（メルカトルの定義域）
-    const clamped = Math.max(-85.05112878, Math.min(85.05112878, lat));
-    const sin = Math.sin((clamped * Math.PI) / 180);
-    const x = ((lng + 180) / 360) * scale;
-    const y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale;
-    return { x, y };
-}
+/** 緯度経度 → Web メルカトルのピクセル座標（換算は `lib/map/region.ts` に1つだけ置く） */
+export { project };
 
 /**
  * 同じ升に入った点を1つに束ねる。

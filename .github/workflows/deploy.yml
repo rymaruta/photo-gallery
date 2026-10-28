@@ -415,6 +415,11 @@ jobs:
           NEXT_PUBLIC_GA_ID: ${{ needs.config.outputs.gaId }}
           # 未設定なら空＝「問い合わせる」を出さない（今までどおり）
           NEXT_PUBLIC_CONTACT_EMAIL: ${{ needs.config.outputs.contactEmail }}
+          # Apple のマップ（MapKit JS）の鍵。**ドメインを限った公開の鍵**で、ページに
+          # 埋めて配るもの（秘密ではない）。リポジトリ変数 `MAPKIT_JS_TOKEN`。
+          # 未設定なら空＝今までの地図（OpenStreetMap）を出す（`lib/map/engine.ts`）。
+          # 本番と staging の両方のドメインを鍵に載せれば、1本で足りる
+          NEXT_PUBLIC_MAPKIT_JS_TOKEN: ${{ vars.MAPKIT_JS_TOKEN }}
           # robots.txt を環境で切り替えるため（staging は全拒否）
           NEXT_PUBLIC_ENV_NAME: ${{ needs.config.outputs.envName }}
           # ビルド中の photos.json 同期先

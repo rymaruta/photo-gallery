@@ -3,7 +3,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { isIOS, isIOSSafari } from "@/lib/utils/pwa";
 import "leaflet/dist/leaflet.css";
-import type { Map as LeafletMap, LayerGroup } from "leaflet";
+import type { MapEngine } from "../../lib/map/engine";
+import { createLeafletEngine } from "../../lib/map/leafletEngine";
+import { createMapKitEngine, loadMapKit, mapKitRefused, onMapKitRefused } from "../../lib/map/mapkitEngine";
 import type { Photo } from "../../lib/data/photos";
 import { clusterPoints, boundsOf, type GeoPoint } from "../../lib/utils/mapClusters";
 import type { SpotPin } from "../../lib/data/spotLink";
@@ -11,10 +13,11 @@ import type { SpotPin } from "../../lib/data/spotLink";
 /** 既定の空配列。**毎回作らない**（作ると ref の更新が毎描画で走る） */
 const EMPTY_SPOTS: readonly SpotPin[] = [];
 import {
-    MAP_MIN_ZOOM, MAP_MAX_ZOOM, chooseInitialView, readSavedView, saveView, clearSavedView,
+    MAP_MAX_ZOOM, chooseInitialView, readSavedView, saveView, clearSavedView,
 } from "../../lib/utils/mapView";
 import { normalizeBounds, type MapBounds } from "../../lib/utils/mapFilter";
 import { publicImageUrl } from "../../lib/utils/seo";
+import { useLatestRef } from "../../lib/hooks/useLatestRef";
 import { photoTitleFor } from "../../lib/utils/photoTitle";
 
 /** 位置情報を持つ写真だけ（`coords` が有限の数であること） */
@@ -63,9 +66,20 @@ const SPOT_CELL_PX = 72;
 const LOCATE_ZOOM = 12;
 
 /**
- * 撮影地の地図。**Leaflet は effect の中で読む**——`window` に依存するので、
- * トップレベルで import すると静的書き出し（`next build` の事前描画）で落ちる。
- * CSS は window に依存しないので普通に import する。
+ * Apple のマップ（MapKit JS）の鍵。**空なら最初から控えの地図**（`lib/map/engine.ts`）。
+ * ドメインを限った鍵で、ページに埋めて配る前提のもの（秘密ではない）
+ */
+const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_MAPKIT_JS_TOKEN ?? "";
+
+/**
+ * 撮影地の地図。**地図は Apple のマップ（MapKit JS）**——iOS のアプリと同じ地図。
+ * 鍵が無い・Apple に届かない・鍵が断られたときは今までの地図（Leaflet＋
+ * OpenStreetMap）に落とす。土台の違いは `lib/map/*Engine.ts` に閉じ込め、ここは
+ * 束ね方・選び方・控え・現在地だけを1つ書く。
+ *
+ * **どちらの土台も effect の中で読む**——`window` に依存するので、
+ * トップレベルで読むと静的書き出し（`next build` の事前描画）で落ちる。
+ * Leaflet の CSS は window に依存しないので普通に import する。
  *
  * ## ピンは写真の絵で出す（2026-09-22・最終版モック）
  *
@@ -150,37 +164,38 @@ export default function PhotoMap({
 }) {
     const en = locale === "en";
     const containerRef = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<LeafletMap | null>(null);
-    const layerRef = useRef<LayerGroup | null>(null);
+    const mapRef = useRef<MapEngine | null>(null);
+    /** 印を描き直す（ズーム・写真・スポット・現在地が変わったとき） */
+    const redrawRef = useRef<(() => void) | null>(null);
+    /**
+     * どちらの地図で描くか。鍵があれば Apple のマップから始め、読めなかった・
+     * 断られたら控えの地図に切り替える（切り替えたらこの画面では戻さない）
+     */
+    const [engineKind, setEngineKind] = useState<"mapkit" | "leaflet">(
+        () => (MAPKIT_TOKEN && !mapKitRefused() ? "mapkit" : "leaflet"),
+    );
     /** ピンの DOM（id → 要素）。選択が変わっても描き直さず、クラスだけ付け替える */
     const pinElsRef = useRef(new Map<string, HTMLElement>());
-    // 最新の写真を effect の外から読む（ズームのたびに束ね直すため）
-    const photosRef = useRef(photos);
-    photosRef.current = photos;
+    // 最新の写真を effect の外から読む（ズームのたびに束ね直すため）。
+    // **描画の途中では書かない**（`useLatestRef`。描き終えた直後に書く）
+    const photosRef = useLatestRef(photos);
     // **ref に持つ。** 依存に入れると、親が関数を作り直すたびに地図ごと
     // 建て直すことになる（見ていた場所もズームも消える）
-    const onSelectRef = useRef(onSelect);
-    onSelectRef.current = onSelect;
-    const selectedIdRef = useRef(selectedId);
-    selectedIdRef.current = selectedId;
+    const onSelectRef = useLatestRef(onSelect);
+    const selectedIdRef = useLatestRef(selectedId);
     /** 公式スポットのピンの DOM（スラッグ → 要素）。写真のピンと同じ扱い */
     const spotElsRef = useRef(new Map<string, HTMLElement>());
-    const spotsRef = useRef(spots);
-    spotsRef.current = spots;
-    const onSelectSpotRef = useRef(onSelectSpot);
-    onSelectSpotRef.current = onSelectSpot;
-    const selectedSpotRef = useRef(selectedSpotSlug);
-    selectedSpotRef.current = selectedSpotSlug;
+    const spotsRef = useLatestRef(spots);
+    const onSelectSpotRef = useLatestRef(onSelectSpot);
+    const selectedSpotRef = useLatestRef(selectedSpotSlug);
     /** 写真0枚で地図を作った（あとから写真が届いたら一度だけ寄る・人が動かしたら取り消す） */
     const autoFitPendingRef = useRef(false);
-    const areaActiveRef = useRef(areaActive);
-    areaActiveRef.current = areaActive;
+    const areaActiveRef = useLatestRef(areaActive);
     /** 直前に選んでいたスポット（外したら束に戻すため描き直す） */
     const prevSelectedSpotRef = useRef<string | null>(null);
     /** 現在地。**state に置くだけで、保存も送信もしない** */
     const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
-    const hereRef = useRef(here);
-    hereRef.current = here;
+    const hereRef = useLatestRef(here);
     const [locating, setLocating] = useState(false);
     const [locateError, setLocateError] = useState("");
     /**
@@ -189,57 +204,48 @@ export default function PhotoMap({
      */
     const suppressSaveRef = useRef(false);
 
+    // 鍵が断られた・1日の上限に当たった（Apple から後で届く）→ 控えの地図へ
+    useEffect(() => {
+        if (engineKind !== "mapkit") return;
+        return onMapKitRefused(() => setEngineKind("leaflet"));
+    }, [engineKind]);
+
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
         let cancelled = false;
+        let made: MapEngine | null = null;
 
         void (async () => {
-            const L = await import("leaflet");
-            if (cancelled || !containerRef.current) return;
-
-            // **「動きを減らす」設定を尊重する。** Leaflet は既定でズームも移動も
-            // 慣性も動かす（実測: ズーム 321ms・ホイール 344ms・指を離してから
-            // 464ms 滑る）。Leaflet 自身は `prefers-reduced-motion` を見ない
-            // （1.9.4 のソースに参照 0 件）ので、こちらで渡す。
-            // `fitBounds` だけ止めても、ズームボタン・ホイール・慣性が残る
+            // **「動きを減らす」設定を尊重する**（ズーム・移動・慣性・束を押したときの寄せ）
             const reduceMotion = typeof window.matchMedia === "function"
                 && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-            // `minZoom`: 引ききると世界1周が地図の高さより短くなり、上下に
-            // 下地の黒が出る（実測 390x844: ズーム0 で上 211px・1 で 39px）。
-            // 2 なら 1024px で、スマホの 70vh（≒590px）にも収まる。
-            // **`zoomControl: false`**——ズームは容器の外の `<button>`（上の説明）
-            const map = L.map(el, {
-                zoomControl: false, attributionControl: true, worldCopyJump: true, minZoom: MAP_MIN_ZOOM,
-                zoomAnimation: !reduceMotion, fadeAnimation: !reduceMotion,
-                markerZoomAnimation: !reduceMotion, inertia: !reduceMotion,
-            });
+            let map: MapEngine;
+            if (engineKind === "mapkit") {
+                try {
+                    const mk = await loadMapKit(MAPKIT_TOKEN, en ? "en" : "ja");
+                    if (cancelled || !containerRef.current) return;
+                    map = createMapKitEngine(mk, el, { reduceMotion });
+                } catch {
+                    // 読めなかった（圏外・配信の不調・時間切れ）。控えの地図で描き直す
+                    if (!cancelled) setEngineKind("leaflet");
+                    return;
+                }
+            } else {
+                map = await createLeafletEngine(el, { reduceMotion });
+                if (cancelled || !containerRef.current) { map.remove(); return; }
+            }
+            made = map;
             mapRef.current = map;
-            L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-                maxZoom: MAP_MAX_ZOOM,
-                // OpenStreetMap の利用規約: 帯を出す
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            }).addTo(map);
-            const layer = L.layerGroup().addTo(map);
-            layerRef.current = layer;
 
             const select = (sel: MapSelection) => onSelectRef.current?.(sel);
-            // 地図の余白を押したら閉じる。
-            // **ピンの click はここへ来ない。** Leaflet はレイヤーの DOM イベントを
-            // 地図にも伝えるが、`bubblingMouseEvents: false` のレイヤーだけは
-            // 止める（`leaflet-src.js:4567`）。`Marker` は既定で false、
-            // `Path`（circleMarker）は既定で **true** なので、単独のピンにだけ
-            // 明示して渡す（下）。最初は「ピンの直後 200ms は閉じない」と
-            // 時刻で弾いていたが、それは Leaflet が用意している選択肢の
-            // 言い換えで、壁時計に依存するぶん脆い
-            map.on("click", () => onSelectRef.current?.(null));
+            // 地図の余白を押したら閉じる（印を押したときは来ない＝各土台が見分ける）
+            map.onBackgroundClick(() => onSelectRef.current?.(null));
 
-            /** Enter でも押せるようにする（ピンは `keyboard: true` で Tab で
-             *  来られるが、Leaflet は Enter を click に**変換しない**。
-             *  以前は `bindPopup` が `keypress` を拾って開いていた） */
-            const onActivate = (marker: import("leaflet").Layer, fn: () => void) => {
-                marker.on("click", fn);
-                marker.on("keypress", (e) => { if ((e as { originalEvent?: KeyboardEvent }).originalEvent?.key === "Enter") fn(); });
+            /** 束を押して寄る。**寄せたら「写真が届いたら全体へ」を取り消す**（人の操作の結果） */
+            const zoomInto = (b: { south: number; west: number; north: number; east: number }) => {
+                autoFitPendingRef.current = false;
+                map.fitBounds(b, { padding: 48, maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
             };
 
             /**
@@ -255,7 +261,7 @@ export default function PhotoMap({
                     img.className = "photo-map-pin__img";
                     // 出す URL はサイトのドメインに揃える（`Thumb` と同じ理由）
                     img.src = publicImageUrl(thumb);
-                    img.alt = "";           // 名前は marker の `title`/`alt` が持つ
+                    img.alt = "";           // 名前は印の `title` が持つ
                     img.decoding = "async";
                     // **px を書く。** Leaflet の `width: auto` が効くと、読み込み前は
                     // 幅0・読み込み後は元画像の幅（256px）になり、ピンが化ける
@@ -271,12 +277,20 @@ export default function PhotoMap({
                 return wrap;
             };
 
+            /** 数字だけの丸（束）。**利用者の入力は入らない** */
+            const countElement = (n: number): HTMLElement => {
+                const span = document.createElement("span");
+                span.textContent = String(n);
+                return span;
+            };
+
             const draw = () => {
-                layer.clearLayers();
+                map.clearMarkers();
                 pinElsRef.current.clear();
                 spotElsRef.current.clear();
+                const zoom = map.getZoom();
                 const points: Point[] = photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng, photo: p }));
-                for (const c of clusterPoints(points, map.getZoom(), CELL_PX)) {
+                for (const c of clusterPoints(points, zoom, CELL_PX)) {
                     if (c.items.length === 1) {
                         const { photo } = c.items[0];
                         const el = pinElement(photo);
@@ -286,32 +300,16 @@ export default function PhotoMap({
                         // 写真ページと同じ題（`photoTitleFor`。旧い「無題」は落として「写真」）
                         const name = (photo.location ?? "").trim()
                             || photoTitleFor(photo, en ? "en" : "ja").text;
-                        const marker = L.marker([c.lat, c.lng], {
-                            icon: L.divIcon({
-                                html: el,
-                                className: "photo-map-pin-icon",
-                                iconSize: [PIN_PX, PIN_H],
-                                // 尖りの先が座標。**下端を合わせる**（中心だと
-                                // 実際の位置よりピン半分ぶん上にずれる）
-                                iconAnchor: [PIN_PX / 2, PIN_H],
-                            }),
+                        map.addMarker({
+                            lat: c.lat, lng: c.lng, el, className: "photo-map-pin-icon",
+                            size: [PIN_PX, PIN_H],
+                            // 尖りの先が座標。**下端を合わせる**（中心だと
+                            // 実際の位置よりピン半分ぶん上にずれる）
+                            anchor: [PIN_PX / 2, PIN_H],
                             title: name,
-                            alt: name,
-                            keyboard: true,
+                            onActivate: () => select({ photos: [photo], index: 0 }),
                         });
-                        onActivate(marker, () => select({ photos: [photo], index: 0 }));
-                        marker.addTo(layer);
                     } else {
-                        const icon = L.divIcon({
-                            html: `<span>${c.items.length}</span>`,   // 数字だけ（利用者の入力は入らない）
-                            className: "photo-map-cluster",
-                            iconSize: [34, 34],
-                        });
-                        const marker = L.marker([c.lat, c.lng], {
-                            icon,
-                            title: en ? `${c.items.length} photos` : `${c.items.length}枚`,
-                            keyboard: true,
-                        });
                         // **押したら、その束が収まる範囲まで一気に寄る。**
                         // 「2段ずつ寄る」だと、4km 離れた2枚を割るのに5回押す
                         // ことになった（実ブラウザで実測）。
@@ -319,26 +317,17 @@ export default function PhotoMap({
                         // 割れない**ので、寄れないときは束ごとシートに渡す
                         // （シートが「1/5」で送れるようにする）
                         const inner = boundsOf(c.items);
-                        const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && map.getZoom() < MAP_MAX_ZOOM;
-                        if (splittable) {
-                            // **`animate: true` は渡さない。** Leaflet の
-                            // `options.animate !== true && !this.getSize().contains(offset)`
-                            // （`leaflet-src.js:4787`）は「1画面より遠い行き先は
-                            // 動かさない」という安全弁で、`true` を渡すと**外れる**。
-                            // 設定を入れていない人にまで「画面端の束を押すと約1秒
-                            // かけて滑る」が起きる（実測）。止めたいときだけ false
-                            onActivate(marker, () => {
-                                map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
-                            });
-                        } else {
-                            // これ以上は割れない束。**枚数ぶんまとめてシートに渡し、
-                            // 「1/5」で送ってもらう。** 地図の中に横並びのカードを
-                            // 作っていた頃は、画像が遅れて入るたびに測り直しが走り、
-                            // その測り直しが横送りの位置を先頭へ巻き戻していた
-                            // （実測: 10枚の束で5回送って5回とも先頭へ戻された）
-                            onActivate(marker, () => select({ photos: c.items.map((it) => it.photo), index: 0 }));
-                        }
-                        marker.addTo(layer);
+                        const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && zoom < MAP_MAX_ZOOM;
+                        map.addMarker({
+                            lat: c.lat, lng: c.lng, el: countElement(c.items.length), className: "photo-map-cluster",
+                            size: [34, 34], anchor: [17, 17],
+                            title: en ? `${c.items.length} photos` : `${c.items.length}枚`,
+                            onActivate: splittable
+                                ? () => zoomInto(inner)
+                                // これ以上は割れない束。**枚数ぶんまとめてシートに渡し、
+                                // 「1/5」で送ってもらう**
+                                : () => select({ photos: c.items.map((it) => it.photo), index: 0 }),
+                        });
                     }
                 }
                 /**
@@ -362,7 +351,7 @@ export default function PhotoMap({
                     el.className = "spot-map-pin";
                     if (sp.slug === selectedSpotRef.current) el.classList.add("is-selected");
                     // **中身は印だけ。** 利用者の入力は入らない（名前は
-                    // marker の `title` / `alt` が持つ＝読み上げにも届く）
+                    // 印の `title` が持つ＝読み上げにも届く）
                     const dot = document.createElement("span");
                     dot.className = "spot-map-pin__dot";
                     dot.setAttribute("aria-hidden", "true");
@@ -372,66 +361,47 @@ export default function PhotoMap({
                     const label = sp.stage === "published"
                         ? (en ? `${sp.name} (official spot)` : `${sp.name}（公式撮影スポット）`)
                         : (en ? `${sp.name} (spot, draft)` : `${sp.name}（撮影スポット・下書き）`);
-                    const marker = L.marker([sp.lat, sp.lng], {
-                        icon: L.divIcon({
-                            html: el,
-                            className: "spot-map-pin-icon",
-                            iconSize: [SPOT_PIN_PX, SPOT_PIN_H],
-                            iconAnchor: [SPOT_PIN_PX / 2, SPOT_PIN_H],
-                        }),
+                    map.addMarker({
+                        lat: sp.lat, lng: sp.lng, el, className: "spot-map-pin-icon",
+                        size: [SPOT_PIN_PX, SPOT_PIN_H], anchor: [SPOT_PIN_PX / 2, SPOT_PIN_H],
                         title: label,
-                        alt: label,
-                        keyboard: true,
                         // **写真のピンより手前に置く。** 同じ升に写真の束が
                         // 在ると、下に隠れて押せない
                         zIndexOffset: 1000,
+                        onActivate: () => onSelectSpotRef.current?.(sp.slug),
                     });
-                    onActivate(marker, () => onSelectSpotRef.current?.(sp.slug));
-                    marker.addTo(layer);
                 };
                 const selectedSpot = selectedSpotRef.current;
                 const spotPoints = spotsRef.current
                     .filter((sp) => sp.slug !== selectedSpot)
                     .map((sp) => ({ id: sp.slug, lat: sp.lat, lng: sp.lng, spot: sp }));
-                for (const c of clusterPoints(spotPoints, map.getZoom(), SPOT_CELL_PX)) {
+                for (const c of clusterPoints(spotPoints, zoom, SPOT_CELL_PX)) {
                     const inner = c.items.length > 1 ? boundsOf(c.items) : null;
-                    const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && map.getZoom() < MAP_MAX_ZOOM;
+                    const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && zoom < MAP_MAX_ZOOM;
                     if (!splittable) {
                         for (const it of c.items) spotPin(it.spot);
                         continue;
                     }
                     const n = c.items.length;
-                    const marker = L.marker([c.lat, c.lng], {
-                        icon: L.divIcon({
-                            html: `<span>${n}</span>`,   // 数字だけ（利用者の入力は入らない）
-                            className: "spot-map-cluster",
-                            iconSize: [36, 36],
-                        }),
+                    map.addMarker({
+                        lat: c.lat, lng: c.lng, el: countElement(n), className: "spot-map-cluster",
+                        size: [36, 36], anchor: [18, 18],
                         title: en ? `${n} shooting spots` : `撮影スポット ${n}か所`,
-                        keyboard: true,
                         // **写真のピンより奥に置く**（写真が主役。束の丸は大きいので、上に
                         // 置くと写真の束を覆う）。単独のスポットのピンは小さいので手前のまま
                         zIndexOffset: -100,
+                        onActivate: () => zoomInto(inner),
                     });
-                    onActivate(marker, () => {
-                        map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
-                    });
-                    marker.addTo(layer);
                 }
                 const chosen = selectedSpot ? spotsRef.current.find((sp) => sp.slug === selectedSpot) : undefined;
                 if (chosen) spotPin(chosen);
 
                 // 現在地の点。**写真のピンとは別の形**（丸い点）にして、
-                // 「ここに写真がある」と読ませない。色は現在地だけの `--color-location`
-                // ＋黒 2px の縁（デザインシステム「黒塗りの真鍮」・iOS と同じ）
+                // 「ここに写真がある」と読ませない
                 const h = hereRef.current;
-                if (h) {
-                    L.circleMarker([h.lat, h.lng], {
-                        radius: 7, color: "#000000", weight: 2, fillColor: "#9cc3e6", fillOpacity: 1,
-                        interactive: false,
-                    }).addTo(layer);
-                }
+                if (h) map.addHereDot(h);
             };
+            redrawRef.current = draw;
 
             // **最初に見せる場所。** 写真ページから飛んできた（URL のハッシュ）か、
             // このタブで前に見ていた場所（控え）があればそこ。無ければ全部の
@@ -440,29 +410,24 @@ export default function PhotoMap({
             const initial = chooseInitialView(window.location.hash, readSavedView());
             const b = boundsOf(photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
             if (initial) {
-                map.setView([initial.lat, initial.lng], initial.zoom);
+                map.setView({ lat: initial.lat, lng: initial.lng }, initial.zoom);
             } else if (b) {
-                map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [32, 32], maxZoom: 12 });
+                map.fitBounds(b, { padding: 32, maxZoom: 12 });
             } else {
-                map.setView([36, 138], 4);   // 写真が無ければ日本全体
+                map.setView({ lat: 36, lng: 138 }, 4);   // 写真が無ければ日本全体
                 // **写真があとから届いたら、一度だけそこへ寄る。** 公式スポットがあると
                 // 写真0枚でも地図を作るので（`MapPageClient` の `nothingToShow`）、
                 // 作った時点で写真が無いと日本全体のまま止まっていた（2026-09-30 のレビュー）
                 autoFitPendingRef.current = true;
                 // **人が地図を動かしたら取り消す**（束を押して寄った・パンした・現在地へ飛んだ
-                // あとで、写真が届いたからと引き剥がさない）。上の `setView` の `movestart` は
-                // 同期で出終わっているので、ここで登録した listener には届かない
-                map.once("movestart zoomstart", () => { autoFitPendingRef.current = false; });
+                // あとで、写真が届いたからと引き剥がさない）。束と現在地はこちらでも取り消す
+                map.onceUserMove(() => { autoFitPendingRef.current = false; });
             }
             draw();
-            map.on("zoomend", draw);
+            map.onZoomEnd(draw);
             // 動かすたびに控える。URL は触らない（mapView.ts の冒頭を参照）。
-            // **最初の場所は控えに入らない**——上の `setView`/`fitBounds` は
-            // `moveend` を同期で出し終えている（Leaflet 1.9.4 を実行して確認:
-            // 後付けの listener には 0 回）。それで困らない: 動かしていなければ
-            // 控えの有無に関わらずハッシュ／全体表示に戻るので着地は同じ。
             // **「現在地」を使ったあとは書かない**（`suppressSaveRef`）
-            map.on("moveend", () => {
+            map.onMoveEnd(() => {
                 if (suppressSaveRef.current) return;
                 const c = map.getCenter();
                 saveView({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }, window.location.hash);
@@ -474,13 +439,14 @@ export default function PhotoMap({
         const pinEls = pinElsRef.current;
         return () => {
             cancelled = true;
-            layerRef.current = null;
+            redrawRef.current = null;
             pinEls.clear();
-            mapRef.current?.remove();
-            mapRef.current = null;
+            made?.remove();
+            if (mapRef.current === made) mapRef.current = null;
         };
-        // 写真が増えたら描き直す（`photosRef` を読むのは draw。ここは初期化だけ）
-    }, [locale, en]);
+        // 写真が増えたら描き直す（`photosRef` を読むのは draw。ここは初期化だけ）。
+        // `*Ref` は同じ入れ物のまま中身だけ替わる（依存に書いても作り直しは起きない）
+    }, [locale, en, engineKind, photosRef, onSelectRef, selectedIdRef, spotsRef, onSelectSpotRef, selectedSpotRef, hereRef]);
 
     /**
      * **枠の大きさが変わったら Leaflet に測り直させる。**
@@ -501,7 +467,7 @@ export default function PhotoMap({
             const map = mapRef.current;
             // 0x0（＝隠れている）ときは測り直さない。その値を覚えさせない
             if (!map || el.clientWidth === 0 || el.clientHeight === 0) return;
-            map.invalidateSize({ debounceMoveend: true });
+            map.invalidateSize();
         });
         ro.observe(el);
         return () => ro.disconnect();
@@ -516,15 +482,15 @@ export default function PhotoMap({
         if (autoFitPendingRef.current && photos.length > 0) {
             autoFitPendingRef.current = false;
             const b = boundsOf(photos.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
-            if (b) map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [32, 32], maxZoom: 12 });
+            if (b) map.fitBounds(b, { padding: 32, maxZoom: 12 });
         }
-        map.fire("zoomend");
-    }, [photos]);
+        redrawRef.current?.();
+    }, [photos, areaActiveRef]);
 
     // 現在地が付いた／消えたときも点を描き直す。
     // 公式スポットが増減したときも同じ（描き直しの入口を2つ作らない）
     useEffect(() => {
-        mapRef.current?.fire("zoomend");
+        redrawRef.current?.();
     }, [here, spots]);
 
     // **選ばれたピンは描き直さずにクラスだけ付け替える。** 描き直すと
@@ -556,7 +522,7 @@ export default function PhotoMap({
             return !!c && c.items.length > 1;
         };
         if ((selectedSpotSlug && !spotElsRef.current.has(selectedSpotSlug)) || prevBelongsInCluster()) {
-            map?.fire("zoomend");
+            redrawRef.current?.();
             return;
         }
         for (const [slug, el] of spotElsRef.current) {
@@ -598,7 +564,9 @@ export default function PhotoMap({
                 suppressSaveRef.current = true;
                 clearSavedView();
                 setHere({ lat: latitude, lng: longitude });
-                mapRef.current?.setView([latitude, longitude], LOCATE_ZOOM);
+                // 人の操作で寄った（写真が届いても全体へ引き剥がさない）
+                autoFitPendingRef.current = false;
+                mapRef.current?.setView({ lat: latitude, lng: longitude }, LOCATE_ZOOM);
             },
             (err) => {
                 setLocating(false);
@@ -639,10 +607,8 @@ export default function PhotoMap({
         if (!map) return;
         // **Leaflet は経度を ±180 に丸めない**（`worldCopyJump` で世界を跨ぐと
         // `west=169 / east=189` が返る）。畳んでから渡す（`normalizeBounds`）
-        const b = map.getBounds();
-        onSearchArea(normalizeBounds({
-            south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast(),
-        }));
+        // MapKit も世界を跨ぐと東が西より小さくなる。どちらも同じ口で畳む
+        onSearchArea(normalizeBounds(map.getBounds()));
     }, [onSearchArea, areaActive]);
 
     // 操作ボタンの共通の見た目。**px で書く**（640px 未満で root が 14px に
