@@ -26,7 +26,7 @@ import StoryViewer from "./StoryViewer";
 import { RING_UNSEEN, RING_SEEN } from "./ring";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import StoryTextOverlay from "./StoryTextOverlay";
-import { useStoryFonts } from "../WebFontLoader";
+import { StoryFontsLoader } from "../WebFontLoader";
 import { useMediaBox } from "../../../lib/hooks/useMediaBox";
 import { movedBeyondTap, type PressPoint } from "../../../lib/utils/tap";
 import {
@@ -159,8 +159,6 @@ const STORY_TOOLS: ReadonlyArray<{
 ];
 
 export default function StoriesBar() {
-    // 字体を選ぶボタンは各書体で名前を描く（手書き2種の字の表・`app/fonts/storyFonts.ts`）
-    useStoryFonts();
     const { isAuthenticated, userId } = useAuth();
     const { locale } = useLocale();
     const { showToast } = useToast();
@@ -1792,6 +1790,9 @@ export default function StoriesBar() {
                                 <div role="tabpanel" aria-label={locale === "en" ? "Text style" : "文字の見せ方"}>
                                 {tool === "font" && (
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Font" : "字体"}>
+                                    {/* 字体を選ぶボタンは各書体で名前を描く——手書き2種の字の表はこの欄を開いたときだけ読む
+                                        （`app/fonts/storyFonts.ts`。見る側は `StoryTextOverlay` が読む） */}
+                                    <StoryFontsLoader />
                                     {STORY_FONT_KEYS.map((k) => (
                                         <button
                                             key={k}

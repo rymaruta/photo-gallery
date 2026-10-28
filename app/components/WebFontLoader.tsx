@@ -57,3 +57,9 @@ export function loadStoryFonts(): Promise<void> {
 export function useStoryFonts(): void {
     useEffect(() => { void loadStoryFonts(); }, []);
 }
+
+/** 描いた所で手書き2種を読むだけの部品（ストーリーを作る画面の字体の欄に置く） */
+export function StoryFontsLoader(): null {
+    useStoryFonts();
+    return null;
+}

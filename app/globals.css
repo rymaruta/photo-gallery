@@ -51,7 +51,7 @@
 
   /* **字（2026-10-15・アプリ v2 の `JPFont` と同じ役割分担）。**
        sans  … 本文。iOS のシステムの字（SF Pro＋ヒラギノ角ゴ）。Windows・Android は Noto へ
-       serif … 見出し。Shippori Mincho B1 Bold（`layout.tsx` が配る）→ 端末の明朝
+       serif … 見出し。Shippori Mincho B1 Bold（`app/fonts/webFonts.ts` を `WebFontLoader` が水和のあとで読む）→ 端末の明朝
        mono  … 数字と眉ラベル。**等幅の字ではなく本文と同じ字＋等幅数字**
                （owner の好み 2026-10-02: 板の IBM Plex Mono をやめて SF に。iOS の `JPFont.mono`）
        wordmark … ヘッダーの「Journey Photo」だけ。iOS は `design: .serif`（New York） */

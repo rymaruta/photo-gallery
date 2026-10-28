@@ -42,10 +42,13 @@ describe("ホームの並び: LCP の1枚だけを先に", () => {
         const head = html.slice(0, html.indexOf("</head>"));
         const links = head.match(/<link rel="preload" as="image"[^>]*>/g) ?? [];
         expect(links, "画像の先読みは1本だけ").toHaveLength(1);
-        expect(links[0]).toContain('imageSrcSet="https://cdn/a_thumb_sm.avif');
-        expect(links[0]).toContain('type="image/avif"');
-        expect(links[0]).toContain('fetchPriority="high"');
-        expect(links[0]).toContain(`imageSizes="${MOSAIC_HERO_SIZES}"`);
+        // 先読みの候補は <picture> の AVIF の <source> と**全文一致**（ずれると2回落とす）
+        const source = /<source type="image\/avif" srcSet="([^"]+)"/.exec(html)?.[1];
+        expect(source, "AVIF の <source> が無い").toBeTruthy();
+        expect(/imageSrcSet="([^"]+)"/.exec((links[0] ?? ""))?.[1]).toBe(source);
+        expect((links[0] ?? "")).toContain('type="image/avif"');
+        expect((links[0] ?? "")).toContain('fetchPriority="high"');
+        expect((links[0] ?? "")).toContain(`imageSizes="${MOSAIC_HERO_SIZES}"`);
     });
 
     it("先に読まない（priorityCount=0）ときは先読みも high も出さない", async () => {
