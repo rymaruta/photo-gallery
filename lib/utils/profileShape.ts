@@ -83,6 +83,9 @@ export function sanitizeProfile<T extends object>(raw: unknown, label: string): 
                 // 特別な乗車券の券面を見せてよいか（公開プロフィールだけに載る・`api-user/src/userProfile.ts`
                 // の `toPublicProfile`）。`pro`（名前の横の印）とは別。Web は今は使わない
                 passFace: obj.passFace === true,
+                // 初期メンバーの印を出すか（サーバーが決めた結果・`api-user/src/badgeKeys.ts` の
+                // `showsEarlyMark`）。真のときだけ真（文字の "true" は読み替えない）
+                earlyMark: obj.earlyMark === true,
             };
         })(),
     } as T;
