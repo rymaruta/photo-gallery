@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 // vi.mock は巻き上げられるので、静的な import でもモックが先に効く
 import { updateMyProfile, getMyProfile, getPublicProfile, toPublicProfile } from "../userProfile";
-import { badgeFields, sanitizeBadges, ownsBadge, isPro, badgeDisplayNameJa } from "../badgeKeys";
+import { badgeFields, sanitizeBadges, ownsBadge, isPro, badgeDisplayNameJa, showsEarlyMark } from "../badgeKeys";
 
 // プロフィールのメダルと Pro の4項目（`badges`・`displayBadge`・`pro`・`proMarkStyle`）。
 //
@@ -474,5 +474,97 @@ describe("名前の横の印を外す", () => {
         const body = JSON.parse((await getMine()).body);
         expect(body.verifiedMarkOff).toBe(false);
         expect(body.verified).toBe(true);
+    });
+});
+
+// 初期メンバーの印（2026-10-28 owner「デフォルトでは付与・外すのはユーザーの任意・
+// 条件は何もマーク設定してないユーザ」）。資格は `badges.earlyUser`（台本が付ける）
+describe("初期メンバーの印", () => {
+    const EARLY = { badges: { earlyUser: { tier: 1, at: AT } } };
+    const PRO = { supporter: { active: true, until: "2099-01-01" } };
+
+    it("既定: 資格があり、名前の横に何も出ていない人には出る", () => {
+        expect(showsEarlyMark(EARLY)).toBe(true);
+        // 資格の無い人には出ない（設定で付けても）
+        expect(showsEarlyMark({})).toBe(false);
+        expect(showsEarlyMark({ earlyMarkOn: true })).toBe(false);
+    });
+
+    it("既定: 公式・Pro の印・選んだメダルのどれかが出ていれば出ない", () => {
+        expect(showsEarlyMark({ ...EARLY, verified: true })).toBe(false);
+        expect(showsEarlyMark({ ...EARLY, ...PRO })).toBe(false);
+        expect(showsEarlyMark({ ...EARLY, displayBadge: "earlyUser" })).toBe(false);
+    });
+
+    it("既定: 外している印・持っていないメダルは「出ていない」と数える", () => {
+        expect(showsEarlyMark({ ...EARLY, verified: true, verifiedMarkOff: true })).toBe(true);
+        expect(showsEarlyMark({ ...EARLY, ...PRO, proMarkStyle: "none" })).toBe(true);
+        expect(showsEarlyMark({ ...EARLY, displayBadge: "first" })).toBe(true);
+        // 期限の切れた Pro は印が出ない
+        expect(showsEarlyMark({ ...EARLY, supporter: { active: true, expiresAt: "2026-01-01T00:00:00.000Z" } })).toBe(true);
+    });
+
+    it("本人の設定が既定に勝つ: true なら他の印と並べて出る・false なら出ない", () => {
+        expect(showsEarlyMark({ ...EARLY, ...PRO, earlyMarkOn: true })).toBe(true);
+        expect(showsEarlyMark({ ...EARLY, earlyMarkOn: false })).toBe(false);
+    });
+
+    it("earlyMarkOn は真偽と null だけ受ける。true / false を置き、null で消す（既定に戻す）", async () => {
+        mockSend.mockResolvedValueOnce(stored(EARLY)).mockResolvedValueOnce({});
+        const off = await update({ earlyMarkOn: false });
+        expect(off.statusCode).toBe(200);
+        expect(savedProfile().earlyMarkOn).toBe(false);
+        expect(JSON.parse(off.body)).toMatchObject({ earlyMarkOn: false, earlyMark: false });
+
+        commands.length = 0;
+        mockSend.mockResolvedValueOnce(stored({ ...EARLY, earlyMarkOn: false })).mockResolvedValueOnce({});
+        const reset = await update({ earlyMarkOn: null });
+        expect(reset.statusCode).toBe(200);
+        expect(savedProfile()).not.toHaveProperty("earlyMarkOn");
+        expect(JSON.parse(reset.body)).toMatchObject({ earlyMarkOn: null, earlyMark: true });
+
+        commands.length = 0;
+        expect((await update({ earlyMarkOn: "false" })).statusCode).toBe(400);
+        expect(commands).toEqual([]);
+    });
+
+    it("結果の earlyMark を送っても保存しない（資格も自分に付かない）", async () => {
+        mockSend.mockResolvedValueOnce(stored({})).mockResolvedValueOnce({});
+        const res = await update({ earlyMark: true, badges: EARLY.badges });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile()).not.toHaveProperty("earlyMark");
+        expect(savedProfile()).not.toHaveProperty("badges");
+        expect(JSON.parse(res.body).earlyMark).toBe(false);
+    });
+
+    it("自分のプロフィール: 設定（earlyMarkOn）と結果（earlyMark）を常に載せる", async () => {
+        mockSend.mockResolvedValueOnce(stored(EARLY));
+        const body = JSON.parse((await getMine()).body);
+        expect(body.earlyMarkOn).toBeNull();
+        expect(body.earlyMark).toBe(true);
+    });
+
+    it("公開プロフィール: 出すときだけ earlyMark: true。設定は載せない", async () => {
+        mockSend.mockResolvedValueOnce(stored(EARLY));
+        const on = JSON.parse((await getPublic("u1")).body);
+        expect(on.earlyMark).toBe(true);
+        expect(on).not.toHaveProperty("earlyMarkOn");
+
+        mockSend.mockResolvedValueOnce(stored({ ...EARLY, earlyMarkOn: false }));
+        const off = JSON.parse((await getPublic("u1")).body);
+        expect(off).not.toHaveProperty("earlyMark");
+        expect(off).not.toHaveProperty("earlyMarkOn");
+
+        // 公式の印を外した人は「何も出ていない」ので既定で出る
+        mockSend.mockResolvedValueOnce(stored({ ...EARLY, verified: true, verifiedMarkOff: true }));
+        expect(JSON.parse((await getPublic("u1")).body).earlyMark).toBe(true);
+    });
+
+    it("購入の応答（owner: true）も結果を earlyMark に載せ、設定は載せない", () => {
+        const row = { userId: "u1", ...EARLY, ...PRO, earlyMarkOn: true } as never;
+        const own = toPublicProfile(row, { owner: true });
+        expect(own.earlyMark).toBe(true);
+        expect(own).not.toHaveProperty("earlyMarkOn");
+        expect(toPublicProfile({ userId: "u1", ...EARLY, ...PRO } as never, { owner: true })).not.toHaveProperty("earlyMark");
     });
 });
