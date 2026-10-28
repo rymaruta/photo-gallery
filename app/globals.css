@@ -391,9 +391,11 @@ body {
 /* Apple のマップ（MapKit JS）の印の箱（`lib/map/mapkitEngine.ts`）。
    中身の見た目は Leaflet のときと同じクラス（`.photo-map-pin` など）で描く。
    キーボードで来たときに、どの印にいるかが見えるようにする */
+/* **`display` は書かない。** 箱は中身のクラス（`.photo-map-cluster` は `display: flex`）
+   と同じ要素に付くので、ここで `block` を書くと後ろにあるこちらが勝ち、束の数字が
+   丸の左上へ寄る（Leaflet で一度踏んだ形と同じ） */
 .jp-map-marker {
   position: relative;
-  display: block;
   cursor: pointer;
 }
 .jp-map-marker:focus-visible {

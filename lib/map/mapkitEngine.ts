@@ -67,6 +67,8 @@ const LOAD_TIMEOUT_MS = 10000;
 const CALLBACK = "__journeyMapKitReady";
 
 let loading: Promise<MapKitGlobal> | null = null;
+/** `mapkit.init` を済ませたか。**1ページに1回だけ**（2回呼ぶと鍵の問い合わせと error の口が二重になる） */
+let initialized = false;
 /** 鍵が断られた・上限に当たった、を一度でも聞いたか（以後この画面では読まない） */
 let refused = false;
 const refusalListeners = new Set<() => void>();
@@ -88,6 +90,29 @@ export function mapKitRefused(): boolean {
 export function loadMapKit(token: string, language: string): Promise<MapKitGlobal> {
     if (loading) return loading;
     const w = window as unknown as Record<string, unknown>;
+    /** 読めた MapKit を初期化する（済んでいれば言語だけ合わせる） */
+    const ready = (mk: MapKitGlobal): MapKitGlobal => {
+        if (!initialized) {
+            initialized = true;
+            // **鍵が断られた（401）・1日の上限（429）は、ここではなく後から届く。**
+            // 届いたら控えの地図に切り替える（`PhotoMap`）
+            mk.addEventListener("error", () => {
+                refused = true;
+                for (const fn of refusalListeners) fn();
+            });
+            mk.init({ authorizationCallback: (done) => done(token), language });
+        } else {
+            mk.language = language;
+        }
+        return mk;
+    };
+    // **前の回で時間切れにしたあと、遅れて読み終わっていた**ら、足し直さずに使う
+    // （2本目の `<script>` を足すと、Apple の部品が呼び戻しをもう一度くれる保証が無い）
+    const already = w.mapkit as MapKitGlobal | undefined;
+    if (already && typeof already.init === "function" && initialized) {
+        loading = Promise.resolve(ready(already));
+        return loading;
+    }
     loading = new Promise<MapKitGlobal>((resolve, reject) => {
         const timer = window.setTimeout(() => reject(new Error("mapkit: timeout")), LOAD_TIMEOUT_MS);
         w[CALLBACK] = () => {
@@ -95,14 +120,9 @@ export function loadMapKit(token: string, language: string): Promise<MapKitGloba
             const mk = w.mapkit as MapKitGlobal | undefined;
             if (!mk) { reject(new Error("mapkit: missing")); return; }
             try {
-                // **鍵が断られた（401）・1日の上限（429）は、ここではなく後から届く。**
-                // 届いたら控えの地図に切り替える（`PhotoMap`）
-                mk.addEventListener("error", () => {
-                    refused = true;
-                    for (const fn of refusalListeners) fn();
-                });
-                mk.init({ authorizationCallback: (done) => done(token), language });
-                resolve(mk);
+                // 時間切れのあとに届いた回も初期化だけはしておく（次の画面で使う）。
+                // 約束はもう断ってあるので、resolve しても誰にも届かない
+                resolve(ready(mk));
             } catch (e) {
                 reject(e instanceof Error ? e : new Error(String(e)));
             }
@@ -127,6 +147,7 @@ export function loadMapKit(token: string, language: string): Promise<MapKitGloba
 /** テストのためだけに、読み込みの状態を戻す */
 export function resetMapKitForTests(): void {
     loading = null;
+    initialized = false;
     refused = false;
     refusalListeners.clear();
 }
@@ -137,9 +158,26 @@ export function resetMapKitForTests(): void {
 const MARKER_HOST = "jp-map-marker";
 
 export function createMapKitEngine(
-    mk: MapKitGlobal, el: HTMLElement, opts: { reduceMotion: boolean },
+    mk: MapKitGlobal, container: HTMLElement, opts: { reduceMotion: boolean },
 ): MapEngine {
     const animate = !opts.reduceMotion;
+    // **MapKit には自前の箱を渡す。** `destroy()` は「地図の要素を DOM から外す」ので、
+    // React の箱をそのまま渡すと、鍵が断られて控えの地図へ切り替えるときに
+    // 箱ごと消える・MapKit の跡が残った箱に Leaflet を建てることになる
+    const el = document.createElement("div");
+    el.style.position = "absolute";
+    el.style.inset = "0";
+    container.appendChild(el);
+    try {
+        return build(mk, el, container, animate);
+    } catch (e) {
+        el.remove();
+        throw e;
+    }
+}
+
+/** `box` は大きさを測る枠（`el` と同じ大きさ・React の枠） */
+function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boolean): MapEngine {
     // **iOS と同じ設定にそろえる**（`PhotoMapView` は `.mapStyle` を書かない＝標準の地図・
     // 施設の印あり、アプリ全体が暗い配色）。Apple の標準の操作部品は出さない
     // ——ズーム・現在地は `PhotoMap` の丸いボタン（iOS も自前のボタン）。
@@ -161,13 +199,18 @@ export function createMapKitEngine(
     const moveHandlers: Array<() => void> = [];
     let lastZoom = NaN;
 
-    const width = () => el.clientWidth || el.getBoundingClientRect().width || 0;
-    const height = () => el.clientHeight || el.getBoundingClientRect().height || 0;
+    const width = () => box.clientWidth || box.getBoundingClientRect().width || 0;
+    const height = () => box.clientHeight || box.getBoundingClientRect().height || 0;
 
     const currentZoom = (): number => {
-        const z = zoomFromSpan(map.region.span.longitudeDelta, width());
+        const raw = zoomFromSpan(map.region.span.longitudeDelta, width());
         // 隠れている（幅0）間は前の値を返す（その値を覚えさせない）
-        return Number.isFinite(z) ? z : (Number.isFinite(lastZoom) ? lastZoom : MAP_MIN_ZOOM);
+        if (!Number.isFinite(raw)) return Number.isFinite(lastZoom) ? lastZoom : MAP_MIN_ZOOM;
+        // **整数の段のすぐ近くは整数に寄せる。** 範囲から逆算するので 17.99… のように
+        // 返ってきうる。上限（`MAP_MAX_ZOOM`）との比べで「まだ寄れる」と誤り、
+        // 束を押すたびに同じ場所へ寄り直してシートが開かなくなる
+        const near = Math.round(raw);
+        return Math.abs(raw - near) < 0.01 ? near : raw;
     };
 
     const setView = (c: LatLng, zoom: number, anim: boolean) => {
@@ -184,13 +227,38 @@ export function createMapKitEngine(
 
     const center = (): LatLng => ({ lat: map.region.center.latitude, lng: map.region.center.longitude });
 
+    /**
+     * **最初の場所を置いた回は「動いた」と数えない。** Leaflet は最初の `setView` の
+     * `moveend` を同期で出し終えるので、あとから付けた控えの口には届かない（＝最初の
+     * 場所は控えに書かない）。MapKit は後から届きうるので、ここで1回ぶん捨てる。
+     * 書いてしまうと、写真0枚のときの仮の場所（日本全体）が控えに残り、次に開いたとき
+     * 写真へ寄らない
+     */
+    let initialPending = false;
     map.addEventListener("region-change-end", () => {
         const z = currentZoom();
         const zoomed = !Number.isFinite(lastZoom) || Math.abs(z - lastZoom) > 0.01;
         lastZoom = z;
         if (zoomed) for (const fn of zoomHandlers) fn();
+        if (initialPending) { initialPending = false; return; }
         for (const fn of moveHandlers) fn();
     });
+    // 人が先に触ったら、その動きは控える（最初の回を待たない）
+    const userMoved = () => { initialPending = false; };
+    map.addEventListener("scroll-start", userMoved);
+    map.addEventListener("zoom-start", userMoved);
+
+    /**
+     * 押し始めが印の上だったか。**地図の余白を押したか**の見分けに使う。
+     * 地図の single-tap はダブルタップを待ってから届くので、その時点で押された点を
+     * 調べ直すと、印を押して開いたシートの上を指していることがある（＝開いた直後に閉じる）。
+     * 押し始め（pointerdown）で決めておけば時刻に頼らない
+     */
+    let pressOnMarker = false;
+    el.addEventListener("pointerdown", (e) => {
+        const t = e.target as Element | null;
+        pressOnMarker = !!t?.closest?.(`.${MARKER_HOST}`);
+    }, true);
 
     /** いま置いている印（入れ替えのたびに全部外す） */
     let placed: MkAnnotation[] = [];
@@ -205,22 +273,23 @@ export function createMapKitEngine(
         },
         // **最初の場所は動かさずに置く**（`PhotoMap` は初期表示にも `setView` を使う。
         // 動かすと世界全体から滑ってくる）。以後は「動きを減らす」設定に従う
-        setView: (c, zoom) => { setView(c, zoom, animate && Number.isFinite(lastZoom)); },
+        setView: (c, zoom) => {
+            const first = !Number.isFinite(lastZoom);
+            if (first) initialPending = true;
+            setView(c, zoom, animate && !first);
+        },
         fitBounds: (b, o) => {
+            const first = !Number.isFinite(lastZoom);
+            if (first) initialPending = true;
             const v = fitView(b, width() || 390, height() || 520, o.padding, o.maxZoom);
-            setView({ lat: v.lat, lng: v.lng }, v.zoom, o.animate === false ? false : animate && Number.isFinite(lastZoom));
+            setView({ lat: v.lat, lng: v.lng }, v.zoom, o.animate === false ? false : animate && !first);
         },
         zoomIn: () => { setView(center(), currentZoom() + 1, animate); },
         zoomOut: () => { setView(center(), currentZoom() - 1, animate); },
         onBackgroundClick: (fn) => {
-            map.addEventListener("single-tap", (e) => {
-                // **印の上で押されたら閉じない。** 印を押したときも地図の single-tap が
-                // 来ることがあるので、押された点の要素が印の中かで見分ける（時刻では弾かない）
-                const p = e.pointOnPage;
-                const hit = p && typeof document.elementFromPoint === "function"
-                    ? document.elementFromPoint(p.x - window.scrollX, p.y - window.scrollY)
-                    : null;
-                if (hit && hit.closest(`.${MARKER_HOST}`)) return;
+            map.addEventListener("single-tap", () => {
+                // **印の上で押されたら閉じない**（押し始めで決めた `pressOnMarker`）
+                if (pressOnMarker) return;
                 fn();
             });
         },
@@ -293,6 +362,6 @@ export function createMapKitEngine(
         },
         // MapKit は枠の大きさの変化を自分で拾う
         invalidateSize: () => {},
-        remove: () => { map.destroy(); },
+        remove: () => { map.destroy(); el.remove(); },
     };
 }

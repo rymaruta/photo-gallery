@@ -232,8 +232,9 @@ export default function PhotoMap({
                     return;
                 }
             } else {
-                map = await createLeafletEngine(el, { reduceMotion });
-                if (cancelled || !containerRef.current) { map.remove(); return; }
+                const leaflet = await createLeafletEngine(el, { reduceMotion, isCancelled: () => cancelled || !containerRef.current });
+                if (!leaflet) return;
+                map = leaflet;
             }
             made = map;
             mapRef.current = map;
@@ -533,6 +534,9 @@ export default function PhotoMap({
     const zoomBy = useCallback((delta: number) => {
         const map = mapRef.current;
         if (!map) return;
+        // 人の操作で動かした（写真が届いても全体へ引き剥がさない）。Leaflet は
+        // `zoomstart` で取り消せていたが、Apple のマップはボタンの寄せを人の操作と数えない
+        autoFitPendingRef.current = false;
         if (delta > 0) map.zoomIn();
         else map.zoomOut();
     }, []);

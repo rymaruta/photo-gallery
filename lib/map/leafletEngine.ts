@@ -10,8 +10,15 @@ import { MAP_MAX_ZOOM, MAP_MIN_ZOOM } from "../utils/mapView";
  * import すると静的書き出し（`next build` の事前描画）で落ちる。
  * CSS（`leaflet/dist/leaflet.css`）は `PhotoMap` が読む。
  */
-export async function createLeafletEngine(el: HTMLElement, opts: { reduceMotion: boolean }): Promise<MapEngine> {
+export async function createLeafletEngine(
+    el: HTMLElement, opts: { reduceMotion: boolean; isCancelled?: () => boolean },
+): Promise<MapEngine | null> {
     const L = await import("leaflet");
+    // **読み終えた時点で、もう要らなくなっていたら地図を作らない。** 作ってから
+    // 捨てると、入れ替わりの次の回（StrictMode の作り直し・言語の切り替え）が
+    // 同じ箱に `L.map` を呼び、"Map container is already initialized" で落ちる
+    // ——前の地図はまだ消える前なので、次の地図は作られず真っ白になる
+    if (opts.isCancelled?.()) return null;
     const { reduceMotion } = opts;
     // **「動きを減らす」設定を尊重する。** Leaflet は既定でズームも移動も
     // 慣性も動かす（実測: ズーム 321ms・ホイール 344ms・指を離してから

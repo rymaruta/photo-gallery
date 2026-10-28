@@ -34,7 +34,10 @@ export type MarkerSpec = {
     anchor: [number, number];
     /** 読み上げとツールチップに出す名前 */
     title: string;
-    /** 重なり順の上げ下げ（大きいほど手前） */
+    /**
+     * 重なり順の上げ下げ（大きいほど手前）。**Leaflet だけ**——MapKit JS の印には
+     * 重なり順を決める口が無い（足した順・Apple の判断で重なる）
+     */
     zIndexOffset?: number;
     /** 押された（Enter を含む） */
     onActivate?: () => void;

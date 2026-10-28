@@ -35,4 +35,13 @@ describe("撮影地マップの見た目（第三者CSSとの詳細度）", () =
         const rule = css.slice(css.indexOf(".photo-map-shell.leaflet-container"));
         expect(rule.slice(rule.indexOf("{"), rule.indexOf("}"))).toContain("background");
     });
+
+    // Apple のマップでは、印の箱（`.jp-map-marker`）と束の見た目（`.photo-map-cluster`）が
+    // **同じ要素**に付く。箱の側で `display` を書くと、後ろにある方が勝って数字が左上へ寄る
+    it("Apple のマップの印の箱は display を書かない（束の display:flex を潰さない）", () => {
+        const at = css.indexOf(".jp-map-marker {");
+        expect(at, "印の箱の規則が無い").toBeGreaterThan(-1);
+        const body = css.slice(at, css.indexOf("}", at));
+        expect(body).not.toMatch(/display\s*:/);
+    });
 });

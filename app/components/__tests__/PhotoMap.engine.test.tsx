@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, waitFor, act } from "@testing-library/react";
+import { render, waitFor, act, screen, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 import type { MapEngine } from "@/lib/map/engine";
 
@@ -8,7 +8,7 @@ import type { MapEngine } from "@/lib/map/engine";
 // マップ、無い・読めない・断られたなら今までの地図（Leaflet＋OpenStreetMap）。
 // 「地図が出ない」より「別の地図が出る」方がよい（`lib/map/engine.ts`）。
 
-const made = vi.hoisted(() => ({ kinds: [] as string[], removed: [] as string[] }));
+const made = vi.hoisted(() => ({ kinds: [] as string[], removed: [] as string[], fits: 0, userMove: null as null | (() => void) }));
 const mk = vi.hoisted(() => ({
     load: null as null | ((token: string, lang: string) => Promise<unknown>),
     refused: false,
@@ -21,8 +21,9 @@ function fakeEngine(kind: "leaflet" | "mapkit"): MapEngine {
         kind,
         getZoom: () => 4, getCenter: () => ({ lat: 36, lng: 138 }),
         getBounds: () => ({ south: 35, west: 139, north: 36, east: 140 }),
-        setView: () => {}, fitBounds: () => {}, zoomIn: () => {}, zoomOut: () => {},
-        onBackgroundClick: () => {}, onZoomEnd: () => {}, onMoveEnd: () => {}, onceUserMove: () => {},
+        setView: () => {}, fitBounds: () => { made.fits++; }, zoomIn: () => {}, zoomOut: () => {},
+        onBackgroundClick: () => {}, onZoomEnd: () => {}, onMoveEnd: () => {},
+        onceUserMove: (fn) => { made.userMove = fn; },
         clearMarkers: () => {}, addMarker: () => {}, addHereDot: () => {}, invalidateSize: () => {},
         remove: () => { made.removed.push(kind); },
     };
@@ -48,7 +49,7 @@ async function loadPhotoMap(token: string) {
 }
 
 beforeEach(() => {
-    made.kinds.length = 0; made.removed.length = 0;
+    made.kinds.length = 0; made.removed.length = 0; made.fits = 0; made.userMove = null;
     mk.refused = false; mk.listeners.clear();
     mk.load = vi.fn(async () => ({}));
 });
@@ -91,5 +92,27 @@ describe("どちらの地図で描くか", () => {
         render(<PhotoMap photos={[photo]} locale="ja" />);
         await waitFor(() => expect(made.kinds).toEqual(["leaflet"]));
         expect(mk.load).not.toHaveBeenCalled();
+    });
+});
+
+// 写真0枚で地図を作ると、写真が届いたとき一度だけそこへ寄る。**人が先に動かしたら取り消す。**
+// Apple のマップは ＋− の寄せを「人の操作」と数えない（`zoom-start` が来ない）ので、
+// ボタンの側で取り消す
+describe("写真があとから届いたときの寄せ", () => {
+    it("＋ を押したあとなら、写真が届いても引き剥がさない", async () => {
+        const PhotoMap = await loadPhotoMap("tok");
+        const { rerender } = render(<PhotoMap photos={[]} locale="ja" />);
+        await waitFor(() => expect(made.kinds).toEqual(["mapkit"]));
+        fireEvent.click(screen.getByRole("button", { name: "拡大" }));
+        rerender(<PhotoMap photos={[photo]} locale="ja" />);
+        expect(made.fits).toBe(0);
+    });
+
+    it("触っていなければ、写真が届いたら一度だけ寄る", async () => {
+        const PhotoMap = await loadPhotoMap("tok");
+        const { rerender } = render(<PhotoMap photos={[]} locale="ja" />);
+        await waitFor(() => expect(made.kinds).toEqual(["mapkit"]));
+        rerender(<PhotoMap photos={[photo]} locale="ja" />);
+        expect(made.fits).toBe(1);
     });
 });

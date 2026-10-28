@@ -153,6 +153,26 @@ describe("読み込み", () => {
         await check;
     });
 
+    it("時間切れのあとに読み終わっていたら、足し直さずに使う（初期化は1回だけ）", async () => {
+        vi.useFakeTimers();
+        const { mk, calls } = fakeMapKit();
+        const init = vi.spyOn(mk, "init");
+        const p = loadMapKit("tok", "ja");
+        const check = expect(p).rejects.toThrow(/timeout/);
+        vi.advanceTimersByTime(10001);
+        await check;
+        // 断ったあとに遅れて読み終わった
+        (window as unknown as Record<string, unknown>).mapkit = mk;
+        (window as unknown as Record<string, () => void>)[scripts[0].dataset.callback!]();
+        // 次の画面
+        const again = await loadMapKit("tok", "en");
+        expect(again).toBe(mk);
+        expect(scripts, "2本目の <script> を足している").toHaveLength(1);
+        expect(init).toHaveBeenCalledTimes(1);
+        expect(calls.errorListeners).toHaveLength(1);
+        expect(mk.language, "言語の切り替えが届かない").toBe("en");
+    });
+
     it("鍵が断られたら知らせる（以後この画面では読まない）", async () => {
         const { mk, calls } = fakeMapKit();
         const heard = vi.fn();
@@ -310,20 +330,74 @@ describe("印", () => {
 });
 
 describe("地図の余白を押す", () => {
-    it("印の上で押されたときは閉じない", () => {
+    /** MapKit に渡した箱（`container` の中に作る自前の箱） */
+    const mapBox = (outer: HTMLElement) => outer.firstElementChild as HTMLElement;
+
+    it("押し始めが印の上なら閉じない（single-tap は遅れて届くので、そのとき押された点は見ない）", () => {
         const { mk, calls, fire } = fakeMapKit();
-        const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
+        const outer = container();
+        const engine = createMapKitEngine(mk, outer, { reduceMotion: false });
         const closed = vi.fn();
         engine.onBackgroundClick(closed);
         engine.addMarker({ lat: 35, lng: 139, el: document.createElement("span"), size: [40, 50], anchor: [20, 50], title: "a" });
         const host = calls.annotations[0].element;
-        document.body.appendChild(host);
-        const inner = host.firstElementChild!;
-        Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => inner });
-        fire("single-tap", { pointOnPage: { x: 10, y: 10 } });
+        mapBox(outer).appendChild(host);   // 本物は MapKit が地図の箱の中に置く
+        host.firstElementChild!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+        fire("single-tap");
         expect(closed).not.toHaveBeenCalled();
-        Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => document.body });
-        fire("single-tap", { pointOnPage: { x: 10, y: 10 } });
+        mapBox(outer).dispatchEvent(new Event("pointerdown", { bubbles: true }));
+        fire("single-tap");
         expect(closed).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("最初の場所", () => {
+    it("最初に置いた場所は控えない（後から届く region-change-end を1回捨てる）", () => {
+        const { mk, fire } = fakeMapKit();
+        const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
+        const moved = vi.fn(), zoomed = vi.fn();
+        engine.onMoveEnd(moved);
+        engine.onZoomEnd(zoomed);
+        engine.setView({ lat: 36, lng: 138 }, 4);
+        fire("region-change-end");
+        expect(moved, "写真0枚のときの仮の場所が控えに残る").not.toHaveBeenCalled();
+        expect(zoomed, "束ね直しは要る").toHaveBeenCalledTimes(1);
+        fire("region-change-end");
+        expect(moved).toHaveBeenCalledTimes(1);
+    });
+
+    it("最初の回が届く前に人が動かしたら、その動きは控える", () => {
+        const { mk, fire } = fakeMapKit();
+        const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
+        const moved = vi.fn();
+        engine.onMoveEnd(moved);
+        engine.fitBounds({ south: 35, west: 138, north: 36, east: 140 }, { padding: 32, maxZoom: 12 });
+        fire("scroll-start");
+        fire("region-change-end");
+        expect(moved).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("ズームの段の読み取り", () => {
+    it("整数の段のすぐ近くは整数に寄せる（上限との比べを誤らない）", () => {
+        const { mk, setSpan } = fakeMapKit();
+        const engine = createMapKitEngine(mk, container(400, 600), { reduceMotion: false });
+        setSpan(360 * 400 / (256 * 2 ** 17.995));
+        expect(engine.getZoom()).toBe(18);
+        setSpan(360 * 400 / (256 * 2 ** 17.5));
+        expect(engine.getZoom()).toBeCloseTo(17.5, 9);
+    });
+});
+
+describe("片付け", () => {
+    it("MapKit には自前の箱を渡し、外すときは箱ごと消す（控えの地図が同じ枠に建てられる）", () => {
+        const { mk, calls } = fakeMapKit();
+        const outer = container();
+        const engine = createMapKitEngine(mk, outer, { reduceMotion: false });
+        expect(outer.children).toHaveLength(1);
+        engine.remove();
+        expect(calls.destroyed).toBe(true);
+        expect(outer.children, "MapKit の跡が残った枠に Leaflet を建てる").toHaveLength(0);
+        expect(outer.isConnected, "React の枠まで消している").toBe(true);
     });
 });
