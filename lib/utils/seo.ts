@@ -281,17 +281,30 @@ export function generatePhotoStructuredData(photo: {
     if (photo.tags && photo.tags.length > 0) {
         structuredData.keywords = photo.tags.join(", ");
     }
-    // license は URL 形式のみ有効（自由文はここでは出さない）。取得ページとして写真ページを提示
-    if (photo.license && /^https?:\/\//.test(photo.license)) {
-        structuredData.license = photo.license;
-        structuredData.acquireLicensePage = `${siteConfig.url}/photo/${photo.id}`;
-    }
+    // **権利の3項目（license・acquireLicensePage・copyrightNotice）は全写真に出す。**
+    //
+    // 2026-10-28 判断: 以前は写真が URL の license を持つときだけ出していた。
+    // 実データの写真は持たないので、Search Console の「画像メタデータ」で
+    // `/photo/<id>` の28件が「license・acquireLicensePage・copyrightNotice が
+    // ありません」と出た（10/27 クロール）。投稿写真の権利は規約の
+    // 「5. 投稿された内容の権利」（著作権は投稿者に帰属）が決めているので、
+    // 写真ごとの URL が無ければ規約のページを license とする。
+    // 許可を求める先は写真ページ（投稿者のプロフィールへ結んでいる）
+    const licenseUrl = photo.license && /^https?:\/\//.test(photo.license)
+        ? photo.license
+        : `${siteConfig.url}/terms`;
+    structuredData.license = licenseUrl;
+    structuredData.acquireLicensePage = `${siteConfig.url}/photo/${photo.id}`;
     // 権利表記（自由文OKのフィールド）
     const credit = photo.photographer || photo.displayName;
     if (credit) structuredData.creditText = credit;
+    // 著作権表示。自由文の license・明示の権利者が無ければ、投稿者の名前で
+    // 「© 名前」と出す（規約どおり著作権は投稿者にある）
     const copyright = photo.license && !/^https?:\/\//.test(photo.license)
         ? photo.license
-        : (photo.copyrightOwner ? `© ${photo.copyrightYear ?? ""} ${photo.copyrightOwner}`.replace(/\s+/g, " ").trim() : "");
+        : (photo.copyrightOwner
+            ? `© ${photo.copyrightYear ?? ""} ${photo.copyrightOwner}`.replace(/\s+/g, " ").trim()
+            : (credit ? `© ${credit}` : ""));
     if (copyright) structuredData.copyrightNotice = copyright;
 
     // 作者。photographer だけを見ていたため、実データ（30件中0件）では
