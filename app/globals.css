@@ -355,7 +355,6 @@ body {
   h1.eyebrow, h2.eyebrow, h3.eyebrow { font-size: 11px; }
 }
 
-/* 撮影地マップ（/map）の束（複数枚が重なった升）。数字だけを丸で出す */
 /* 地図の下地。タイルが来ていない間（読み込み中・機内モード）に見える色。
    Leaflet の `.leaflet-container { background: #ddd }` に勝つ必要がある。
    **Tailwind の `bg-white/5` では勝てない**——あれは `@layer utilities` の中に
@@ -368,32 +367,12 @@ body {
   background: rgb(255 255 255 / 0.05);
 }
 
-/* 束（同じ升にまとまった写真の枚数）。
-   **2クラスで書く。** Leaflet の `.leaflet-marker-icon { display: block }` と
-   同じ強さ（クラス1つ）なので、読み込み順で負けると `display: flex` が効かず、
-   数字が円の左上に寄って欠ける（Chromium で実測: 数字の箱が円の左端 x=178・
-   上から2px の位置に出た）。素のクラスも残しておく */
-.photo-map-cluster.leaflet-marker-icon,
-.photo-map-cluster {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 9999px;
-  background: #796440;   /* 白を載せる真鍮（`--color-accent-deep`・白で 5.66:1）。@theme の変数はレイヤーの外でも読めるが、値を直書きして leaflet.css との順序に依存させない */
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
-}
-
 /* Apple のマップ（MapKit JS）の印の箱（`lib/map/mapkitEngine.ts`）。
    中身の見た目は Leaflet のときと同じクラス（`.photo-map-pin` など）で描く。
    キーボードで来たときに、どの印にいるかが見えるようにする */
-/* **`display` は書かない。** 箱は中身のクラス（`.photo-map-cluster` は `display: flex`）
-   と同じ要素に付くので、ここで `block` を書くと後ろにあるこちらが勝ち、束の数字が
-   丸の左上へ寄る（Leaflet で一度踏んだ形と同じ） */
+/* **`display` は書かない。** 箱には印の箱のクラス（`.photo-map-pin-icon` など）も
+   同じ要素に付くので、ここで `display` を書くと、どちらが勝つかが読み込み順で決まる
+   （以前の束の丸で、数字が左上へ寄った形） */
 .jp-map-marker {
   position: relative;
   cursor: pointer;
@@ -414,100 +393,6 @@ body {
   background: #9cc3e6;
   box-shadow: inset 0 0 0 2px #000;
   pointer-events: none;
-}
-
-/* ───────── 写真入りのピン（最終版モック 06-map.jpg の②） ─────────
-
-   大きさはモックの画素から測った（端末の画面幅 364画素 ＝ 393 CSS px）:
-     写真の丸 36画素 → 39px（選択中 62画素 → 67px）・尖りまで 55画素 → 59px
-   丸 40px・尖りを足して 50px に丸めてある（`PhotoMap.tsx` の `PIN_PX` / `PIN_H`）。
-
-   **`leaflet-div-icon` の既定を持ち込まない。** `L.divIcon` の `className` を
-   渡すと既定の `leaflet-div-icon`（白背景・1px の灰色枠）は付かないので、
-   枠を消す指定は要らない——**付けてしまうと**丸の外に白い四角が出る。 */
-.photo-map-pin-icon.leaflet-marker-icon,
-.photo-map-pin-icon {
-  background: transparent;
-  border: 0;
-}
-
-.photo-map-pin {
-  display: block;
-  position: relative;
-  width: 40px;
-  height: 50px;
-}
-
-/* 写真の丸。中身が読めない間も丸が見えるよう、下地は地図の印の色（`--color-accent-deep`）に寄せる */
-.photo-map-pin::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 9999px;
-  background: #796440;
-  box-shadow: 0 0 0 2.5px #fff, 0 3px 10px rgba(0, 0, 0, 0.45);
-}
-
-/* **Leaflet の `width: auto` に勝つために3クラスで書く。**
-   `.leaflet-container .leaflet-marker-pane img`（詳細度 0,2,1）が
-   `max-width: none !important` ＋ `width: auto` を当ててくるので、
-   Tailwind の preflight（`img { max-width: 100%; height: auto }`）ごと潰される。
-   ここが負けると、読み込み前は幅0・読み込み後は元画像の幅（256px）になり、
-   ピンが地図いっぱいに広がる。`!important` ではなく詳細度で勝つ
-   （`!important` 同士になると次に困るのはこちら）。 */
-.photo-map-shell .leaflet-marker-pane .photo-map-pin__img,
-.photo-map-pin .photo-map-pin__img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 40px;
-  height: 40px;
-  max-width: none;
-  border-radius: 9999px;
-  object-fit: cover;
-  display: block;
-}
-
-/* 下向きの尖り。先端が座標（`iconAnchor` が下端） */
-.photo-map-pin__tail {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 0;
-  height: 0;
-  transform: translateX(-50%);
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-top: 12px solid #fff;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
-}
-
-/* 選んだピン。**大きくして青く光らせる**（モックの「サントリーニ島」） */
-.photo-map-pin.is-selected {
-  width: 64px;
-  height: 78px;
-  /* **尖りの先を動かさない。** `iconAnchor` は下端（40x50 基準）なので、
-     横は増えた 24px の半分、**縦は増えた 28px ぶん丸ごと**引き上げる。
-     -24 と書いていたときは、選ぶたびにピンが座標より 4px 下へずれていた */
-  margin-left: -12px;
-  margin-top: -28px;
-}
-.photo-map-pin.is-selected::before {
-  width: 64px;
-  height: 64px;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 10px rgb(201 166 107 / 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-.photo-map-shell .leaflet-marker-pane .photo-map-pin.is-selected .photo-map-pin__img,
-.photo-map-pin.is-selected .photo-map-pin__img {
-  width: 64px;
-  height: 64px;
-}
-.photo-map-pin.is-selected .photo-map-pin__tail {
-  border-left-width: 9px;
-  border-right-width: 9px;
-  border-top-width: 15px;
 }
 
 /* 撮影地マップの、押したピンの中身。
@@ -567,109 +452,173 @@ body {
   color: rgb(255 255 255 / 0.75);
 }
 
-/* ───────── 公式撮影地ガイドのピン（`/map`） ─────────
+/* ───────── 撮影地マップのピン（iOS の `PhotoMapView` と同じ形・2026-10-28） ─────────
 
-   **写真のピンと形を分ける。** 写真入りの丸（`.photo-map-pin`）と同じ見た目に
-   すると「ここに写真がある」と読める。こちらは**運営が台帳に書いた地点**で、
-   投稿が0枚でも立つ。現在地を丸い点にしてあるのと同じ判断。
+   **形で見分ける**（iOS の板 SpotPinOptions の「見分け方」）:
+     みんなの写真    白い角丸の札（44・角 12）に写真 40（角 10）
+     束              同じ札の後ろに白い札をもう1枚ずらして重ねる
+     撮影スポット    丸。写真があれば真鍮の縁、無ければ真鍮の丸に墨のカメラ
+     Apple の名所    白い縁の丸（Apple のマップが描く）
 
-   `.photo-map-pin-icon` と同じく、`L.divIcon` に `className` を渡しているので
-   `leaflet-div-icon` の既定（白背景・灰色の枠）は付かない。 */
+   どれも**箱の下端の真ん中が座標**。名前は箱の下へはみ出して描く（Apple のマップが
+   `Annotation` の題を描く位置）。
+
+   **`leaflet-div-icon` の既定を持ち込まない。** `L.divIcon` に `className` を渡すと
+   既定の白背景・灰色の枠は付かない。Leaflet の `.leaflet-marker-icon` は
+   `display: block` だけなので、中の並びは内側の要素で組む */
+.photo-map-pin-icon.leaflet-marker-icon,
+.photo-map-pin-icon,
 .spot-map-pin-icon.leaflet-marker-icon,
 .spot-map-pin-icon {
   background: transparent;
   border: 0;
+  overflow: visible;
 }
 
-/* 公式スポットの束（広く見ているとき）。**写真の束（真鍮の地に白い字）と逆に組む**
-   ——白地に真鍮（`--color-accent-deep`）の枠と字。スポットのピンと同じ配色なので
-   「スポットがまとまっている」と読める。字は #796440 on #fff で 5.66:1。
-   2クラスで書く理由は `.photo-map-cluster` と同じ（leaflet.css との強さ負け） */
-.spot-map-cluster.leaflet-marker-icon,
-.spot-map-cluster {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
+.photo-map-pin {
+  display: block;
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+/* 白い札。2 の余白で写真。影は iOS の radius 7・y 4・黒 55% */
+.photo-map-pin__card {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 2px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+
+/* **Leaflet の `width: auto` に勝つために3クラスで書く。**
+   `.leaflet-container .leaflet-marker-pane img`（詳細度 0,2,1）が
+   `max-width: none !important` ＋ `width: auto` を当ててくるので、
+   Tailwind の preflight ごと潰される。ここが負けると、読み込み前は幅0・
+   読み込み後は元画像の幅（256px）になり、ピンが地図いっぱいに広がる */
+.photo-map-shell .leaflet-marker-pane .photo-map-pin__img,
+.photo-map-pin .photo-map-pin__img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  max-width: none;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #2a2a2a;
+}
+
+/* 束の後ろの札（白 55%・右下へ 3 ずらす） */
+.photo-map-pin__back {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.55);
+  transform: translate(3px, 3px);
+}
+
+/* 枚数のバッジ（CLAUDE.md の owner の好み: 真鍮の塗り＋墨の数字＋黒 2px の縁・数字は 12px の等幅）。
+   右上の角から外へ（iOS の `badgeOffset` = 右へ 8+2・上へ 6+2）。高さ・最小幅 20 */
+.map-count-badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
   border-radius: 9999px;
-  background: #ffffff;
-  color: #796440;
-  font-weight: 700;
-  font-size: 13px;
-  box-shadow: 0 0 0 2.5px #796440, 0 2px 8px rgba(0, 0, 0, 0.4);
+  background: #c9a66b;
+  color: #07090a;
+  font: 700 12px/20px ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  box-shadow: 0 0 0 2px #000;
 }
 
+/* 印の下の名前。暗い地図の上で読めるよう、字の周りを黒でふちどる（Apple のマップの題と同じ見え方） */
+.map-pin-label {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 132px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 15px;
+  text-shadow: 0 0 2px #000, 0 0 3px #000, 0 1px 3px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+/* 撮影スポット。押せる範囲は 44 四方、印はその真ん中 */
 .spot-map-pin {
   display: block;
   position: relative;
-  width: 28px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
 }
-
-/* 面。**白地に真鍮（`--color-accent-deep`）の枠**——写真のピン（主色の下地に写真）と逆に組んで、
-   遠目でも別物と分かるようにする */
-.spot-map-pin::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 9999px;
-  background: #ffffff;
-  box-shadow: 0 0 0 2.5px #796440, 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-/* 中の印。文字は入れない（利用者の入力も運営の言葉も入らない＝翻訳も要らない）。
-   名前は marker の `title` / `alt` が持つので読み上げには届く */
-.spot-map-pin__dot {
-  position: absolute;
-  top: 9px;
-  left: 9px;
-  width: 10px;
-  height: 10px;
-  border-radius: 9999px;
-  background: #796440;
-}
-
-/* 下向きの尖り。先端が座標（`iconAnchor` が下端）。
-   **写真のピンは白い尖り**なので、こちらは真鍮（`--color-accent-deep`）で塗って区別する */
-.spot-map-pin::after {
-  content: "";
+.spot-map-pin__mark {
   position: absolute;
   left: 50%;
-  bottom: 0;
-  width: 0;
-  height: 0;
-  transform: translateX(-50%);
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 9px solid #796440;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #c9a66b;
+  color: #07090a;
+  transform: translate(-50%, -50%);
 }
-
-/* 選んだピン。**大きくして光らせる**（写真のピンと同じ作法）。
-   `iconAnchor` は下端（28x36 基準）なので、横は増えた 12px の半分、
-   **縦は増えた 14px ぶん丸ごと**引き上げる（写真のピンで一度ずらした） */
-.spot-map-pin.is-selected {
-  width: 40px;
-  height: 50px;
-  margin-left: -6px;
-  margin-top: -14px;
+@media (prefers-reduced-motion: no-preference) {
+  /* 選んだときは iOS のばね 0.3 秒に近い動き */
+  .spot-map-pin__mark {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  }
 }
-.spot-map-pin.is-selected::before {
+/* 写真あり: 写真の丸 40・真鍮の縁 3（内側）。影は 14 / 55% */
+.spot-map-pin__mark--photo {
   width: 40px;
   height: 40px;
-  box-shadow: 0 0 0 3px #796440, 0 0 0 9px rgb(201 166 107 / 0.4), 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
 }
-.spot-map-pin.is-selected .spot-map-pin__dot {
-  top: 13px;
-  left: 13px;
-  width: 14px;
-  height: 14px;
+/* 縁は写真の上に重ねる（写真が丸の端まで来ても縁が見える） */
+.spot-map-pin__mark--photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 3px #c9a66b;
+  pointer-events: none;
 }
-.spot-map-pin.is-selected::after {
-  border-left-width: 7px;
-  border-right-width: 7px;
-  border-top-width: 12px;
+.photo-map-shell .leaflet-marker-pane .spot-map-pin__img,
+.spot-map-pin .spot-map-pin__img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  max-width: none;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+/* 写真なし: 真鍮の丸 32・白 92% の縁 2・墨のカメラ */
+.spot-map-pin__mark--plain {
+  width: 32px;
+  height: 32px;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.92), 0 4px 12px rgba(0, 0, 0, 0.55);
+}
+/* 選んだとき: 1.27 倍 ＋ 真鍮 16% の光の輪（外へ 10） */
+.spot-map-pin.is-selected .spot-map-pin__mark {
+  transform: translate(-50%, -50%) scale(1.27);
+}
+.spot-map-pin.is-selected .spot-map-pin__mark--photo {
+  box-shadow: 0 0 0 10px rgb(201 166 107 / 0.16), 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+.spot-map-pin.is-selected .spot-map-pin__mark--plain {
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.92), 0 0 0 10px rgb(201 166 107 / 0.16), 0 4px 12px rgba(0, 0, 0, 0.55);
+}
+.spot-map-pin .map-pin-label {
+  top: calc(100% + 2px);
 }

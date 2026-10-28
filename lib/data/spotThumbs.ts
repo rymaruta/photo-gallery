@@ -13,6 +13,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { shownSpotImage } from "./spotImages";
+import type { Spot } from "./spots";
 
 /** `scripts/spot-thumbs.mjs` の `THUMB_DIR_NAME` と同じ */
 export const SPOT_THUMB_DIR = "thumb";
@@ -29,4 +31,14 @@ export function spotThumbSrc(localSrc: string): string | undefined {
 /** サムネのファイルが `public/` に在るか */
 export function spotThumbExists(src: string, publicDir: string = path.join(process.cwd(), "public")): boolean {
     return fs.existsSync(path.join(publicDir, src));
+}
+
+/**
+ * 地図のピンに出す写真（サムネ）の場所。**アプリの地図と同じ写真**（`shownSpotImage` を通した
+ * もの＝アプリ向けの JSON の `image.thumbUrl` と同じ1枚）。無ければ undefined（真鍮の丸にカメラ）
+ */
+export function spotPinThumb(spot: Spot, exists: (src: string) => boolean = spotThumbExists): string | undefined {
+    const image = shownSpotImage(spot);
+    const src = image?.local ? spotThumbSrc(image.local.src) : undefined;
+    return src && exists(src) ? src : undefined;
 }

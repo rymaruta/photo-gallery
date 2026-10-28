@@ -1,5 +1,7 @@
 import MapPageClient from "./MapPageClient";
 import { spotPins } from "../../lib/data/spotLink";
+import { SPOTS } from "../../lib/data/spots";
+import { spotPinThumb } from "../../lib/data/spotThumbs";
 
 /**
  * 撮影地マップ（`/map`）の**サーバー側の殻**。
@@ -14,5 +16,12 @@ import { spotPins } from "../../lib/data/spotLink";
  * 静的書き出し（`output: export`）なので、これはビルド時に1回だけ走る。
  */
 export default function MapPage() {
-    return <MapPageClient spots={spotPins()} />;
+    // ピンの写真（サムネ）はファイルを見て決めるので、サーバーのここで足す
+    const bySlug = new Map(SPOTS.map((s) => [s.slug, s]));
+    const spots = spotPins().map((p) => {
+        const spot = bySlug.get(p.slug);
+        const thumb = spot ? spotPinThumb(spot) : undefined;
+        return thumb ? { ...p, thumb } : p;
+    });
+    return <MapPageClient spots={spots} />;
 }

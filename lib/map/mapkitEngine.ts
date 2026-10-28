@@ -1,4 +1,4 @@
-import type { Bounds, LatLng, MapEngine, MarkerSpec } from "./engine";
+import type { Bounds, LatLng, MapEngine, MarkerHandle, MarkerSpec } from "./engine";
 import { fitView, spanForView, zoomFromSpan } from "./region";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM } from "../utils/mapView";
 
@@ -37,6 +37,7 @@ type MkMap = {
     annotations: MkAnnotation[];
     setRegionAnimated(region: MkRegion, animate?: boolean): unknown;
     addAnnotation(a: MkAnnotation): unknown;
+    removeAnnotation(a: MkAnnotation): unknown;
     removeAnnotations(a: MkAnnotation[]): unknown;
     addEventListener(type: string, fn: (e: MkEvent) => void): void;
     destroy(): void;
@@ -242,7 +243,7 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
         showsPointsOfInterest: true,
     });
 
-    const zoomHandlers: Array<() => void> = [];
+    const viewHandlers: Array<() => void> = [];
     const moveHandlers: Array<() => void> = [];
     let lastZoom = NaN;
 
@@ -295,10 +296,8 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
         return first;
     };
     map.addEventListener("region-change-end", () => {
-        const z = currentZoom();
-        const zoomed = !Number.isFinite(lastZoom) || Math.abs(z - lastZoom) > 0.01;
-        lastZoom = z;
-        if (zoomed) for (const fn of zoomHandlers) fn();
+        lastZoom = currentZoom();
+        for (const fn of viewHandlers) fn();
         if (!saving) return;
         for (const fn of moveHandlers) fn();
     });
@@ -326,8 +325,13 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
         el.addEventListener(type, () => { saving = true; }, { capture: true, passive: true });
     }
 
-    /** いま置いている印（入れ替えのたびに全部外す） */
+    /** いま置いている印 */
     let placed: MkAnnotation[] = [];
+    const unplace = (ann: MkAnnotation) => {
+        if (!placed.includes(ann)) return;
+        placed = placed.filter((a) => a !== ann);
+        map.removeAnnotation(ann);
+    };
 
     return {
         kind: "mapkit",
@@ -357,7 +361,7 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
                 fn();
             });
         },
-        onZoomEnd: (fn) => { zoomHandlers.push(fn); },
+        onViewChange: (fn) => { viewHandlers.push(fn); },
         onMoveEnd: (fn) => { moveHandlers.push(fn); },
         // **人の操作だけ**（指・ホイールで動かした）。こちらが寄せた分は届かない
         onceUserMove: (fn) => {
@@ -370,7 +374,7 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
             if (placed.length) map.removeAnnotations(placed);
             placed = [];
         },
-        addMarker: (s: MarkerSpec) => {
+        addMarker: (s: MarkerSpec): MarkerHandle => {
             // 印の箱。**キーボードでも押せる**ように、箱をボタンとして扱う
             // （MapKit の印は Tab で回れない）
             const host = document.createElement("div");
@@ -409,8 +413,9 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
             }
             map.addAnnotation(ann);
             placed.push(ann);
+            return { remove: () => unplace(ann) };
         },
-        addHereDot: (p) => {
+        addHereDot: (p): MarkerHandle => {
             const dot = document.createElement("span");
             dot.className = "photo-map-here";
             dot.setAttribute("aria-hidden", "true");
@@ -423,6 +428,7 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
             });
             map.addAnnotation(ann);
             placed.push(ann);
+            return { remove: () => unplace(ann) };
         },
         // MapKit は枠の大きさの変化を自分で拾う
         invalidateSize: () => {},

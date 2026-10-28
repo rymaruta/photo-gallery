@@ -2,7 +2,6 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
-import { MAP_MAX_ZOOM } from "@/lib/utils/mapView";
 
 // 地図そのもの（描画・タイル）は jsdom では出せないので Leaflet を差し替え、
 // **こちらが Leaflet に何を渡しているか**を見る。
@@ -34,6 +33,7 @@ const state = vi.hoisted(() => ({
     markers: [] as FakeMarker[], zoom: 4, center: [36, 138] as [number, number],
     zoomControl: null as unknown, mapOpts: null as Record<string, unknown> | null,
     fitOpts: null as Record<string, unknown> | null, fitCalls: 0,
+    fitBounds: null as number[][] | null,
     setViewArgs: [] as Array<{ center: [number, number]; zoom: number }>,
     bounds: { south: 35, west: 139, north: 36, east: 140 },
     fireMap: (() => {}) as (ev: string) => void,
@@ -52,7 +52,7 @@ vi.mock("leaflet", () => {
             getSouth: () => state.bounds.south, getWest: () => state.bounds.west,
             getNorth: () => state.bounds.north, getEast: () => state.bounds.east,
         }),
-        fitBounds: vi.fn((_b: unknown, o: Record<string, unknown>) => { state.fitOpts = o; state.fitCalls++; (handlers.moveend ?? []).forEach((f) => f()); }),
+        fitBounds: vi.fn((b: number[][], o: Record<string, unknown>) => { state.fitBounds = b; state.fitOpts = o; state.fitCalls++; (handlers.moveend ?? []).forEach((f) => f()); }),
         setView: vi.fn((center: [number, number], zoom: number) => {
             state.setViewArgs.push({ center, zoom }); state.center = center; state.zoom = zoom;
             (handlers.moveend ?? []).forEach((f) => f());   // 本物も setView の直後に moveend を出す
@@ -71,7 +71,11 @@ vi.mock("leaflet", () => {
         fire: (ev: string) => (handlers[ev] ?? []).forEach((f) => f()),
     };
     state.fireMap = map.fire;
-    const group = { addTo: () => group, clearLayers: () => { state.markers.length = 0; } };
+    const group = {
+        addTo: () => group,
+        clearLayers: () => { state.markers.length = 0; },
+        removeLayer: (m: FakeMarker) => { const i = state.markers.indexOf(m); if (i >= 0) state.markers.splice(i, 1); },
+    };
     const make = (kind: string) => (latlng: unknown, opts: Record<string, unknown> = {}) => {
         const m: FakeMarker = {
             kind, latlng, opts, popup: null,
@@ -141,6 +145,18 @@ describe("見る場所", () => {
         expect(state.setViewArgs).toEqual([]);
     });
 
+    // iOS の `MapFraming`: 全部を収めると日本とヨーロッパで地球儀の縮尺になり、1枚も探せない
+    it("いちばん写真の多い塊に合わせる（日本3か所とパリ1か所なら日本）", async () => {
+        await draw([
+            photo("a", { coords: { lat: 35.68, lng: 139.76 } }), photo("b", { coords: { lat: 37.63, lng: 138.94 } }),
+            photo("c", { coords: { lat: 36.2, lng: 139.0 } }), photo("d", { coords: { lat: 48.86, lng: 2.35 } }),
+        ]);
+        const [[south, west], [north, east]] = state.fitBounds!;
+        expect(west, "パリまで収めている").toBeGreaterThan(130);
+        expect(north - south).toBeLessThan(10);
+        expect(east).toBeLessThan(150);
+    });
+
     it("URL の #z/lat/lng があればそこを見せる（写真ページからの導線）", async () => {
         window.location.hash = "#12/48.86/2.35";
         await draw([photo("a")]);
@@ -202,13 +218,27 @@ describe("地図の枠", () => {
 //     3枚 465px・地図の上へ 183px はみ出し、うち1枚は表示も操作もできなかった）
 //   - 画像が遅れて入るたびに測り直しが走り、その測り直しが横送りの位置を
 //     先頭へ巻き戻していた（実測: 10枚の束で5回送って5回とも先頭へ戻された）
+/** 0.01 度おき（約1km）の格子に n 地点。iOS と同じく 60 地点を超えると束になる */
+const gridPhotos = (n: number, lat0 = 35.4, lng0 = 139.4): MapPhoto[] =>
+    Array.from({ length: n }, (_, k) => photo(`g${k}`, {
+        coords: { lat: lat0 + Math.floor(k / 20) * 0.01, lng: lng0 + (k % 20) * 0.01 }, location: `場所${k}`,
+    }));
+
+/** 束が見える範囲に寄せておく（束ねるかどうかは見えている枠で決まる） */
+const lookAtGrid = () => {
+    state.center = [35.45, 139.5];
+    state.bounds = { south: 35.2, west: 139.2, north: 35.7, east: 139.8 };
+};
+
+const isCluster = (m: FakeMarker) => String(m.opts.title ?? "").includes("押すと寄ります");
+
 describe("押されたピンを親へ渡す", () => {
     it("ポップアップはもう作らない（地図の高さに縛られないため）", async () => {
         await draw([photo("a"), photo("b", { coords: { lat: 10, lng: 10 } })]);
         for (const m of state.markers) expect(m.popup).toBeNull();
     });
 
-    it("単独のピンを押すと、その1枚が渡る", async () => {
+    it("ピンを押すと、その撮影地の写真が渡る", async () => {
         const onSelect = vi.fn();
         await draw([photo("a")], onSelect);
         state.markers[0].clickHandler?.();
@@ -218,75 +248,53 @@ describe("押されたピンを親へ渡す", () => {
         expect(sel.index).toBe(0);
     });
 
-    // 同じ升（約1km に丸めた同じ座標）の写真は**どこまで寄っても割れない**。
-    // 束ごと渡して、シートが「1/5」で送れるようにする
-    it("これ以上割れない束は、枚数ぶんまとめて渡る", async () => {
+    // iOS の `MapPin.group`: 同じ座標（約1km に丸めた）の写真は1本のピンにまとめ、枚数のバッジを付ける
+    it("同じ撮影地の写真は1本のピンにまとめ、押すと全部が渡る", async () => {
         const at = { lat: 35.42, lng: 138.88 };
         const onSelect = vi.fn();
-        // **境界そのものを置く。** `19` と書いてあったが `MAP_MAX_ZOOM` は
-        // **18**——分岐は `map.getZoom() < MAP_MAX_ZOOM` なので、19 では
-        // `<` を `<=` に変えても偽のままで**境界を一度も通っていなかった**。
-        // 定数を import して、値が動いてもここが追う
-        state.zoom = MAP_MAX_ZOOM;
         await draw([photo("a", { coords: at }), photo("b", { coords: at }), photo("c", { coords: at })], onSelect);
-
-        const cluster = state.markers.find((m) => m.kind === "marker");
-        expect(cluster, "束のピンが無い").toBeTruthy();
-        cluster!.clickHandler?.();
-        const sel = onSelect.mock.calls[0][0] as { photos: MapPhoto[]; index: number };
-        expect(sel.photos.map((p) => p.id)).toEqual(["a", "b", "c"]);
-        expect(sel.index).toBe(0);
+        expect(state.markers).toHaveLength(1);
+        const html = (state.markers[0].opts.icon as { html: HTMLElement }).html;
+        expect(html.querySelector(".map-count-badge")?.textContent).toBe("3");
+        state.markers[0].clickHandler?.();
+        expect((onSelect.mock.calls[0][0] as { photos: MapPhoto[] }).photos.map((p) => p.id)).toEqual(["a", "b", "c"]);
     });
 
-    /**
-     * **これ以上寄れないなら、割れる束でもシートに渡す。**
-     *
-     * 分岐は3つの AND（`inner` が在る・**中身の座標が割れている**・
-     * `map.getZoom() < MAP_MAX_ZOOM`）。上の「これ以上割れない束」は
-     * 3枚とも同じ座標なので**2つ目で偽**になり、ズームの項を一度も
-     * 通っていなかった——`state.zoom = 19` と書いてあったのはそのせいで
-     * 見過ごされていた（`MAP_MAX_ZOOM` は **18** で、19 は実在しない値）。
-     *
-     * ここは**座標を割れる形にしたうえで、ズームを上限に置く**。これで
-     * `<` を `<=` に変えると落ちる＝境界を実際に通る。
-     * 座標は zoom 18 でも同じ升に入る差（約11m）を選んである
-     * （`clusterPoints` の升は zoom 18 で約33m 四方）。
-     */
-    it("上限まで寄っていたら、割れる束でもシートに渡す（寄り直さない）", async () => {
-        const onSelect = vi.fn();
-        state.zoom = MAP_MAX_ZOOM;
-        await draw([
-            photo("a", { coords: { lat: 35.42, lng: 138.88 } }),
-            photo("b", { coords: { lat: 35.4201, lng: 138.88 } }),
-        ], onSelect);
-
-        const cluster = state.markers.find((m) => m.kind === "marker");
-        expect(cluster, "束のピンが無い（座標が割れすぎて束にならなかった）").toBeTruthy();
-        const before = state.fitCalls;
-        cluster!.clickHandler?.();
-        expect(state.fitCalls, "上限なのに寄り直している").toBe(before);
-        expect(onSelect, "シートに渡していない").toHaveBeenCalledTimes(1);
-        const sel = onSelect.mock.calls[0][0] as { photos: MapPhoto[]; index: number };
-        expect(sel.photos.map((p) => p.id)).toEqual(["a", "b"]);
+    it("1枚だけの撮影地にはバッジを付けない", async () => {
+        await draw([photo("a")]);
+        expect((state.markers[0].opts.icon as { html: HTMLElement }).html.querySelector(".map-count-badge")).toBeNull();
     });
 
-    // **まだ割れる束は寄るだけ。** シートに渡すと、寄れば個別に見られる
-    // ものまで「1/5」に畳んでしまう
-    it("まだ割れる束は寄るだけで、シートには渡さない", async () => {
-        const onSelect = vi.fn();
-        state.zoom = 4;
-        await draw([
-            photo("a", { coords: { lat: 35.40, lng: 138.80 } }),
-            photo("b", { coords: { lat: 35.44, lng: 138.96 } }),
-        ], onSelect);
+    // iOS の `MapPinClusters`: 60 地点以下なら束ねない（離れていても、重なっていても）
+    it("60 地点までは束ねない", async () => {
+        lookAtGrid();
+        await draw(gridPhotos(60));
+        expect(state.markers).toHaveLength(60);
+        expect(state.markers.some(isCluster)).toBe(false);
+    });
 
-        const cluster = state.markers.find((m) => m.kind === "marker");
-        expect(cluster, "束のピンが無い").toBeTruthy();
-        // 最初の「全部のピンが収まる範囲へ」のぶんを差し引く
+    it("60 地点を超えたら束ね、押すとその束が収まる枠まで寄る（選びはしない）", async () => {
+        lookAtGrid();
+        const onSelect = vi.fn();
+        await draw(gridPhotos(200), onSelect);
+        expect(state.markers.length).toBeLessThanOrEqual(60);
+        const cluster = state.markers.find(isCluster);
+        expect(cluster, "束が無い").toBeTruthy();
         const before = state.fitCalls;
         cluster!.clickHandler?.();
         expect(state.fitCalls).toBe(before + 1);
-        expect(onSelect).not.toHaveBeenCalled();
+        expect(onSelect, "束を押して札を出している").not.toHaveBeenCalled();
+    });
+
+    it("束は札を2枚重ね、写真の合計枚数のバッジを付ける", async () => {
+        lookAtGrid();
+        await draw(gridPhotos(200));
+        const cluster = state.markers.find(isCluster)!;
+        const html = (cluster.opts.icon as { html: HTMLElement }).html;
+        expect(html.querySelector(".photo-map-pin__back")).toBeTruthy();
+        const n = Number(html.querySelector(".map-count-badge")?.textContent);
+        expect(n).toBeGreaterThan(1);
+        expect(String(cluster.opts.title)).toContain(`写真 ${n}枚`);
     });
 
     it("地図の余白を押すと `null`（＝閉じる）が渡る", async () => {
@@ -296,34 +304,26 @@ describe("押されたピンを親へ渡す", () => {
         expect(onSelect).toHaveBeenCalledWith(null);
     });
 
-    // Leaflet はレイヤーの DOM イベントを**地図にも伝える**（`Layer._fireDOMEvent`
-    // が targets にレイヤーと地図を並べて撃つ）。止めるのは
-    // `bubblingMouseEvents: false` のレイヤーだけで、**`Marker` は既定 false**・
-    // `Path`（circleMarker）は既定 true。渡し忘れると、単独のピンを押した
-    // 直後に地図の click（＝閉じる）が走って何も出ない。
-    //
-    // **2026-09-22 に単独のピンは `Marker`（写真入りの `divIcon`）になった**
-    // ので、既定のまま伝わらない。`circleMarker` に戻すなら
-    // `bubblingMouseEvents: false` を明示すること
-    it("単独のピンは Marker で描く（click が地図へ伝わらない側）", async () => {
+    // Leaflet はレイヤーの DOM イベントを**地図にも伝える**。止めるのは
+    // `bubblingMouseEvents: false` のレイヤーだけで、`Marker` は既定 false。
+    // `circleMarker` に戻すなら `bubblingMouseEvents: false` を明示すること
+    it("ピンは Marker で描く（click が地図へ伝わらない側）", async () => {
         await draw([photo("a")]);
         expect(state.markers[0].kind).toBe("marker");
         expect(state.markers[0].opts.bubblingMouseEvents, "Path に戻すなら false を明示する").toBeUndefined();
     });
 
-    // モックの②「写真ピン」。地図の上で「どこに何が在るか」が絵で分かる形
-    it("単独のピンには写真のサムネを入れる（幅と高さを px で書く）", async () => {
+    // iOS の板 Map の `.pin`: 44 の白い角丸に写真 40。**下端の真ん中が座標**
+    it("ピンは白い札に写真のサムネ（幅と高さを px で書く）・下端の真ん中が座標", async () => {
         await draw([photo("a", { thumbSm: "https://cdn.example.com/uploads/a_sm.webp" })]);
         const icon = state.markers[0].opts.icon as { html: HTMLElement; iconSize: number[]; iconAnchor: number[] };
-        const img = icon.html.querySelector("img");
+        const img = icon.html.querySelector(".photo-map-pin__card img");
         expect(img, "サムネが入っていない").toBeTruthy();
         expect(img!.getAttribute("src")).toContain("a_sm.webp");
-        // **px を書かないと Leaflet の `width: auto` が効く**（読み込み前は幅0、
-        // 読み込み後は元画像の 256px になってピンが化ける）
         expect(img!.getAttribute("width")).toBe("40");
         expect(img!.getAttribute("height")).toBe("40");
-        // 尖りの先が座標（下端を合わせる）
-        expect(icon.iconAnchor).toEqual([icon.iconSize[0] / 2, icon.iconSize[1]]);
+        expect(icon.iconSize).toEqual([44, 44]);
+        expect(icon.iconAnchor).toEqual([22, 44]);
     });
 
     // **文字列の HTML を組まない。** 写真の URL を通した差し込みの口になる
@@ -333,24 +333,20 @@ describe("押されたピンを親へ渡す", () => {
         expect(typeof icon.html, "文字列で組んでいる").not.toBe("string");
     });
 
-    it("サムネが無い写真でも描ける（丸だけ残す）", async () => {
+    it("サムネが無い写真でも描ける（白い札だけ残す）", async () => {
         await draw([photo("a", { src: "" } as Partial<Photo>)]);
         const icon = state.markers[0].opts.icon as { html: HTMLElement };
         expect(icon.html.querySelector("img")).toBeNull();
-        expect(icon.html.querySelector(".photo-map-pin__tail")).toBeTruthy();
+        expect(icon.html.querySelector(".photo-map-pin__card")).toBeTruthy();
     });
 
-    // 束のピンは `keyboard: true` で Tab で来られるが、Leaflet は Enter を
-    // click に**変換しない**（以前は `bindPopup` が `keypress` を拾っていた）
-    it("束のピンは Enter でも押せる", async () => {
-        const at = { lat: 35.42, lng: 138.88 };
+    // ピンは `keyboard: true` で Tab で来られるが、Leaflet は Enter を click に**変換しない**
+    it("ピンは Enter でも押せる", async () => {
         const onSelect = vi.fn();
-        state.zoom = MAP_MAX_ZOOM;
-        await draw([photo("a", { coords: at }), photo("b", { coords: at })], onSelect);
-        const cluster = state.markers.find((m) => m.kind === "marker")!;
-        cluster.keypressHandler?.({ originalEvent: { key: "a" } });
+        await draw([photo("a")], onSelect);
+        state.markers[0].keypressHandler?.({ originalEvent: { key: "a" } });
         expect(onSelect).not.toHaveBeenCalled();
-        cluster.keypressHandler?.({ originalEvent: { key: "Enter" } });
+        state.markers[0].keypressHandler?.({ originalEvent: { key: "Enter" } });
         expect(onSelect).toHaveBeenCalledTimes(1);
     });
 
@@ -359,13 +355,33 @@ describe("押されたピンを親へ渡す", () => {
         expect(() => { state.markers[0].clickHandler?.(); fireMap("click"); }).not.toThrow();
     });
 
-    // 束の数字は利用者の入力ではない（題を入れていた頃は DOM を組んでいた）
-    it("束のピンに入れるのは枚数の数字だけ", async () => {
-        const at = { lat: 35.42, lng: 138.88 };
-        state.zoom = MAP_MAX_ZOOM;
-        await draw([photo("a", { coords: at }), photo("<img onerror=x>", { coords: at })]);
-        const cluster = state.markers.find((m) => m.kind === "marker");
-        expect(JSON.stringify(cluster!.opts)).not.toContain("onerror");
+    // 名前は撮影地。HTML ではなく文字として入る
+    it("撮影地の名前を印の下に出す（文字として入れる）", async () => {
+        await draw([photo("a", { location: "<img onerror=x>" })]);
+        const label = (state.markers[0].opts.icon as { html: HTMLElement }).html.querySelector(".map-pin-label");
+        expect(label?.textContent).toBe("<img onerror=x>");
+        expect(label?.querySelector("img")).toBeNull();
+    });
+
+    // **地図が動いても、変わらない印は作り直さない**（画像を読み直して一瞬消える・フォーカスが落ちる）
+    it("地図が動いても、変わらないピンは置き直さない", async () => {
+        await draw([photo("a"), photo("b", { coords: { lat: 10, lng: 10 } })]);
+        const before = state.markers.slice();
+        fireMap("moveend");
+        expect(state.markers.length).toBe(before.length);
+        expect(state.markers.every((m, i) => m === before[i])).toBe(true);
+    });
+
+    // iOS: 選んでいた撮影地が束に吸われたら選びを外す（札が見えない場所を指し続けない）
+    it("選んでいた撮影地が束に吸われたら、選びを外す", async () => {
+        lookAtGrid();
+        const onSelect = vi.fn();
+        const photos = gridPhotos(200);
+        render(<PhotoMap photos={photos} locale="ja" onSelect={onSelect} selectedId="g0" />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        const absorbed = state.markers.filter(isCluster).length > 0;
+        expect(absorbed).toBe(true);
+        expect(onSelect).toHaveBeenCalledWith(null);
     });
 });
 
@@ -496,8 +512,9 @@ describe("動きを減らす設定", () => {
     // ホイール・慣性が残る＝上の4つと両方が要る）
     it("束を押したときの寄せも止める", async () => {
         setReducedMotion(true);
-        await draw([photo("a"), photo("b", { coords: { lat: 35.6, lng: 139.9 } })]);
-        state.markers.find((m) => m.kind === "marker")?.clickHandler?.();
+        lookAtGrid();
+        await draw(gridPhotos(200));
+        state.markers.find(isCluster)?.clickHandler?.();
         expect(state.fitOpts).toMatchObject({ animate: false });
     });
 
@@ -506,176 +523,174 @@ describe("動きを減らす設定", () => {
     // 「1画面より遠い行き先は動かさない」安全弁で、`true` はそれを外す。
     // 設定を入れていない人にまで「画面端の束を押すと約1秒かけて滑る」が起きる
     it("設定が無いときは寄せ方を Leaflet に任せる（true を渡さない）", async () => {
-        await draw([photo("a"), photo("b", { coords: { lat: 35.6, lng: 139.9 } })]);
-        state.markers.find((m) => m.kind === "marker")?.clickHandler?.();
+        lookAtGrid();
+        await draw(gridPhotos(200));
+        const before = state.fitCalls;
+        state.markers.find(isCluster)?.clickHandler?.();
+        expect(state.fitCalls, "束を押していない").toBe(before + 1);
         expect(state.fitOpts?.animate, "true を渡すと Leaflet の安全弁が外れる").toBeUndefined();
     });
 });
 
 
 /**
- * 公式撮影地ガイドのピン（`/spots/<slug>`）。
+ * 撮影スポットのピン（`/spots/<slug>`）。**iOS の `OfficialPins` と同じ決まり**:
  *
- * ここで固定したいのは3つ:
- *
- *  1. **写真の束に混ぜない**——混ぜると束の数字が「N枚」と名乗ったまま
- *     写真でないものを数える
- *  2. **形を分ける**——写真入りの丸と同じ見た目にすると「ここに写真がある」
- *     と読める（現在地の点を丸にしてあるのと同じ判断）
+ *  1. **寄せたとき（緯度の幅 0.5° 未満）だけ**、枠の中を近い順に最大60本。名前で絞って
+ *     いるときは倍率に関係なく当たったものを出す
+ *  2. **形を分ける**——写真の札（白い角丸）ではなく丸（真鍮）
  *  3. **押すと親へスラッグが渡る**（中身は画面側のシートが描く）
  */
-describe("公式撮影地ガイドのピン", () => {
+describe("撮影スポットのピン", () => {
     const SPOT = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6, cover: null, stage: "published" as const };
+    /** スポットのそばに寄せておく（緯度の幅 0.2°） */
+    const nearSpot = () => {
+        state.center = [34.1, 133.6];
+        state.bounds = { south: 34.0, west: 133.5, north: 34.2, east: 133.7 };
+        // 最初に見せる場所もスポットのそば（偽物の地図は setView で中心を書き換える）
+        window.location.hash = "#12/34.1/133.6";
+    };
 
-    const drawWithSpot = async (photos: MapPhoto[], onSelectSpot?: (slug: string) => void) => {
-        render(<PhotoMap photos={photos} locale="ja" spots={[SPOT]} onSelectSpot={onSelectSpot} />);
+    const drawWithSpot = async (photos: MapPhoto[], onSelectSpot?: (slug: string) => void, extra: Record<string, unknown> = {}) => {
+        render(<PhotoMap photos={photos} locale="ja" spots={[SPOT]} onSelectSpot={onSelectSpot} {...extra} />);
         await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
     };
 
     const spotMarker = () => state.markers.find((m) => String(m.opts.title ?? "").includes("高屋神社"));
 
-    it("写真が1枚も無くてもピンが立つ（投稿0枚でも成立するのが台帳の肝）", async () => {
+    it("寄せていれば、写真が1枚も無くてもピンが立つ", async () => {
+        nearSpot();
         await drawWithSpot([]);
         expect(spotMarker()).toBeTruthy();
     });
 
-    /// 🔴 **束の数字は写真の枚数のまま。** 同じ升にスポットが在っても増えない
-    it("写真の束には混ざらない", async () => {
-        await drawWithSpot([photo("a"), photo("b")]);
-        const cluster = state.markers.find((m) => String(m.opts.title ?? "").includes("枚"));
-        expect(cluster?.opts.title, "束の数字がスポットを数えている").toBe("2枚");
+    // 1,000件を常に置かない（日本全体では重なって塊になるだけ）
+    it("引いているときは立てない（名前で絞っていなければ）", async () => {
+        state.bounds = { south: 30, west: 128, north: 42, east: 146 };
+        render(<PhotoMap photos={[photo("a")]} locale="ja" spots={[SPOT]} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        expect(spotMarker()).toBeUndefined();
     });
 
-    /// 🔴 **形を分ける。** 写真のピン（`photo-map-pin`）と同じクラスにしない
-    it("写真のピンとは別の形で描く", async () => {
+    it("名前で絞っているときは、引いていても立てる", async () => {
+        state.bounds = { south: 30, west: 128, north: 42, east: 146 };
+        await drawWithSpot([], undefined, { spotQueryActive: true });
+        expect(spotMarker()).toBeTruthy();
+    });
+
+    it("地図を寄せたら立つ（動いたら置き直す）", async () => {
+        state.bounds = { south: 30, west: 128, north: 42, east: 146 };
+        render(<PhotoMap photos={[photo("a")]} locale="ja" spots={[SPOT]} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        expect(spotMarker()).toBeUndefined();
+        nearSpot();
+        fireMap("moveend");
+        expect(spotMarker()).toBeTruthy();
+    });
+
+    it("写真のピンとは別の形（丸）で描く・押せる範囲は 44", async () => {
+        nearSpot();
         await drawWithSpot([]);
-        // 偽物の `divIcon` は渡された options をそのまま返す（上のモック）
-        const icon = spotMarker()?.opts.icon as { html?: HTMLElement; className?: string } | undefined;
+        const icon = spotMarker()?.opts.icon as { html?: HTMLElement; className?: string; iconSize?: number[] };
         expect(icon?.className).toBe("spot-map-pin-icon");
         expect(icon?.html?.className).toContain("spot-map-pin");
         expect(icon?.html?.className, "写真のピンと同じ見た目にしない").not.toContain("photo-map-pin");
+        expect(icon?.iconSize).toEqual([44, 44]);
     });
 
-    /// 名前は読み上げにも届く（ピンの中身は印だけ＝文字を持たない）
-    it("名前と「公式」を読み上げに渡す", async () => {
+    it("写真が無ければ真鍮の丸にカメラ、あれば写真の丸", async () => {
+        nearSpot();
+        render(<PhotoMap photos={[]} locale="ja" spots={[SPOT, { ...SPOT, slug: "b", name: "写真のある場所", thumb: "/images/spots/thumb/b.jpg" }]} />);
+        await waitFor(() => expect(state.markers.length).toBe(2));
+        const html = (name: string) => (state.markers.find((m) => String(m.opts.title).includes(name))!.opts.icon as { html: HTMLElement }).html;
+        expect(html("高屋神社").querySelector(".spot-map-pin__mark--plain svg")).toBeTruthy();
+        expect(html("写真のある場所").querySelector(".spot-map-pin__mark--photo img")?.getAttribute("src")).toBe("/images/spots/thumb/b.jpg");
+    });
+
+    it("名前を読み上げに渡し、印の下にも出す", async () => {
+        nearSpot();
         await drawWithSpot([]);
-        expect(spotMarker()?.opts.title).toBe("高屋神社（公式撮影スポット）");
-        expect(spotMarker()?.opts.alt).toBe("高屋神社（公式撮影スポット）");
+        expect(spotMarker()?.opts.title).toBe("高屋神社");
+        expect(spotMarker()?.opts.alt).toBe("高屋神社");
         const html = (spotMarker()?.opts.icon as { html?: HTMLElement }).html;
-        expect(html?.textContent, "ピンの中に文字を入れない").toBe("");
+        expect(html?.querySelector(".map-pin-label")?.textContent).toBe("高屋神社");
     });
 
-    /// 「公式」は人が確かめた行だけ。下書きは読み上げでもそう名乗る
     it("下書きのピンは読み上げに「下書き」を渡す", async () => {
+        nearSpot();
         render(<PhotoMap photos={[]} locale="ja" spots={[{ ...SPOT, stage: "review" }]} />);
         await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
-        expect(spotMarker()?.opts.title).toBe("高屋神社（撮影スポット・下書き）");
+        expect(spotMarker()?.opts.title).toBe("高屋神社（下書き）");
     });
 
-    it("押すとスラッグが親へ渡る", async () => {
+    it("押すとスラッグが親へ渡る（Enter でも）", async () => {
+        nearSpot();
         const onSelectSpot = vi.fn();
         await drawWithSpot([], onSelectSpot);
         spotMarker()?.clickHandler?.();
-        expect(onSelectSpot).toHaveBeenCalledWith("takaya-jinja");
-    });
-
-    it("Enter でも押せる", async () => {
-        const onSelectSpot = vi.fn();
-        await drawWithSpot([], onSelectSpot);
         spotMarker()?.keypressHandler?.({ originalEvent: { key: "Enter" } });
+        expect(onSelectSpot).toHaveBeenCalledTimes(2);
         expect(onSelectSpot).toHaveBeenCalledWith("takaya-jinja");
     });
 
-    /// **写真の束の下に隠れない。** 同じ升に束が在ると押せなくなる
-    it("写真のピンより手前に置く", async () => {
-        await drawWithSpot([photo("a"), photo("b")]);
+    it("写真のピンより手前に置く（Leaflet）", async () => {
+        nearSpot();
+        await drawWithSpot([photo("a", { coords: { lat: 34.1, lng: 133.6 } })]);
         expect(Number(spotMarker()?.opts.zIndexOffset ?? 0)).toBeGreaterThan(0);
     });
 
-    // 2026-09-30 のレビュー: 広域でスポットのピンが大量に重なる → スポットどうしで束ねる
-    it("近いスポットは束ねる（写真の束とは別の形・写真より奥）", async () => {
-        const near = { ...SPOT, slug: "near", name: "近くの場所", lat: 34.12, lng: 133.62 };
-        render(<PhotoMap photos={[]} locale="ja" spots={[SPOT, near]} />);
-        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
-        const cluster = state.markers.find((m) => String(m.opts.title ?? "") === "撮影スポット 2か所");
-        expect(cluster, "束になっていない").toBeTruthy();
-        expect((cluster!.opts.icon as { className?: string }).className).toBe("spot-map-cluster");
-        expect(Number(cluster!.opts.zIndexOffset)).toBeLessThan(0);
-        expect(spotMarker(), "束の中のスポットが単独でも立っている").toBeUndefined();
-    });
-
-    it("選んだスポットは束から外して立てる（どこを選んでいるか見失わない）", async () => {
-        const near = { ...SPOT, slug: "near", name: "近くの場所", lat: 34.12, lng: 133.62 };
-        render(<PhotoMap photos={[]} locale="ja" spots={[SPOT, near]} selectedSpotSlug="takaya-jinja" />);
-        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
-        expect(spotMarker()).toBeTruthy();
-        const html = (spotMarker()!.opts.icon as { html?: HTMLElement }).html;
-        expect(html?.className).toContain("is-selected");
-    });
-
-    // 984c2f4e のレビュー: 単独のピンからピンへ選び替えても描き直さない（押したピンのフォーカスを落とさない）
-    it("離れた単独のスポットを選び替えても、ピンを描き直さない", async () => {
-        // 画面（`MapPageClient`）は同じ配列を渡し続ける（`pinSpots` の注記）。ここでも同じ配列・同じ写真
-        const far = { ...SPOT, slug: "far", name: "遠くの場所", lat: 43.0, lng: 141.3 };
+    it("選んだスポットは大きく光らせる。選び替えてもピンを作り直さない", async () => {
+        nearSpot();
+        const far = { ...SPOT, slug: "far", name: "近くの別の場所", lat: 34.15, lng: 133.65 };
         const spots = [SPOT, far];
         const none: MapPhoto[] = [];
         const { rerender } = render(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug={null} />);
-        await waitFor(() => expect(state.markers.length).toBeGreaterThan(1));
-        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug="takaya-jinja" />);
+        await waitFor(() => expect(state.markers.length).toBe(2));
         const before = state.markers.slice();
+        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug="takaya-jinja" />);
+        expect((spotMarker()!.opts.icon as { html: HTMLElement }).html.className).toContain("is-selected");
         rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug="far" />);
-        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug={null} />);
-        expect(state.markers.length).toBe(before.length);
+        expect((spotMarker()!.opts.icon as { html: HTMLElement }).html.className).not.toContain("is-selected");
         expect(state.markers.every((m, i) => m === before[i]), "選び替えでピンが作り直された").toBe(true);
     });
 
-    // 661dc2fb のレビュー: 束から外して立てていたスポットを外したら、束に戻す（描き直す側の経路）
-    it("束の中のスポットを選んで外したら、束に戻る", async () => {
-        const near = { ...SPOT, slug: "near", name: "近くの場所", lat: 34.12, lng: 133.62 };
-        const spots = [SPOT, near];
-        const none: MapPhoto[] = [];
-        const { rerender } = render(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug="takaya-jinja" />);
+    // 札だけ残って、どこを選んでいるか分からない、を作らない
+    it("選んだスポットは、引いて見えなくなっても立てておく", async () => {
+        state.bounds = { south: 30, west: 128, north: 42, east: 146 };
+        render(<PhotoMap photos={[photo("a")]} locale="ja" spots={[SPOT]} selectedSpotSlug="takaya-jinja" />);
         await waitFor(() => expect(spotMarker()).toBeTruthy());
-        expect(state.markers.some((m) => String(m.opts.title ?? "") === "撮影スポット 2か所")).toBe(false);
-        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug={null} />);
-        await waitFor(() => expect(state.markers.some((m) => String(m.opts.title ?? "") === "撮影スポット 2か所")).toBe(true));
-        expect(spotMarker(), "外したのに単独のまま").toBeUndefined();
     });
 
     it("`onSelectSpot` を渡さなくても落ちない", async () => {
+        nearSpot();
         await drawWithSpot([]);
         expect(() => spotMarker()?.clickHandler?.()).not.toThrow();
     });
 
-    /// 渡さなければ1本も立たない（既定の空配列が毎回作られないことも兼ねる）
     it("スポットを渡さなければ立たない", async () => {
+        nearSpot();
         await draw([photo("a")]);
-        expect(state.markers.some((m) => String(m.opts.title ?? "").includes("公式"))).toBe(false);
+        expect(state.markers).toHaveLength(1);
     });
 });
 
-// 地図のピンの名前（marker の title・alt）。撮影地を主にし、無ければ写真ページと同じ題
-// （旧い既定値の「無題」を名乗らない・2026-10-18）
-describe("地図のピンの名前: 題が無い写真", () => {
-    beforeEach(() => { state.markers.length = 0; });
+// 写真のピンの読み上げ名（iOS の `pinSpokenLabel`: 「パリ、写真 3枚」・撮影地が無ければ「場所の名前なし」）
+describe("写真のピンの読み上げ名", () => {
     const pinName = () => {
         const m = state.markers.find((x) => x.kind === "marker");
         return [m?.opts.title, m?.opts.alt];
     };
-    it("{ ja: 無題, en: Untitled }・撮影地なし → 「写真」", async () => {
-        await draw([photo("a", { title: { ja: "無題", en: "Untitled" }, location: "" })]);
-        expect(pinName()).toEqual(["写真", "写真"]);
+    it("撮影地と枚数", async () => {
+        await draw([photo("a")]);
+        expect(pinName()).toEqual(["山中湖、写真 1枚", "山中湖、写真 1枚"]);
     });
-    it("空白だけの題・撮影地なし → 「写真」", async () => {
-        await draw([photo("a", { title: { ja: "  " }, location: undefined })]);
-        expect(pinName()).toEqual(["写真", "写真"]);
+    it("撮影地が無ければ「場所の名前なし」（題は名乗らない）", async () => {
+        await draw([photo("a", { location: "  " })]);
+        expect(pinName()).toEqual(["場所の名前なし、写真 1枚", "場所の名前なし、写真 1枚"]);
     });
-    it("撮影地があれば撮影地（今までどおり）", async () => {
-        await draw([photo("a", { title: { ja: "無題" } })]);
-        expect(pinName()).toEqual(["山中湖", "山中湖"]);
-    });
-    it("撮影地が無く題があれば題", async () => {
-        await draw([photo("a", { location: "" })]);
-        expect(pinName()).toEqual(["写真a", "写真a"]);
+    it("同じ撮影地のうち、撮影地を書いてある写真の名前を使う", async () => {
+        const at = { lat: 35, lng: 139 };
+        await draw([photo("a", { coords: at, location: "" }), photo("b", { coords: at, location: "パリ" })]);
+        expect(pinName()[0]).toBe("パリ、写真 2枚");
     });
 });

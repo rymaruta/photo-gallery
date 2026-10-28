@@ -22,9 +22,9 @@ function fakeEngine(kind: "leaflet" | "mapkit"): MapEngine {
         getZoom: () => 4, getCenter: () => ({ lat: 36, lng: 138 }),
         getBounds: () => ({ south: 35, west: 139, north: 36, east: 140 }),
         setView: () => {}, fitBounds: () => { made.fits++; }, zoomIn: () => {}, zoomOut: () => {},
-        onBackgroundClick: () => {}, onZoomEnd: () => {}, onMoveEnd: () => {},
+        onBackgroundClick: () => {}, onViewChange: () => {}, onMoveEnd: () => {},
         onceUserMove: (fn) => { made.userMove = fn; },
-        clearMarkers: () => {}, addMarker: () => {}, addHereDot: () => {}, invalidateSize: () => {},
+        clearMarkers: () => {}, addMarker: () => ({ remove: () => {} }), addHereDot: () => ({ remove: () => {} }), invalidateSize: () => {},
         remove: () => { made.removed.push(kind); },
     };
 }

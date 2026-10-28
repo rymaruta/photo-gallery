@@ -1,5 +1,5 @@
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
-import type { Bounds, LatLng, MapEngine, MarkerSpec } from "./engine";
+import type { Bounds, LatLng, MapEngine, MarkerHandle, MarkerSpec } from "./engine";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM } from "../utils/mapView";
 
 /**
@@ -63,13 +63,14 @@ export async function createLeafletEngine(
         // 地図にも伝えるが、`bubblingMouseEvents: false` のレイヤーだけは
         // 止める（`leaflet-src.js:4567`）。`Marker` は既定で false
         onBackgroundClick: (fn) => { map.on("click", fn); },
-        onZoomEnd: (fn) => { map.on("zoomend", fn); },
+        // Leaflet は寄せ引きのあとにも `moveend` を出す
+        onViewChange: (fn) => { map.on("moveend", fn); },
         onMoveEnd: (fn) => { map.on("moveend", fn); },
         // 本物は `setView` / `fitBounds` の `movestart` を**同期で**出し終えている
         // ので、初期表示のあとに登録すれば人の操作（とこちらの寄せ）だけが届く
         onceUserMove: (fn) => { map.once("movestart zoomstart", fn); },
         clearMarkers: () => { layer.clearLayers(); },
-        addMarker: (s: MarkerSpec) => {
+        addMarker: (s: MarkerSpec): MarkerHandle => {
             const marker = L.marker([s.lat, s.lng], {
                 icon: L.divIcon({
                     html: s.el,
@@ -93,14 +94,16 @@ export async function createLeafletEngine(
                 });
             }
             marker.addTo(layer);
+            return { remove: () => { layer.removeLayer(marker); } };
         },
         // 現在地の点。色は現在地だけの `--color-location` ＋黒 2px の縁
         // （デザインシステム「黒塗りの真鍮」・iOS と同じ）
-        addHereDot: (p) => {
-            L.circleMarker([p.lat, p.lng], {
+        addHereDot: (p): MarkerHandle => {
+            const dot = L.circleMarker([p.lat, p.lng], {
                 radius: 7, color: "#000000", weight: 2, fillColor: "#9cc3e6", fillOpacity: 1,
                 interactive: false,
             }).addTo(layer);
+            return { remove: () => { layer.removeLayer(dot); } };
         },
         invalidateSize: () => { map.invalidateSize({ debounceMoveend: true }); },
         remove: () => { map.remove(); },

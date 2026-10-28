@@ -53,6 +53,7 @@ function fakeMapKit() {
         },
         addAnnotation: (a: FakeAnnotation) => { calls.annotations.push(a); },
         removeAnnotations: (as: FakeAnnotation[]) => { calls.removed += as.length; calls.annotations = calls.annotations.filter((a) => !as.includes(a)); },
+        removeAnnotation: (a: FakeAnnotation) => { calls.removed += 1; calls.annotations = calls.annotations.filter((x) => x !== a); },
         addEventListener: (t: string, fn: Listener) => { (mapListeners[t] ||= []).push(fn); },
         destroy: () => { calls.destroyed = true; },
     };
@@ -299,20 +300,19 @@ describe("見る場所", () => {
         expect(zoomFromSpan(calls.regions.at(-1)!.lngD, 400)).toBeCloseTo(6, 9);
     });
 
-    it("ズームが変わったときだけ束ね直す。動いたら毎回控える", () => {
+    it("落ち着くたびに置き直しの合図を出す（控えは人が触ってから）", () => {
         const { mk, fire, setSpan } = fakeMapKit();
         const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
-        const zoomed = vi.fn(), moved = vi.fn();
-        engine.onZoomEnd(zoomed);
+        const viewed = vi.fn(), moved = vi.fn();
+        engine.onViewChange(viewed);
         engine.onMoveEnd(moved);
-        fire("scroll-start");   // 人が触った（最初の場所は控えない決まりの外）
         fire("region-change-end");
-        expect([zoomed.mock.calls.length, moved.mock.calls.length]).toEqual([1, 1]);
-        fire("region-change-end");   // 同じ幅のまま動いた
-        expect([zoomed.mock.calls.length, moved.mock.calls.length]).toEqual([1, 2]);
+        expect([viewed.mock.calls.length, moved.mock.calls.length]).toEqual([1, 0]);
+        fire("scroll-start");   // 人が触った
+        fire("region-change-end");   // 同じ幅のまま動いた（撮影スポットは動いた先で選び直す）
         setSpan(1);
         fire("region-change-end");
-        expect([zoomed.mock.calls.length, moved.mock.calls.length]).toEqual([2, 3]);
+        expect([viewed.mock.calls.length, moved.mock.calls.length]).toEqual([3, 2]);
     });
 
     it("人が動かしたときだけ知らせる（一度だけ）", () => {
@@ -380,6 +380,16 @@ describe("印", () => {
         expect(fn).toHaveBeenCalledTimes(1);
     });
 
+    it("置いた印は1つずつ外せる（変わった印だけ置き直す）", () => {
+        const { mk, calls } = fakeMapKit();
+        const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
+        const a = engine.addMarker({ lat: 35, lng: 139, el: pin(), size: [40, 50], anchor: [20, 50], title: "a" });
+        engine.addMarker({ lat: 36, lng: 139, el: pin(), size: [40, 50], anchor: [20, 50], title: "b" });
+        a.remove();
+        a.remove();   // 2回外しても落ちない
+        expect(calls.annotations.map((x) => x.coordinate.latitude)).toEqual([36]);
+    });
+
     it("入れ替えるときは前の印を全部外す", () => {
         const { mk, calls } = fakeMapKit();
         const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
@@ -417,15 +427,15 @@ describe("最初の場所", () => {
     it("最初に置いた場所は、知らせが何本来ても控えない", () => {
         const { mk, fire } = fakeMapKit();
         const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
-        const moved = vi.fn(), zoomed = vi.fn();
+        const moved = vi.fn(), viewed = vi.fn();
         engine.onMoveEnd(moved);
-        engine.onZoomEnd(zoomed);
+        engine.onViewChange(viewed);
         fire("region-change-end");   // 作った直後の既定の範囲のぶん（出すかは Apple 次第）
         engine.setView({ lat: 36, lng: 138 }, 4);
         fire("region-change-end");
         fire("region-change-end");
         expect(moved, "写真0枚のときの仮の場所が控えに残る").not.toHaveBeenCalled();
-        expect(zoomed, "束ね直しは要る").toHaveBeenCalled();
+        expect(viewed, "置き直しは要る").toHaveBeenCalled();
     });
 
     it("こちらが2回目に動かしたら（束を押した・写真が届いて寄せた）、そこからは控える", () => {

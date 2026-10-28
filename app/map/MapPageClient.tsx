@@ -358,6 +358,8 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             areaActive={!!area}
                             sheetOpen={!!sheet || !!spotSheet}
                             spots={pinSpots}
+                            // 名前で絞っているときは、引いていても当たったスポットを置く（iOS と同じ）
+                            spotQueryActive={query.trim() !== ""}
                             onSelectSpot={onSelectSpot}
                             selectedSpotSlug={spotSheet?.slug ?? null}
                             className="h-[62vh] min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,84px)_-_24px))] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"

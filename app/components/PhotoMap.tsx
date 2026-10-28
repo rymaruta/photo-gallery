@@ -3,11 +3,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { isIOS, isIOSSafari } from "@/lib/utils/pwa";
 import "leaflet/dist/leaflet.css";
-import type { MapEngine } from "../../lib/map/engine";
+import type { MapEngine, MarkerHandle, MarkerSpec } from "../../lib/map/engine";
 import { createLeafletEngine } from "../../lib/map/leafletEngine";
 import { createMapKitEngine, loadMapKit, mapKitRefused, onMapKitRefused } from "../../lib/map/mapkitEngine";
+import {
+    clusterCover, clusterFrame, clusterPhotoCount, frameForPoints, groupPins, layoutHides, layoutPins,
+    visibleSpots, type Frame, type MapPin, type PinCluster,
+} from "../../lib/map/mapPins";
 import type { Photo } from "../../lib/data/photos";
-import { clusterPoints, boundsOf, type GeoPoint } from "../../lib/utils/mapClusters";
 import type { SpotPin } from "../../lib/data/spotLink";
 
 /** 既定の空配列。**毎回作らない**（作ると ref の更新が毎描画で走る） */
@@ -18,7 +21,6 @@ import {
 import { normalizeBounds, type MapBounds } from "../../lib/utils/mapFilter";
 import { publicImageUrl } from "../../lib/utils/seo";
 import { useLatestRef } from "../../lib/hooks/useLatestRef";
-import { photoTitleFor } from "../../lib/utils/photoTitle";
 
 /** 位置情報を持つ写真だけ（`coords` が有限の数であること） */
 export type MapPhoto = Photo & { coords: { lat: number; lng: number } };
@@ -30,37 +32,90 @@ export function photosWithCoords(photos: readonly Photo[]): MapPhoto[] {
 /** ピンを押したときに親へ渡すもの。`null` は「閉じる」 */
 export type MapSelection = { photos: MapPhoto[]; index: number };
 
-type Point = GeoPoint & { photo: MapPhoto };
+/**
+ * 印の大きさ（px）。**iOS の `PhotoMapView` と同じ数**（v2 の板 Map・2026-10-14）:
+ *
+ *     写真のピン    44 の白い角丸（角 12）に 2 の余白で写真 40（角 10）
+ *     枚数のバッジ  真鍮の丸 20・黒の縁 2・右上へ（8+2, -(6+2)）
+ *     撮影スポット  押せる範囲 44 の真ん中に、写真の丸 40（真鍮の縁 3）か
+ *                   真鍮の丸 32（墨のカメラ・白の縁 2）
+ *
+ * どれも**箱の下端の真ん中が座標**（SwiftUI の `Annotation` の既定と同じ）。
+ */
+const PIN_PX = 44;
+const SPOT_HIT_PX = 44;
 
-/**
- * ピンの大きさ（px）。**モックの画素から測った値**（`docs/mockups/06-map.jpg`・
- * 端末の画面幅 364画素 ＝ 393 CSS px ＝ 1画素 ≈ 1.08 CSS px）:
- *
- *     写真の丸        36画素 → 39 CSS px（選択中は 62画素 → 67）
- *     尖りまでの高さ  55画素 → 59 CSS px
- *     束の丸          30画素 → 32 CSS px
- *
- * 丸は 40、尖りを足した高さは 50 に丸めた。**束の升（`CELL_PX`）はピンの
- * 直径より大きく取る**——小さいと隣り合うピンの絵が重なって、下のピンが
- * 押せなくなる。
- */
-const PIN_PX = 40;
-const PIN_H = 50;
-/**
- * 公式スポットのピン。**写真のピンより小さくする**——写真が主役のサイトで、
- * 運営が置いた印が写真より大きいと主客が入れ替わる。
- * 指で押す的は Leaflet の当たり判定がアイコン全体なので、28×36 で足りる
- * （WCAG 2.5.8 の24px を超え、隣のピンとは升で離れている）。
- */
-const SPOT_PIN_PX = 28;
-const SPOT_PIN_H = 36;
-const CELL_PX = 56;
-/**
- * 公式スポットの束の升（px）。**束の丸（36px）の2倍ほど**にする——束は升の中の重心に
- * 立つので、升が丸に近い大きさだと隣の升の束と重なる（44px で日本全体を見ると
- * 数字が重なって読めなかった・実ブラウザの絵で確認）
- */
-const SPOT_CELL_PX = 72;
+/** iOS の `MapFraming.Frame`（中心と幅）→ 地図に渡す矩形 */
+function frameBounds(f: Frame): { south: number; west: number; north: number; east: number } {
+    return { south: f.lat - f.latSpan / 2, north: f.lat + f.latSpan / 2, west: f.lng - f.lngSpan / 2, east: f.lng + f.lngSpan / 2 };
+}
+
+/** 最初に見せる範囲（いちばん写真の多い塊。重みは撮影地ごとの枚数） */
+function photosFrame(photos: readonly MapPhoto[]): Frame | null {
+    const pins = groupPins(photos);
+    return frameForPoints(pins.map((p) => ({ lat: p.lat, lng: p.lng })), pins.map((p) => p.photos.length));
+}
+
+/** 写真のピンの読み上げ名（「パリ、写真 3枚」・iOS の `pinSpokenLabel`） */
+function pinSpokenLabel(place: string | null, count: number, en: boolean): string {
+    const shown = place || (en ? "No place name" : "場所の名前なし");
+    return en ? `${shown}, ${count} photo${count === 1 ? "" : "s"}` : `${shown}、写真 ${count}枚`;
+}
+
+/** 白い角丸の札に写真（読めなくても白い札は残る）。**DOM で組む**（URL を文字列の HTML に入れない） */
+function cardElement(photo: MapPhoto | undefined): HTMLElement {
+    const card = document.createElement("span");
+    card.className = "photo-map-pin__card";
+    const thumb = photo ? (photo.thumbSm || photo.thumbSrc || photo.src) : "";
+    if (thumb) {
+        const img = document.createElement("img");
+        img.className = "photo-map-pin__img";
+        // 出す URL はサイトのドメインに揃える（`Thumb` と同じ理由）。44 の印に 256px で足りる
+        img.src = publicImageUrl(thumb);
+        img.alt = "";           // 名前は印の `title` が持つ
+        img.decoding = "async";
+        // **px を書く。** Leaflet の `width: auto` が効くと、読み込み前は幅0・読み込み後は
+        // 元画像の幅（256px）になり、ピンが化ける
+        img.width = 40;
+        img.height = 40;
+        img.addEventListener("error", () => { img.remove(); }, { once: true });
+        card.appendChild(img);
+    }
+    return card;
+}
+
+/** 枚数のバッジ（真鍮の塗り・墨の数字・黒の縁）。**数字だけ**（利用者の入力は入らない） */
+function badgeElement(count: number): HTMLElement {
+    const b = document.createElement("span");
+    b.className = "map-count-badge";
+    b.setAttribute("aria-hidden", "true");
+    b.textContent = String(count);
+    return b;
+}
+
+/** 印の下の名前（MapKit が `Annotation` の題として描くのと同じ位置） */
+function labelElement(text: string): HTMLElement {
+    const l = document.createElement("span");
+    l.className = "map-pin-label";
+    l.setAttribute("aria-hidden", "true");   // 名前は印の `title` が持つ
+    l.textContent = text;
+    return l;
+}
+
+/** 墨のカメラ（写真の無い撮影スポットの印） */
+function cameraIcon(): SVGElement {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "14");
+    svg.setAttribute("height", "14");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute("fill", "currentColor");
+    path.setAttribute("d", "M9.4 4.5a1.5 1.5 0 0 0-1.27.7L7.2 6.6H5A2.5 2.5 0 0 0 2.5 9.1v8.4A2.5 2.5 0 0 0 5 20h14a2.5 2.5 0 0 0 2.5-2.5V9.1A2.5 2.5 0 0 0 19 6.6h-2.2l-.93-1.4a1.5 1.5 0 0 0-1.27-.7H9.4ZM12 9a4.25 4.25 0 1 1 0 8.5A4.25 4.25 0 0 1 12 9Z");
+    svg.appendChild(path);
+    return svg;
+}
 
 /** 「現在地」で寄るズーム。写真の座標は約1km に丸めてあるので、これ以上寄せない */
 const LOCATE_ZOOM = 12;
@@ -81,12 +136,13 @@ const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_MAPKIT_JS_TOKEN ?? "";
  * トップレベルで読むと静的書き出し（`next build` の事前描画）で落ちる。
  * Leaflet の CSS は window に依存しないので普通に import する。
  *
- * ## ピンは写真の絵で出す（2026-09-22・最終版モック）
+ * ## ピンは iOS と同じ形・同じ決まり（2026-10-28）
  *
- * 以前は青い点（`circleMarker`）だった。モックは**写真入りの丸いピン**で、
- * 地図の上で「どこに何が在るか」が絵で分かる形。中身は `divIcon` に
- * **DOM を組んで渡す**（`L.DivIcon` は `html` に `Element` を受け取る）——
- * 文字列の HTML を組むと、写真の URL を通した差し込みの口になる。
+ * 白い角丸の札に写真（同じ撮影地の写真は1本にまとめて枚数のバッジ）、多すぎる
+ * ときだけ束（札を2枚重ねる）、撮影スポットは丸（寄せたとき・名前で絞ったときだけ）。
+ * 決め方は `lib/map/mapPins.ts`（iOS の `MapPinClusters` / `OfficialPins` /
+ * `MapFraming` の写し）。中身は **DOM を組んで渡す**——文字列の HTML を組むと、
+ * 写真の URL を通した差し込みの口になる。
  *
  * **画像には px の幅と高さを必ず書く。** Leaflet の
  * `.leaflet-container .leaflet-marker-pane img` は `max-width: none !important`
@@ -95,8 +151,8 @@ const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_MAPKIT_JS_TOKEN ?? "";
  * `.photo-map-shell .leaflet-marker-pane .photo-map-pin__img`（0,3,0）で
  * 上回る必要がある（`app/globals.css`）。
  *
- * 束ね方は `lib/utils/mapClusters.ts`（純関数）。ズームが変わるたびに
- * 束ね直す（ズームだけで束が決まる格子なので、移動では変えない）。
+ * 置く印は見えている範囲で決まるので、地図が落ち着くたびに置き直す。**変わった印
+ * だけ**を外して足す（全部を作り直すと画像を読み直して印が一瞬消える）。
  *
  * **写真の中身は地図の中に描かない。** 以前は Leaflet のポップアップに
  * サムネと題を組んでいたが、
@@ -120,26 +176,34 @@ const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_MAPKIT_JS_TOKEN ?? "";
  */
 export default function PhotoMap({
     photos, locale, onSelect, selectedId, onSearchArea, areaActive = false, sheetOpen = false, className = "",
-    spots = EMPTY_SPOTS, onSelectSpot, selectedSpotSlug = null,
+    spots = EMPTY_SPOTS, onSelectSpot, selectedSpotSlug = null, spotQueryActive = false,
 }: {
     photos: readonly MapPhoto[];
     locale: "ja" | "en";
     /**
      * 公式撮影地ガイドのスポット（運営が台帳に書いたもの）。
      *
-     * **写真の束（`clusterPoints`）には混ぜない。** 混ぜると束の数字が
+     * **写真の束には混ぜない。** 混ぜると束の数字が
      * 「N枚」と名乗ったまま写真でないものを数える。別の層として、
      * **別の形のピン**で立てる——「ここに写真がある」と読ませない
      * （現在地の点を丸にしてあるのと同じ判断）。
      */
     spots?: readonly SpotPin[];
+    /**
+     * 名前で撮影スポットを絞っているか。**絞っているときは倍率に関係なく**当たった
+     * スポットを置く（iOS の `OfficialPins`）。絞っていなければ寄せたときだけ
+     */
+    spotQueryActive?: boolean;
     /** 公式スポットのピンが押された */
     onSelectSpot?: (slug: string) => void;
     /** いま選ばれている公式スポット（そのピンを目立たせる） */
     selectedSpotSlug?: string | null;
     /** ピンが押された（`null` は地図の余白が押された＝閉じる） */
     onSelect?: (selection: MapSelection | null) => void;
-    /** いま選ばれている写真（そのピンを大きく出す） */
+    /**
+     * いま選ばれている写真。**ピンの見た目は変えない**（iOS も選んだピンを目立たせない）。
+     * その撮影地が束に吸われた・枠の外へ出たら選びを外すのに使う
+     */
     selectedId?: string | null;
     /** 「このエリアを検索」。`null` は指定の解除 */
     onSearchArea?: (bounds: MapBounds | null) => void;
@@ -176,25 +240,20 @@ export default function PhotoMap({
     );
     /** どちらの地図も読めなかった（圏外） */
     const [mapFailed, setMapFailed] = useState(false);
-    /** ピンの DOM（id → 要素）。選択が変わっても描き直さず、クラスだけ付け替える */
-    const pinElsRef = useRef(new Map<string, HTMLElement>());
-    // 最新の写真を effect の外から読む（ズームのたびに束ね直すため）。
+    // 最新の写真を effect の外から読む（地図が動くたびに置き直すため）。
     // **描画の途中では書かない**（`useLatestRef`。描き終えた直後に書く）
     const photosRef = useLatestRef(photos);
     // **ref に持つ。** 依存に入れると、親が関数を作り直すたびに地図ごと
     // 建て直すことになる（見ていた場所もズームも消える）
     const onSelectRef = useLatestRef(onSelect);
     const selectedIdRef = useLatestRef(selectedId);
-    /** 公式スポットのピンの DOM（スラッグ → 要素）。写真のピンと同じ扱い */
-    const spotElsRef = useRef(new Map<string, HTMLElement>());
     const spotsRef = useLatestRef(spots);
+    const spotQueryActiveRef = useLatestRef(spotQueryActive);
     const onSelectSpotRef = useLatestRef(onSelectSpot);
     const selectedSpotRef = useLatestRef(selectedSpotSlug);
     /** 写真0枚で地図を作った（あとから写真が届いたら一度だけ寄る・人が動かしたら取り消す） */
     const autoFitPendingRef = useRef(false);
     const areaActiveRef = useLatestRef(areaActive);
-    /** 直前に選んでいたスポット（外したら束に戻すため描き直す） */
-    const prevSelectedSpotRef = useRef<string | null>(null);
     /** 現在地。**state に置くだけで、保存も送信もしない** */
     const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
     const hereRef = useLatestRef(here);
@@ -252,181 +311,171 @@ export default function PhotoMap({
             made = map;
             mapRef.current = map;
 
-            const select = (sel: MapSelection) => onSelectRef.current?.(sel);
             // 地図の余白を押したら閉じる（印を押したときは来ない＝各土台が見分ける）
             map.onBackgroundClick(() => onSelectRef.current?.(null));
 
-            /** 束を押して寄る。**寄せたら「写真が届いたら全体へ」を取り消す**（人の操作の結果） */
-            const zoomInto = (b: { south: number; west: number; north: number; east: number }) => {
+            /** 枠へ寄せる。**寄せたら「写真が届いたら全体へ」を取り消す**（人の操作の結果） */
+            const zoomInto = (f: Frame) => {
                 autoFitPendingRef.current = false;
-                map.fitBounds(b, { padding: 48, maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
+                map.fitBounds(frameBounds(f), { padding: 0, maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
+            };
+
+            /** いま見えている枠（iOS の `MapFraming.Frame` の形）。決まらなければ null */
+            const visibleFrame = (): Frame | null => {
+                const b = map.getBounds();
+                const c = map.getCenter();
+                let lngSpan = b.east - b.west;
+                if (lngSpan < 0) lngSpan += 360;   // 日付変更線を跨いだ（MapKit は東が西より小さくなる）
+                const f = { lat: c.lat, lng: c.lng, latSpan: b.north - b.south, lngSpan };
+                return [f.lat, f.lng, f.latSpan, f.lngSpan].every(Number.isFinite) && f.latSpan > 0 && f.lngSpan > 0 ? f : null;
             };
 
             /**
-             * 写真1枚ぶんのピンの DOM。**文字列の HTML を組まない**
-             * ——写真の URL を通した差し込みの口になる。
+             * 置いている印（鍵 → 印）。**変わらない印は置き直さない**——地図が動くたびに
+             * 全部を作り直すと、画像を読み直して印が一瞬消え、押した印のフォーカスも落ちる。
+             * 鍵には中身（写真の並び・代表の画像）を入れ、変わったら作り直す
              */
-            const pinElement = (photo: MapPhoto): HTMLElement => {
+            const placed = new Map<string, MarkerHandle>();
+            /** 撮影スポットの印の DOM（選んだ形を付け替えるため） */
+            const spotEls = new Map<string, HTMLElement>();
+
+            const draw = () => {
+                const frame = visibleFrame();
+                const want = new Map<string, () => MarkerSpec>();
+
+                // 写真のピン（同じ座標の写真を1本に・多すぎるときだけ束ねる）
+                const pins = groupPins(photosRef.current);
+                const layout = layoutPins(pins, frame);
+                for (const pin of layout.pins) {
+                    const key = `p:${pin.id}:${pin.photos.map((p) => p.id).join(",")}`;
+                    want.set(key, () => ({
+                        lat: pin.lat, lng: pin.lng, el: photoPinElement(pin), className: "photo-map-pin-icon",
+                        size: [PIN_PX, PIN_PX], anchor: [PIN_PX / 2, PIN_PX],
+                        title: pinSpokenLabel(pin.place, pin.photos.length, en),
+                        onActivate: () => onSelectRef.current?.({ photos: pin.photos, index: 0 }),
+                    }));
+                }
+                for (const c of layout.clusters) {
+                    const key = `c:${c.id}:${c.pins.map((p) => p.id).join(",")}`;
+                    want.set(key, () => ({
+                        lat: c.lat, lng: c.lng, el: clusterElement(c), className: "photo-map-pin-icon",
+                        size: [PIN_PX, PIN_PX], anchor: [PIN_PX / 2, PIN_PX],
+                        title: en
+                            ? `${clusterPhotoCount(c)} photos at ${c.pins.length} places. Tap to zoom in`
+                            : `${c.pins.length}か所の写真 ${clusterPhotoCount(c)}枚。押すと寄ります`,
+                        // 束は選ばない。その束が収まる枠まで寄るだけ（iOS と同じ）
+                        onActivate: () => zoomInto(clusterFrame(c)),
+                    }));
+                }
+                // **選んでいた撮影地が束に吸われた・枠の外へ出た**なら選びを外す（iOS と同じ）。
+                // 絞り込みで結果から外れたときは外さない
+                const chosen = selectedIdRef.current;
+                if (chosen) {
+                    const owner = pins.find((p) => p.photos.some((ph) => ph.id === chosen));
+                    if (owner && layoutHides(layout, owner.id, new Set(pins.map((p) => p.id)))) {
+                        onSelectRef.current?.(null);
+                    }
+                }
+
+                // 撮影スポット。**寄せたとき・名前で絞ったときだけ**最大60本（iOS の `OfficialPins`）。
+                // 選んでいるスポットは見えなくなっても置く（札だけ残る、を作らない）
+                const shownSpots = visibleSpots(spotsRef.current, frame, { queryActive: spotQueryActiveRef.current });
+                const sel = selectedSpotRef.current;
+                if (sel && !shownSpots.some((s) => s.slug === sel)) {
+                    const kept = spotsRef.current.find((s) => s.slug === sel);
+                    if (kept) shownSpots.push(kept);
+                }
+                for (const sp of shownSpots) {
+                    const key = `s:${sp.slug}:${sp.thumb ?? ""}`;
+                    want.set(key, () => ({
+                        lat: sp.lat, lng: sp.lng, el: spotElement(sp), className: "spot-map-pin-icon",
+                        size: [SPOT_HIT_PX, SPOT_HIT_PX], anchor: [SPOT_HIT_PX / 2, SPOT_HIT_PX],
+                        title: sp.stage === "published" ? sp.name : (en ? `${sp.name} (draft)` : `${sp.name}（下書き）`),
+                        // 写真のピンより手前（Leaflet だけ効く。`MarkerSpec.zIndexOffset`）
+                        zIndexOffset: 1000,
+                        onActivate: () => onSelectSpotRef.current?.(sp.slug),
+                    }));
+                }
+
+                // 置き直す（要らない印を外し、無い印だけ置く）
+                for (const [key, handle] of placed) {
+                    if (want.has(key)) continue;
+                    handle.remove();
+                    placed.delete(key);
+                    if (key.startsWith("s:")) spotEls.delete(key.split(":")[1]);
+                }
+                for (const [key, spec] of want) {
+                    if (placed.has(key)) continue;
+                    placed.set(key, map.addMarker(spec()));
+                }
+                for (const [slug, el] of spotEls) el.classList.toggle("is-selected", slug === sel);
+
+                // 現在地の点。**写真のピンとは別の形**（丸い点）
+                const h = hereRef.current;
+                const hereKey = h ? `h:${h.lat},${h.lng}` : null;
+                for (const [key, handle] of placed) {
+                    if (key.startsWith("h:") && key !== hereKey) { handle.remove(); placed.delete(key); }
+                }
+                if (h && hereKey && !placed.has(hereKey)) placed.set(hereKey, map.addHereDot(h));
+            };
+
+            /** 写真のピン（白い角丸の札に写真・枚数のバッジ・撮影地の名前） */
+            const photoPinElement = (pin: MapPin<MapPhoto>): HTMLElement => {
                 const wrap = document.createElement("span");
                 wrap.className = "photo-map-pin";
-                const thumb = photo.thumbSm || photo.thumbSrc || photo.src;
-                if (thumb) {
+                wrap.appendChild(cardElement(pin.photos[0]));
+                if (pin.photos.length > 1) wrap.appendChild(badgeElement(pin.photos.length));
+                if (pin.place) wrap.appendChild(labelElement(pin.place));
+                return wrap;
+            };
+            /** 束（後ろに白い札をもう1枚ずらして重ね、1つの撮影地と見分ける） */
+            const clusterElement = (c: PinCluster<MapPhoto>): HTMLElement => {
+                const wrap = document.createElement("span");
+                wrap.className = "photo-map-pin photo-map-pin--stack";
+                const back = document.createElement("span");
+                back.className = "photo-map-pin__back";
+                back.setAttribute("aria-hidden", "true");
+                wrap.appendChild(back);
+                wrap.appendChild(cardElement(clusterCover(c)));
+                wrap.appendChild(badgeElement(clusterPhotoCount(c)));
+                return wrap;
+            };
+            /** 撮影スポット（写真の丸・真鍮の縁、または真鍮の丸に墨のカメラ）と名前 */
+            const spotElement = (sp: SpotPin): HTMLElement => {
+                const wrap = document.createElement("span");
+                wrap.className = "spot-map-pin";
+                const mark = document.createElement("span");
+                mark.setAttribute("aria-hidden", "true");
+                if (sp.thumb) {
+                    mark.className = "spot-map-pin__mark spot-map-pin__mark--photo";
                     const img = document.createElement("img");
-                    img.className = "photo-map-pin__img";
-                    // 出す URL はサイトのドメインに揃える（`Thumb` と同じ理由）
-                    img.src = publicImageUrl(thumb);
-                    img.alt = "";           // 名前は印の `title` が持つ
+                    img.className = "spot-map-pin__img";
+                    img.src = sp.thumb;
+                    img.alt = "";
                     img.decoding = "async";
-                    // **px を書く。** Leaflet の `width: auto` が効くと、読み込み前は
-                    // 幅0・読み込み後は元画像の幅（256px）になり、ピンが化ける
-                    img.width = PIN_PX;
-                    img.height = PIN_PX;
-                    // 読めなかったら壊れた画像の枠を出さない（丸だけ残す）
+                    img.width = 40; img.height = 40;
+                    // 読めなかったら真鍮の地が見える（空の枠にしない）
                     img.addEventListener("error", () => { img.remove(); }, { once: true });
-                    wrap.appendChild(img);
+                    mark.appendChild(img);
+                } else {
+                    mark.className = "spot-map-pin__mark spot-map-pin__mark--plain";
+                    mark.appendChild(cameraIcon());
                 }
-                const tail = document.createElement("span");
-                tail.className = "photo-map-pin__tail";
-                wrap.appendChild(tail);
+                wrap.appendChild(mark);
+                wrap.appendChild(labelElement(sp.name));
+                spotEls.set(sp.slug, wrap);
                 return wrap;
             };
 
-            /** 数字だけの丸（束）。**利用者の入力は入らない** */
-            const countElement = (n: number): HTMLElement => {
-                const span = document.createElement("span");
-                span.textContent = String(n);
-                return span;
-            };
-
-            const draw = () => {
-                map.clearMarkers();
-                pinElsRef.current.clear();
-                spotElsRef.current.clear();
-                const zoom = map.getZoom();
-                const points: Point[] = photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng, photo: p }));
-                for (const c of clusterPoints(points, zoom, CELL_PX)) {
-                    if (c.items.length === 1) {
-                        const { photo } = c.items[0];
-                        const el = pinElement(photo);
-                        if (photo.id === selectedIdRef.current) el.classList.add("is-selected");
-                        pinElsRef.current.set(photo.id, el);
-                        // 地図なので撮影地を主にする（`MapPhotoList` と同じ）。撮影地が無ければ
-                        // 写真ページと同じ題（`photoTitleFor`。旧い「無題」は落として「写真」）
-                        const name = (photo.location ?? "").trim()
-                            || photoTitleFor(photo, en ? "en" : "ja").text;
-                        map.addMarker({
-                            lat: c.lat, lng: c.lng, el, className: "photo-map-pin-icon",
-                            size: [PIN_PX, PIN_H],
-                            // 尖りの先が座標。**下端を合わせる**（中心だと
-                            // 実際の位置よりピン半分ぶん上にずれる）
-                            anchor: [PIN_PX / 2, PIN_H],
-                            title: name,
-                            onActivate: () => select({ photos: [photo], index: 0 }),
-                        });
-                    } else {
-                        // **押したら、その束が収まる範囲まで一気に寄る。**
-                        // 「2段ずつ寄る」だと、4km 離れた2枚を割るのに5回押す
-                        // ことになった（実ブラウザで実測）。
-                        // 同じ升（約1km に丸めた同じ座標）の写真は**どこまで寄っても
-                        // 割れない**ので、寄れないときは束ごとシートに渡す
-                        // （シートが「1/5」で送れるようにする）
-                        const inner = boundsOf(c.items);
-                        const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && zoom < MAP_MAX_ZOOM;
-                        map.addMarker({
-                            lat: c.lat, lng: c.lng, el: countElement(c.items.length), className: "photo-map-cluster",
-                            size: [34, 34], anchor: [17, 17],
-                            title: en ? `${c.items.length} photos` : `${c.items.length}枚`,
-                            onActivate: splittable
-                                ? () => zoomInto(inner)
-                                // これ以上は割れない束。**枚数ぶんまとめてシートに渡し、
-                                // 「1/5」で送ってもらう**
-                                : () => select({ photos: c.items.map((it) => it.photo), index: 0 }),
-                        });
-                    }
-                }
-                /**
-                 * 公式撮影地ガイドのピン。**写真の束には混ぜない。**
-                 *
-                 * 混ぜると束の数字が「N枚」と名乗ったまま写真でないものを
-                 * 数える。**形も別**（写真入りの丸ではなく、印の入った小さい
-                 * ピン）にして、「ここに写真がある」と読ませない
-                 * ——現在地の点を丸にしてあるのと同じ判断。
-                 *
-                 * **広く見ているときはスポットどうしで束ねる**（2026-09-30 のレビュー:
-                 * 広域表示でピンが大量に重なる。台帳は公開済みだけで 1,079件ある）。
-                 * 束は写真の束と**別の形**（白地に真鍮の枠・「N か所」）で、押すと
-                 * その束が収まる範囲まで寄る。寄っても割れない束（同じ約1km の升に
-                 * 複数のスポット）は、個別のピンのまま重ねて立てる——スポットは
-                 * 1件ずつページが違うので、束ごとシートに渡す写真とは扱いが違う。
-                 * **選んだスポットは束ねない**（束に入ると、どこを選んでいるか見失う）
-                 */
-                const spotPin = (sp: SpotPin) => {
-                    const el = document.createElement("span");
-                    el.className = "spot-map-pin";
-                    if (sp.slug === selectedSpotRef.current) el.classList.add("is-selected");
-                    // **中身は印だけ。** 利用者の入力は入らない（名前は
-                    // 印の `title` が持つ＝読み上げにも届く）
-                    const dot = document.createElement("span");
-                    dot.className = "spot-map-pin__dot";
-                    dot.setAttribute("aria-hidden", "true");
-                    el.appendChild(dot);
-                    spotElsRef.current.set(sp.slug, el);
-                    // 「公式」は人が確かめた行だけ（`stage`）。下書きはそう名乗る
-                    const label = sp.stage === "published"
-                        ? (en ? `${sp.name} (official spot)` : `${sp.name}（公式撮影スポット）`)
-                        : (en ? `${sp.name} (spot, draft)` : `${sp.name}（撮影スポット・下書き）`);
-                    map.addMarker({
-                        lat: sp.lat, lng: sp.lng, el, className: "spot-map-pin-icon",
-                        size: [SPOT_PIN_PX, SPOT_PIN_H], anchor: [SPOT_PIN_PX / 2, SPOT_PIN_H],
-                        title: label,
-                        // **写真のピンより手前に置く。** 同じ升に写真の束が
-                        // 在ると、下に隠れて押せない
-                        zIndexOffset: 1000,
-                        onActivate: () => onSelectSpotRef.current?.(sp.slug),
-                    });
-                };
-                const selectedSpot = selectedSpotRef.current;
-                const spotPoints = spotsRef.current
-                    .filter((sp) => sp.slug !== selectedSpot)
-                    .map((sp) => ({ id: sp.slug, lat: sp.lat, lng: sp.lng, spot: sp }));
-                for (const c of clusterPoints(spotPoints, zoom, SPOT_CELL_PX)) {
-                    const inner = c.items.length > 1 ? boundsOf(c.items) : null;
-                    const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && zoom < MAP_MAX_ZOOM;
-                    if (!splittable) {
-                        for (const it of c.items) spotPin(it.spot);
-                        continue;
-                    }
-                    const n = c.items.length;
-                    map.addMarker({
-                        lat: c.lat, lng: c.lng, el: countElement(n), className: "spot-map-cluster",
-                        size: [36, 36], anchor: [18, 18],
-                        title: en ? `${n} shooting spots` : `撮影スポット ${n}か所`,
-                        // **写真のピンより奥に置く**（写真が主役。束の丸は大きいので、上に
-                        // 置くと写真の束を覆う）。単独のスポットのピンは小さいので手前のまま
-                        zIndexOffset: -100,
-                        onActivate: () => zoomInto(inner),
-                    });
-                }
-                const chosen = selectedSpot ? spotsRef.current.find((sp) => sp.slug === selectedSpot) : undefined;
-                if (chosen) spotPin(chosen);
-
-                // 現在地の点。**写真のピンとは別の形**（丸い点）にして、
-                // 「ここに写真がある」と読ませない
-                const h = hereRef.current;
-                if (h) map.addHereDot(h);
-            };
-            redrawRef.current = draw;
-
             // **最初に見せる場所。** 写真ページから飛んできた（URL のハッシュ）か、
-            // このタブで前に見ていた場所（控え）があればそこ。無ければ全部の
-            // ピンが収まる範囲。決め方は `chooseInitialView` を参照——
-            // 「写真を開いて戻るたびに全体へ戻される」を止めるのが目的
+            // このタブで前に見ていた場所（控え）があればそこ。無ければ**いちばん写真の多い
+            // 塊**（iOS の `MapFraming`。全部を収めると日本とヨーロッパで地球儀になる）
             const initial = chooseInitialView(window.location.hash, readSavedView());
-            const b = boundsOf(photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
+            const start = photosFrame(photosRef.current);
             if (initial) {
                 map.setView({ lat: initial.lat, lng: initial.lng }, initial.zoom);
-            } else if (b) {
-                map.fitBounds(b, { padding: 32, maxZoom: 12 });
+            } else if (start) {
+                map.fitBounds(frameBounds(start), { padding: 0, maxZoom: MAP_MAX_ZOOM });
             } else {
                 map.setView({ lat: 36, lng: 138 }, 4);   // 写真が無ければ日本全体
                 // **写真があとから届いたら、一度だけそこへ寄る。** 公式スポットがあると
@@ -437,8 +486,9 @@ export default function PhotoMap({
                 // あとで、写真が届いたからと引き剥がさない）。束と現在地はこちらでも取り消す
                 map.onceUserMove(() => { autoFitPendingRef.current = false; });
             }
+            redrawRef.current = draw;
             draw();
-            map.onZoomEnd(draw);
+            map.onViewChange(draw);
             // 動かすたびに控える。URL は触らない（mapView.ts の冒頭を参照）。
             // **「現在地」を使ったあとは書かない**（`suppressSaveRef`）
             map.onMoveEnd(() => {
@@ -448,19 +498,15 @@ export default function PhotoMap({
             });
         })();
 
-        // 後片付けで読む ref は effect の中で控える（片付けの時点では
-        // 別の中身に差し替わっているかもしれない）
-        const pinEls = pinElsRef.current;
         return () => {
             cancelled = true;
             redrawRef.current = null;
-            pinEls.clear();
             made?.remove();
             if (mapRef.current === made) mapRef.current = null;
         };
         // 写真が増えたら描き直す（`photosRef` を読むのは draw。ここは初期化だけ）。
         // `*Ref` は同じ入れ物のまま中身だけ替わる（依存に書いても作り直しは起きない）
-    }, [locale, en, engineKind, photosRef, onSelectRef, selectedIdRef, spotsRef, onSelectSpotRef, selectedSpotRef, hereRef]);
+    }, [locale, en, engineKind, photosRef, onSelectRef, selectedIdRef, spotsRef, spotQueryActiveRef, onSelectSpotRef, selectedSpotRef, hereRef]);
 
     /**
      * **枠の大きさが変わったら Leaflet に測り直させる。**
@@ -487,7 +533,7 @@ export default function PhotoMap({
         return () => ro.disconnect();
     }, []);
 
-    // 写真の配列が変わったら、地図を作り直さずにピンだけ描き直す
+    // 写真の配列が変わったら、地図を作り直さずにピンだけ置き直す
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
@@ -495,54 +541,17 @@ export default function PhotoMap({
         if (areaActiveRef.current) autoFitPendingRef.current = false;
         if (autoFitPendingRef.current && photos.length > 0) {
             autoFitPendingRef.current = false;
-            const b = boundsOf(photos.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
-            if (b) map.fitBounds(b, { padding: 32, maxZoom: 12 });
+            const f = photosFrame(photos);
+            if (f) map.fitBounds(frameBounds(f), { padding: 0, maxZoom: MAP_MAX_ZOOM });
         }
         redrawRef.current?.();
     }, [photos, areaActiveRef]);
 
-    // 現在地が付いた／消えたときも点を描き直す。
-    // 公式スポットが増減したときも同じ（描き直しの入口を2つ作らない）
+    // 現在地・スポット・選んだもの・語の有無が変わったときも置き直す
+    // （置き直しは変わった印だけなので、押した印のフォーカスは落ちない）
     useEffect(() => {
         redrawRef.current?.();
-    }, [here, spots]);
-
-    // **選ばれたピンは描き直さずにクラスだけ付け替える。** 描き直すと
-    // 画像の要求がやり直しになり、押すたびにピンが一瞬消える
-    useEffect(() => {
-        for (const [id, el] of pinElsRef.current) {
-            el.classList.toggle("is-selected", id === selectedId);
-        }
-    }, [selectedId, photos]);
-
-    // 公式スポットも同じ（描き直さずクラスだけ）。**ただし選んだスポットが束の中に
-    // いるときは描き直す**——束の中のスポットにはピンの要素が無い（選んだものは束から
-    // 外して立てる＝`draw` の注記）
-    useEffect(() => {
-        const prev = prevSelectedSpotRef.current;
-        prevSelectedSpotRef.current = selectedSpotSlug;
-        // 描き直すのは2つのときだけ（描き直すと押したピンのフォーカスが落ちる）:
-        //   - 束の中のスポットを選んだ（そのピンの要素がまだ無い）
-        //   - 外した・替えた前のスポットが、**選んでいなければ束に入る**位置にいた
-        //     （選んでいる間だけ束から外して立てていたので、束に戻す）
-        // 前のスポットが単独のピンのままで済むなら、クラスの付け替えだけにする
-        const map = mapRef.current;
-        const prevBelongsInCluster = (): boolean => {
-            if (!map || !prev || prev === selectedSpotSlug) return false;
-            const pts = spots
-                .filter((sp) => sp.slug !== selectedSpotSlug)
-                .map((sp) => ({ id: sp.slug, lat: sp.lat, lng: sp.lng }));
-            const c = clusterPoints(pts, map.getZoom(), SPOT_CELL_PX).find((x) => x.items.some((it) => it.id === prev));
-            return !!c && c.items.length > 1;
-        };
-        if ((selectedSpotSlug && !spotElsRef.current.has(selectedSpotSlug)) || prevBelongsInCluster()) {
-            redrawRef.current?.();
-            return;
-        }
-        for (const [slug, el] of spotElsRef.current) {
-            el.classList.toggle("is-selected", slug === selectedSpotSlug);
-        }
-    }, [selectedSpotSlug, spots]);
+    }, [here, spots, spotQueryActive, selectedSpotSlug, selectedId]);
 
     const zoomBy = useCallback((delta: number) => {
         const map = mapRef.current;

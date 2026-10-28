@@ -43,6 +43,9 @@ export type MarkerSpec = {
     onActivate?: () => void;
 };
 
+/** 置いた印。外すときに使う（描き直しで全部を作り直さない＝画像を読み直さない） */
+export type MarkerHandle = { remove(): void };
+
 export interface MapEngine {
     readonly kind: "leaflet" | "mapkit";
     getZoom(): number;
@@ -55,16 +58,19 @@ export interface MapEngine {
     zoomOut(): void;
     /** 地図の余白（印ではない所）が押された */
     onBackgroundClick(fn: () => void): void;
-    /** ズームが変わり終わった（印を束ね直す合図） */
-    onZoomEnd(fn: () => void): void;
+    /**
+     * 見ている範囲が落ち着いた（ズーム・移動のどちらも）。**印を置き直す合図**——
+     * 置く印は見えている範囲で決まる（撮影スポットは寄せたときだけ・多いときは束ねる）
+     */
+    onViewChange(fn: () => void): void;
     /** 動き終わった（見ている場所を控える合図） */
     onMoveEnd(fn: () => void): void;
     /** 人が地図を動かし始めた（一度だけ呼ぶ） */
     onceUserMove(fn: () => void): void;
     clearMarkers(): void;
-    addMarker(spec: MarkerSpec): void;
+    addMarker(spec: MarkerSpec): MarkerHandle;
     /** 現在地の点。**写真のピンとは別の形**（丸い点） */
-    addHereDot(p: LatLng): void;
+    addHereDot(p: LatLng): MarkerHandle;
     /** 枠の大きさが変わった（隠れていた列が戻った・回転した） */
     invalidateSize(): void;
     remove(): void;
