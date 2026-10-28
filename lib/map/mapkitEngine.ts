@@ -170,7 +170,10 @@ export function loadMapKit(token: string, language: string): Promise<MapKitGloba
         // （開くたびに10秒待って控えの地図）。待っても来なければ外して、次の回に足し直す
         s.onload = () => {
             window.setTimeout(() => {
-                if (scriptState !== "loading") return;
+                // **部品が自分の名前（`window.mapkit`）を置けていれば待ち続ける。** 呼び戻しは
+                // 地図と印の部品を取り寄せてからなので、遅い回線では読み終えてから10秒を超える。
+                // ここで外すのは「読めたのは別物だった」（ホテルの Wi-Fi のログイン画面など）とき
+                if (scriptState !== "loading" || w.mapkit) return;
                 scriptState = "none";
                 s.remove();
                 settle(new Error("mapkit: no callback"));

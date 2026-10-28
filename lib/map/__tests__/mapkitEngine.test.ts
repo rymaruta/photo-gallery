@@ -156,6 +156,21 @@ describe("読み込み", () => {
         expect(scripts).toHaveLength(2);
     });
 
+    it("部品が読めていれば、呼び戻しが遅くても外さない（遅い回線で二重に読まない）", async () => {
+        vi.useFakeTimers();
+        const { mk } = fakeMapKit();
+        const p = loadMapKit("tok", "ja");
+        const check = expect(p).rejects.toThrow(/timeout/);
+        (window as unknown as Record<string, unknown>).mapkit = mk;   // 部品は動いて名前を置いた
+        scripts[0].dispatchEvent(new Event("load"));
+        vi.advanceTimersByTime(10001);
+        await check;
+        const again = loadMapKit("tok", "ja");
+        expect(scripts, "2本目を足して二重に読んでいる").toHaveLength(1);
+        (window as unknown as Record<string, () => void>)[scripts[0].dataset.callback!]();
+        await expect(again).resolves.toBe(mk);
+    });
+
     it("時間内に届かなければ断る（控えの地図に切り替える合図）", async () => {
         vi.useFakeTimers();
         const p = loadMapKit("tok", "ja");
