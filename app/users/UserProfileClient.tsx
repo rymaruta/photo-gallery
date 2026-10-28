@@ -47,6 +47,7 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
 import VerifiedBadge from "../components/VerifiedBadge";
+import EarlyMemberMark from "../components/EarlyMemberMark";
 import { ProMark, NameBadge, MedalsButton } from "../components/ProfileNameMarks";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "../../lib/data/badges";
 import { readAudience } from "../../lib/utils/audience";
@@ -99,6 +100,8 @@ type UserProfile = {
      * `toPublicProfile` の注記）。Web は使わない——iOS のすれちがいの券面の判定用
      */
     passFace?: boolean;
+    /** 初期メンバーの印を名前の横に出すか（サーバーが決めた結果。`EarlyMemberMark`） */
+    earlyMark?: boolean;
 };
 
 
@@ -1436,8 +1439,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     {/* 名前だけを切り詰め、印は縮ませない（長い名前でも印が消えない） */}
                                     <span className="truncate">{displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}</span>
                                     <VerifiedBadge verified={userProfile?.verified} size={20} locale={locale} />
-                                    {/* 並びは owner の決定: 名前 → 封印 → Pro の印 → 選んだメダル */}
+                                    {/* 並びは owner の決定: 名前 → 封印 → Pro の印 → 初期メンバーの印 → 選んだメダル */}
                                     <ProMark pro={userProfile?.pro} style={userProfile?.proMarkStyle} size={20} locale={locale === "en" ? "en" : "ja"} />
+                                    <EarlyMemberMark shown={userProfile?.earlyMark} size={20} locale={locale} />
                                     <NameBadge
                                         badges={userProfile?.badges}
                                         displayBadge={userProfile?.displayBadge}
