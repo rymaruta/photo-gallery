@@ -69,6 +69,8 @@ describe("本文の字体", () => {
     // 日本語の字を持たない Inter を本文に戻さない
     it("Inter を読んでいない", () => {
         expect(read("app/layout.tsx")).not.toMatch(/\bInter\b\s*[,(}]/);
+        expect(read("app/fonts/webFonts.ts")).not.toMatch(/\bInter\b\s*[,(}]/);
+        expect(read("app/fonts/storyFonts.ts")).not.toMatch(/\bInter\b\s*[,(}]/);
     });
 
     // owner の好み（2026-10-02）: 数字・眉ラベルは等幅の字ではなく本文の字＋等幅数字
@@ -80,17 +82,19 @@ describe("本文の字体", () => {
 
 /**
  * **見出しの明朝（Shippori Mincho B1 Bold・iOS の `JPFont.display` と同じ字）。**
- * 配線は2か所（`layout.tsx` が変数を立て、`globals.css` の `--font-serif` が先頭で読む）。
+ * 配線は2か所（`app/fonts/webFonts.ts` が変数を立て、`globals.css` の `--font-serif` が先頭で読む）。
+ * 2026-10-28 から字の宣言は `layout.tsx` ではなく `app/fonts/webFonts.ts`（水和のあとで
+ * `WebFontLoader` が `import()` する＝描画を止めない）。`webFontsDeferred.test.tsx` も見る。
  * 片方だけ消えても画面は落ちず、**黙って端末の明朝に落ちる**ので機械で縛る。
  */
 describe("見出しの明朝（webfont の配線）", () => {
-    const call = () => /Shippori_Mincho_B1\(\{([\s\S]*?)\}\)/.exec(read("app/layout.tsx"));
+    const call = () => /Shippori_Mincho_B1\(\{([\s\S]*?)\}\)/.exec(read("app/fonts/webFonts.ts"));
 
-    it("`layout.tsx` が読み、`--font-mincho` を <body> に立てている", () => {
-        const src = read("app/layout.tsx");
+    it("`webFonts.ts` が読み、`--font-mincho` を立てる（<body> へは WebFontLoader が付ける）", () => {
         expect(call(), "Shippori_Mincho_B1 を読んでいない").not.toBeNull();
         expect(call()![1]).toContain('variable: "--font-mincho"');
-        expect(src).toContain("mincho.variable");
+        expect(read("app/fonts/webFonts.ts")).toMatch(/export const mincho\b/);
+        expect(read("app/components/WebFontLoader.tsx")).toMatch(/\{\s*mincho\s*\}/);
     });
 
     // 検証サイトで明朝が1か所も当たっていなかった（2026-10-15）。`--font-mincho` は <body> の
@@ -158,22 +162,22 @@ describe("オフラインの受け皿（public/offline.html）", () => {
  * いちばん近く、漢字を持ち、配ってよい**（SIL OFL）2つを使う:
  * `Yusei Magic`（油性マジック）と `Yomogi`（ヨモギ）。
  *
- * **配線は2か所**（`layout.tsx` が変数を立て、`storyText.ts` がそれを使う）。
+ * **配線は2か所**（`app/fonts/storyFonts.ts` が変数を立て、`storyText.ts` がそれを使う）。
  * 片方だけ消えても画面は落ちず、**黙って丸ゴシックに落ちる**ので機械で縛る。
  */
 describe("ストーリーの手書き（webfont の配線）", () => {
-    const layout = () => read("app/layout.tsx");
+    const layout = () => read("app/fonts/storyFonts.ts");
     const FONTS = [
         { fn: "Yusei_Magic", varName: "--font-marker", local: "marker", key: "marker" },
         { fn: "Yomogi", varName: "--font-scribble", local: "scribble", key: "scribble" },
     ] as const;
 
     for (const f of FONTS) {
-        it(`\`layout.tsx\` が ${f.fn} を読み、\`${f.varName}\` を立てている`, () => {
+        it(`\`storyFonts.ts\` が ${f.fn} を読み、\`${f.varName}\` を立てている`, () => {
             const src = layout();
             expect(src, `${f.fn} を読んでいない`).toMatch(new RegExp(`${f.fn}\\(`));
             expect(src, "CSS 変数の名前が違う").toContain(`variable: "${f.varName}"`);
-            expect(src, "<body> に変数が付いていない").toContain(`${f.local}.variable`);
+            expect(src, "WebFontLoader が受け取る名前で出していない").toMatch(new RegExp(`export const ${f.local}\\b`));
         });
 
         /**

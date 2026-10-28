@@ -59,8 +59,8 @@ export const STORY_FONTS = {
     // Android と Windows は標準で持たない）。落ちても読める並びにしてある
     maru: { label: "丸ゴシック", css: '"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Hiragino Sans",system-ui,sans-serif', weight: 600 },
     // マーカー（owner:「広告でよくある手書き」「アオハルマーカー mini」2026-09-22）。
-    // **ここだけ webfont**（`--font-marker` は `app/layout.tsx` が Yusei Magic＝
-    // 油性マジックを読んで立てる）。名指しのアオハルマーカーmini は**漢字を
+    // **ここだけ webfont**（`--font-marker` は `app/fonts/storyFonts.ts` が Yusei Magic＝
+    // 油性マジックを読んで立てる。読むのは `WebFontLoader` の `useStoryFonts`）。名指しのアオハルマーカーmini は**漢字を
     // 収録していない**ので文章が「かなだけ手書き」になり、配布元の規約にも
     // Web フォント可の明記が無い——見た目がいちばん近く漢字を持つ OFL の方を使う
     marker: { label: "マーカー", css: 'var(--font-marker),"Yusei Magic","Hiragino Maru Gothic ProN","Hiragino Sans",cursive', weight: 400 },

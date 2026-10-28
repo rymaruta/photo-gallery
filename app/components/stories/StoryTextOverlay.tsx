@@ -7,6 +7,7 @@ import {
     type StoryText, type StoryVoteChoice, type StoryVoteState,
 } from "@/lib/utils/storyText";
 import type { MediaBox } from "@/lib/hooks/useMediaBox";
+import { useStoryFonts } from "../WebFontLoader";
 import { ROTATE_STEP_DEG, ROTATE_STEP_DEG_COARSE, stepSize } from "@/lib/utils/storyTransform";
 
 /**
@@ -62,6 +63,8 @@ export default function StoryTextOverlay({
     /** 送っている間（二度押しを止める） */
     voting?: boolean;
 }) {
+    // 手書き2種の字の表は、ストーリーの文字を描くときだけ読む（`app/fonts/storyFonts.ts`）
+    useStoryFonts();
     // **スクリム（上下の黒いグラデーション）より上に出す。** 下に置くと
     // 白い文字が灰色に沈む（実測: 下書きの画面で文字が読めなくなっていた）。
     // 見る側の返信バー（z-30）よりは下——あちらは押せるものなので前に出す。
