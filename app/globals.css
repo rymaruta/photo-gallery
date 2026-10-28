@@ -76,7 +76,7 @@
    になり、見出しが本文の字に落ちる（上の注記と同じ壊れ方）。だから字の名前を先に置く。
    表（`@font-face`）が届くまでは、その名前は飛ばされて並びの次（端末の明朝）で描く。
    届いたら `WebFontLoader` が next/font のクラスを `<body>` に付けて正式な値で上書きする。
-   名前の突き合わせは `webFontsDeferred.test.ts` */
+   名前の突き合わせは `webFontsDeferred.test.tsx` */
 :root {
   --font-mincho: "Shippori Mincho B1", "Shippori Mincho B1 Fallback";
   --font-marker: "Yusei Magic", "Yusei Magic Fallback";
