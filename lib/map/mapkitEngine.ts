@@ -67,8 +67,18 @@ const LOAD_TIMEOUT_MS = 10000;
 const CALLBACK = "__journeyMapKitReady";
 
 let loading: Promise<MapKitGlobal> | null = null;
-/** `mapkit.init` を済ませたか。**1ページに1回だけ**（2回呼ぶと鍵の問い合わせと error の口が二重になる） */
+/** `mapkit.init` を済ませたか。**1ページに1回だけ**（2回呼ぶと鍵の問い合わせが二重になる） */
 let initialized = false;
+/** 鍵を断られたときの口を付けたか（付けるのは1回だけ） */
+let errorHooked = false;
+/**
+ * 足した `<script>` の状態。**1ページに1本だけ**——時間切れで約束を断ったあとも、
+ * 読み込み中ならその到着を待つ（2本目を足すと、Apple の部品が `window.mapkit` を
+ * 差し替えて呼び戻しをもう一度くれるかは Apple 次第）
+ */
+let scriptState: "none" | "loading" | "loaded" = "none";
+/** 読み込み中の `<script>` の到着を待っている人（失敗なら Error を渡す） */
+const waiters = new Set<(err?: Error) => void>();
 /** 鍵が断られた・上限に当たった、を一度でも聞いたか（以後この画面では読まない） */
 let refused = false;
 const refusalListeners = new Set<() => void>();
@@ -84,49 +94,64 @@ export function mapKitRefused(): boolean {
 }
 
 /**
- * MapKit JS を読み、鍵を渡して初期化する。**1ページに1回だけ**（2回目からは同じ約束を返す）。
+ * MapKit JS を読み、鍵を渡して初期化する。**読み込みも初期化も1ページに1回だけ。**
+ * 2回目からは同じものを返し、言語だけ合わせる（日本語 ↔ 英語の切り替え）。
  * 読めなかった（配信に届かない・時間切れ）ら reject し、次に呼ばれたらやり直す。
  */
 export function loadMapKit(token: string, language: string): Promise<MapKitGlobal> {
-    if (loading) return loading;
+    if (loading) {
+        return loading.then((mk) => { mk.language = language; return mk; });
+    }
     const w = window as unknown as Record<string, unknown>;
-    /** 読めた MapKit を初期化する（済んでいれば言語だけ合わせる） */
+    /** 届いた MapKit を初期化する（済んでいれば言語だけ合わせる） */
     const ready = (mk: MapKitGlobal): MapKitGlobal => {
-        if (!initialized) {
-            initialized = true;
+        if (!errorHooked) {
             // **鍵が断られた（401）・1日の上限（429）は、ここではなく後から届く。**
             // 届いたら控えの地図に切り替える（`PhotoMap`）
             mk.addEventListener("error", () => {
                 refused = true;
                 for (const fn of refusalListeners) fn();
             });
+            errorHooked = true;
+        }
+        if (!initialized) {
             mk.init({ authorizationCallback: (done) => done(token), language });
+            // **成功してから立てる**（投げたら次の回でもう一度 init する）
+            initialized = true;
         } else {
             mk.language = language;
         }
         return mk;
     };
-    // **前の回で時間切れにしたあと、遅れて読み終わっていた**ら、足し直さずに使う
-    // （2本目の `<script>` を足すと、Apple の部品が呼び戻しをもう一度くれる保証が無い）
-    const already = w.mapkit as MapKitGlobal | undefined;
-    if (already && typeof already.init === "function" && initialized) {
-        loading = Promise.resolve(ready(already));
-        return loading;
-    }
     loading = new Promise<MapKitGlobal>((resolve, reject) => {
-        const timer = window.setTimeout(() => reject(new Error("mapkit: timeout")), LOAD_TIMEOUT_MS);
-        w[CALLBACK] = () => {
-            window.clearTimeout(timer);
+        const finish = () => {
             const mk = w.mapkit as MapKitGlobal | undefined;
-            if (!mk) { reject(new Error("mapkit: missing")); return; }
+            if (!mk || typeof mk.init !== "function") { reject(new Error("mapkit: missing")); return; }
             try {
-                // 時間切れのあとに届いた回も初期化だけはしておく（次の画面で使う）。
-                // 約束はもう断ってあるので、resolve しても誰にも届かない
                 resolve(ready(mk));
             } catch (e) {
                 reject(e instanceof Error ? e : new Error(String(e)));
             }
         };
+        // 前の回で時間切れにしたあと、遅れて読み終わっていた
+        if (scriptState === "loaded") { finish(); return; }
+        const onArrive = (err?: Error) => {
+            window.clearTimeout(timer);
+            if (err) reject(err); else finish();
+        };
+        const timer = window.setTimeout(() => {
+            waiters.delete(onArrive);
+            reject(new Error("mapkit: timeout"));
+        }, LOAD_TIMEOUT_MS);
+        waiters.add(onArrive);
+        if (scriptState === "loading") return;   // 読み込み中の1本の到着を待つ
+
+        scriptState = "loading";
+        const settle = (err?: Error) => {
+            for (const fn of [...waiters]) fn(err);
+            waiters.clear();
+        };
+        w[CALLBACK] = () => { scriptState = "loaded"; settle(); };
         const s = document.createElement("script");
         s.src = MAPKIT_SRC;
         s.async = true;
@@ -134,10 +159,11 @@ export function loadMapKit(token: string, language: string): Promise<MapKitGloba
         s.dataset.callback = CALLBACK;
         // 地図と印だけ（検索・経路は使わない）
         s.dataset.libraries = "map,annotations";
-        s.onerror = () => { window.clearTimeout(timer); reject(new Error("mapkit: load failed")); };
+        // 読めなかった。次の回は足し直す（圏外から戻った）
+        s.onerror = () => { scriptState = "none"; settle(new Error("mapkit: load failed")); };
         document.head.appendChild(s);
     }).catch((e) => {
-        // 次の画面でやり直せるようにする（圏外から戻った）。読み込みの札は残っても害は無い
+        // 次の画面でやり直せるようにする
         loading = null;
         throw e;
     });
@@ -148,6 +174,9 @@ export function loadMapKit(token: string, language: string): Promise<MapKitGloba
 export function resetMapKitForTests(): void {
     loading = null;
     initialized = false;
+    errorHooked = false;
+    scriptState = "none";
+    waiters.clear();
     refused = false;
     refusalListeners.clear();
 }
@@ -228,23 +257,35 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
     const center = (): LatLng => ({ lat: map.region.center.latitude, lng: map.region.center.longitude });
 
     /**
-     * **最初の場所を置いた回は「動いた」と数えない。** Leaflet は最初の `setView` の
-     * `moveend` を同期で出し終えるので、あとから付けた控えの口には届かない（＝最初の
-     * 場所は控えに書かない）。MapKit は後から届きうるので、ここで1回ぶん捨てる。
-     * 書いてしまうと、写真0枚のときの仮の場所（日本全体）が控えに残り、次に開いたとき
-     * 写真へ寄らない
+     * **最初の場所は「動いた」と数えない。** Leaflet は最初の `setView` の `moveend` を
+     * 同期で出し終えるので、あとから付けた控えの口には届かない（＝最初の場所は控えに
+     * 書かない）。書いてしまうと、写真0枚のときの仮の場所（日本全体）が控えに残り、
+     * 次に開いたとき写真へ寄らない。
+     *
+     * MapKit がその知らせを**何回・いつ**出すか（作った直後の既定の範囲のぶん、
+     * 置いた範囲のぶん）は Apple 次第なので、**回数では数えない**。控えるのは
+     * 「人が触った」か「こちらが2回目以降に動かした」（束を押した・＋−・現在地・
+     * 写真が届いて寄せた）あとだけ。そこまでの知らせは何本来ても控えない
      */
-    let initialPending = false;
+    let viewPlaced = false;   // 最初の場所を置いたか
+    let saving = false;       // 動いたら控えるか
+    /** こちらが動かす（最初の1回は控えない・2回目からは控える） */
+    const placing = (): boolean => {
+        const first = !viewPlaced;
+        if (first) viewPlaced = true;
+        else saving = true;
+        return first;
+    };
     map.addEventListener("region-change-end", () => {
         const z = currentZoom();
         const zoomed = !Number.isFinite(lastZoom) || Math.abs(z - lastZoom) > 0.01;
         lastZoom = z;
         if (zoomed) for (const fn of zoomHandlers) fn();
-        if (initialPending) { initialPending = false; return; }
+        if (!saving) return;
         for (const fn of moveHandlers) fn();
     });
-    // 人が先に触ったら、その動きは控える（最初の回を待たない）
-    const userMoved = () => { initialPending = false; };
+    // 人が触ったら、そこからは控える
+    const userMoved = () => { saving = true; };
     map.addEventListener("scroll-start", userMoved);
     map.addEventListener("zoom-start", userMoved);
 
@@ -274,18 +315,16 @@ function build(mk: MapKitGlobal, el: HTMLElement, box: HTMLElement, animate: boo
         // **最初の場所は動かさずに置く**（`PhotoMap` は初期表示にも `setView` を使う。
         // 動かすと世界全体から滑ってくる）。以後は「動きを減らす」設定に従う
         setView: (c, zoom) => {
-            const first = !Number.isFinite(lastZoom);
-            if (first) initialPending = true;
+            const first = placing();
             setView(c, zoom, animate && !first);
         },
         fitBounds: (b, o) => {
-            const first = !Number.isFinite(lastZoom);
-            if (first) initialPending = true;
+            const first = placing();
             const v = fitView(b, width() || 390, height() || 520, o.padding, o.maxZoom);
             setView({ lat: v.lat, lng: v.lng }, v.zoom, o.animate === false ? false : animate && !first);
         },
-        zoomIn: () => { setView(center(), currentZoom() + 1, animate); },
-        zoomOut: () => { setView(center(), currentZoom() - 1, animate); },
+        zoomIn: () => { placing(); setView(center(), currentZoom() + 1, animate); },
+        zoomOut: () => { placing(); setView(center(), currentZoom() - 1, animate); },
         onBackgroundClick: (fn) => {
             map.addEventListener("single-tap", () => {
                 // **印の上で押されたら閉じない**（押し始めで決めた `pressOnMarker`）

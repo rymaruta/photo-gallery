@@ -29,8 +29,12 @@ function fakeEngine(kind: "leaflet" | "mapkit"): MapEngine {
     };
 }
 
+const leafletFails = vi.hoisted(() => ({ on: false }));
 vi.mock("@/lib/map/leafletEngine", () => ({
-    createLeafletEngine: async () => fakeEngine("leaflet"),
+    createLeafletEngine: async () => {
+        if (leafletFails.on) throw new Error("Failed to fetch dynamically imported module");
+        return fakeEngine("leaflet");
+    },
 }));
 vi.mock("@/lib/map/mapkitEngine", () => ({
     loadMapKit: (t: string, l: string) => mk.load!(t, l),
@@ -50,6 +54,7 @@ async function loadPhotoMap(token: string) {
 
 beforeEach(() => {
     made.kinds.length = 0; made.removed.length = 0; made.fits = 0; made.userMove = null;
+    leafletFails.on = false;
     mk.refused = false; mk.listeners.clear();
     mk.load = vi.fn(async () => ({}));
 });
@@ -114,5 +119,15 @@ describe("写真があとから届いたときの寄せ", () => {
         await waitFor(() => expect(made.kinds).toEqual(["mapkit"]));
         rerender(<PhotoMap photos={[photo]} locale="ja" />);
         expect(made.fits).toBe(1);
+    });
+});
+
+describe("どちらの地図も読めない", () => {
+    it("Apple にも届かず、控えの地図の部品も読めなければ、そう言う（白い枠のまま黙らない）", async () => {
+        mk.load = vi.fn(async () => { throw new Error("mapkit: load failed"); });
+        leafletFails.on = true;
+        const PhotoMap = await loadPhotoMap("tok");
+        render(<PhotoMap photos={[photo]} locale="ja" />);
+        expect(await screen.findByTestId("map-load-failed")).toHaveTextContent("地図を読み込めませんでした");
     });
 });

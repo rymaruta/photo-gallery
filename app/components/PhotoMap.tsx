@@ -174,6 +174,8 @@ export default function PhotoMap({
     const [engineKind, setEngineKind] = useState<"mapkit" | "leaflet">(
         () => (MAPKIT_TOKEN && !mapKitRefused() ? "mapkit" : "leaflet"),
     );
+    /** どちらの地図も読めなかった（圏外） */
+    const [mapFailed, setMapFailed] = useState(false);
     /** ピンの DOM（id → 要素）。選択が変わっても描き直さず、クラスだけ付け替える */
     const pinElsRef = useRef(new Map<string, HTMLElement>());
     // 最新の写真を effect の外から読む（ズームのたびに束ね直すため）。
@@ -232,8 +234,18 @@ export default function PhotoMap({
                     return;
                 }
             } else {
-                const leaflet = await createLeafletEngine(el, { reduceMotion, isCancelled: () => cancelled || !containerRef.current });
+                let leaflet: MapEngine | null;
+                try {
+                    leaflet = await createLeafletEngine(el, { reduceMotion, isCancelled: () => cancelled || !containerRef.current });
+                } catch {
+                    // 控えの地図の部品も読めなかった（圏外で、まだ一度も読んでいない）。
+                    // 白い枠のまま黙らない
+                    if (!cancelled) setMapFailed(true);
+                    return;
+                }
                 if (!leaflet) return;
+                // 作り終えてから戻ってくるまでの間に要らなくなった（両方で見る）
+                if (cancelled || !containerRef.current) { leaflet.remove(); return; }
                 map = leaflet;
             }
             made = map;
@@ -732,6 +744,20 @@ export default function PhotoMap({
             )}
 
             {/* 現在地が取れなかったときの断り。**読み上げにも届ける** */}
+            {/* 地図そのものを読めなかった（Apple のマップも控えの地図も）。白い枠のまま黙らない */}
+            {mapFailed && (
+                <p
+                    role="status"
+                    className="absolute inset-x-4 top-1/2 -translate-y-1/2 z-[1001] rounded-xl bg-surface-2/95 ring-1 ring-white/15 text-white/90 text-center"
+                    style={{ padding: "12px 16px", fontSize: "14px", lineHeight: "20px" }}
+                    data-testid="map-load-failed"
+                >
+                    {en
+                        ? "Couldn't load the map. Check your connection and reload the page."
+                        : "地図を読み込めませんでした。通信を確かめて、ページを読み込み直してください。"}
+                </p>
+            )}
+
             {locateError && (
                 <p
                     role="status"

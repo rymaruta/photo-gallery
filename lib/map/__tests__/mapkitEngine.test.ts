@@ -153,6 +153,12 @@ describe("読み込み", () => {
         await check;
     });
 
+    /** 読み終わった合図（Apple が data-callback の名前の関数を呼ぶ） */
+    const arrive = (mk: MapKitGlobal) => {
+        (window as unknown as Record<string, unknown>).mapkit = mk;
+        (window as unknown as Record<string, () => void>)[scripts[0].dataset.callback!]();
+    };
+
     it("時間切れのあとに読み終わっていたら、足し直さずに使う（初期化は1回だけ）", async () => {
         vi.useFakeTimers();
         const { mk, calls } = fakeMapKit();
@@ -161,16 +167,45 @@ describe("読み込み", () => {
         const check = expect(p).rejects.toThrow(/timeout/);
         vi.advanceTimersByTime(10001);
         await check;
-        // 断ったあとに遅れて読み終わった
-        (window as unknown as Record<string, unknown>).mapkit = mk;
-        (window as unknown as Record<string, () => void>)[scripts[0].dataset.callback!]();
-        // 次の画面
+        arrive(mk);   // 断ったあとに遅れて読み終わった
         const again = await loadMapKit("tok", "en");
         expect(again).toBe(mk);
         expect(scripts, "2本目の <script> を足している").toHaveLength(1);
         expect(init).toHaveBeenCalledTimes(1);
+        expect(calls.init?.language).toBe("en");
         expect(calls.errorListeners).toHaveLength(1);
-        expect(mk.language, "言語の切り替えが届かない").toBe("en");
+    });
+
+    it("時間切れのあと、まだ読み込み中なら2本目を足さずに同じ1本の到着を待つ", async () => {
+        vi.useFakeTimers();
+        const { mk } = fakeMapKit();
+        const p = loadMapKit("tok", "ja");
+        const check = expect(p).rejects.toThrow(/timeout/);
+        vi.advanceTimersByTime(10001);
+        await check;
+        const again = loadMapKit("tok", "ja");
+        expect(scripts).toHaveLength(1);
+        arrive(mk);
+        await expect(again).resolves.toBe(mk);
+    });
+
+    it("読み終えたあとに言語が替わったら、地図の言語も替える", async () => {
+        const { mk } = fakeMapKit();
+        const p = loadMapKit("tok", "ja");
+        arrive(mk);
+        await p;
+        await loadMapKit("tok", "en");
+        expect(mk.language).toBe("en");
+    });
+
+    it("初期化で投げたら、次の回でもう一度初期化する", async () => {
+        const { mk } = fakeMapKit();
+        const init = vi.spyOn(mk, "init").mockImplementationOnce(() => { throw new Error("boom"); });
+        const p = loadMapKit("tok", "ja");
+        arrive(mk);
+        await expect(p).rejects.toThrow("boom");
+        await expect(loadMapKit("tok", "ja")).resolves.toBe(mk);
+        expect(init).toHaveBeenCalledTimes(2);
     });
 
     it("鍵が断られたら知らせる（以後この画面では読まない）", async () => {
@@ -244,6 +279,7 @@ describe("見る場所", () => {
         const zoomed = vi.fn(), moved = vi.fn();
         engine.onZoomEnd(zoomed);
         engine.onMoveEnd(moved);
+        fire("scroll-start");   // 人が触った（最初の場所は控えない決まりの外）
         fire("region-change-end");
         expect([zoomed.mock.calls.length, moved.mock.calls.length]).toEqual([1, 1]);
         fire("region-change-end");   // 同じ幅のまま動いた
@@ -352,26 +388,51 @@ describe("地図の余白を押す", () => {
 });
 
 describe("最初の場所", () => {
-    it("最初に置いた場所は控えない（後から届く region-change-end を1回捨てる）", () => {
+    it("最初に置いた場所は、知らせが何本来ても控えない", () => {
         const { mk, fire } = fakeMapKit();
         const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
         const moved = vi.fn(), zoomed = vi.fn();
         engine.onMoveEnd(moved);
         engine.onZoomEnd(zoomed);
+        fire("region-change-end");   // 作った直後の既定の範囲のぶん（出すかは Apple 次第）
         engine.setView({ lat: 36, lng: 138 }, 4);
         fire("region-change-end");
+        fire("region-change-end");
         expect(moved, "写真0枚のときの仮の場所が控えに残る").not.toHaveBeenCalled();
-        expect(zoomed, "束ね直しは要る").toHaveBeenCalledTimes(1);
+        expect(zoomed, "束ね直しは要る").toHaveBeenCalled();
+    });
+
+    it("こちらが2回目に動かしたら（束を押した・写真が届いて寄せた）、そこからは控える", () => {
+        const { mk, fire } = fakeMapKit();
+        const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
+        const moved = vi.fn();
+        engine.onMoveEnd(moved);
+        engine.setView({ lat: 36, lng: 138 }, 4);
+        fire("region-change-end");
+        engine.fitBounds({ south: 35, west: 138, north: 36, east: 140 }, { padding: 48, maxZoom: 18 });
         fire("region-change-end");
         expect(moved).toHaveBeenCalledTimes(1);
     });
 
-    it("最初の回が届く前に人が動かしたら、その動きは控える", () => {
+    it("＋− で動かしたら控える（人の操作の合図が来ない口）", () => {
+        const { mk, fire } = fakeMapKit();
+        const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
+        const moved = vi.fn();
+        engine.onMoveEnd(moved);
+        engine.setView({ lat: 36, lng: 138 }, 4);
+        engine.zoomIn();
+        fire("region-change-end");
+        expect(moved).toHaveBeenCalledTimes(1);
+    });
+
+    it("人が触ったら控える", () => {
         const { mk, fire } = fakeMapKit();
         const engine = createMapKitEngine(mk, container(), { reduceMotion: false });
         const moved = vi.fn();
         engine.onMoveEnd(moved);
         engine.fitBounds({ south: 35, west: 138, north: 36, east: 140 }, { padding: 32, maxZoom: 12 });
+        fire("region-change-end");
+        expect(moved).not.toHaveBeenCalled();
         fire("scroll-start");
         fire("region-change-end");
         expect(moved).toHaveBeenCalledTimes(1);
