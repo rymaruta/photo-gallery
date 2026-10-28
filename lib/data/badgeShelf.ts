@@ -22,11 +22,16 @@ type Locale = "ja" | "en";
 /** 名前の横の Pro の印の形。`none` は印を外している（本人の応答にだけ来る） */
 export type NameSideMarkStyle = "iris" | "plate" | "none";
 
-/** 設定で変えられる3項目 */
+/** 設定で変えられる4項目 */
 export type NameSide = {
     displayBadge: BadgeKey | null;
     proMarkStyle: NameSideMarkStyle;
     verifiedMarkOff: boolean;
+    /**
+     * 初期メンバーの印の本人の設定（2026-10-28）。`true` 付ける・`false` 外す・**`null` は既定**
+     * （名前の横に他の印が何も出ていなければ付く）。決めるのは `earlyMarkShown`
+     */
+    earlyMarkOn: boolean | null;
 };
 
 /** 設定の画面が要る、自分のプロフィールの値 */
@@ -55,10 +60,32 @@ export function readNameSide(raw: unknown): NameSideProfile | null {
         displayBadge: isBadgeKey(o.displayBadge) && badges?.[o.displayBadge] ? o.displayBadge : null,
         proMarkStyle: style === "plate" || style === "none" ? style : "iris",
         verifiedMarkOff: o.verifiedMarkOff === true,
+        earlyMarkOn: typeof o.earlyMarkOn === "boolean" ? o.earlyMarkOn : null,
         pro: o.pro === true,
         verified: o.verified === true,
         ...(name ? { displayName: name } : {}),
     };
+}
+
+/** 初期メンバーの印の資格（初期ユーザー章を持っている）。資格の無い人には「付ける／外す」を出さない */
+export function hasEarlyMemberQualification(badges: BadgeMap | undefined): boolean {
+    return badges?.earlyUser !== undefined;
+}
+
+/**
+ * 初期メンバーの印が**この設定なら**名前の横に出るか（設定の画面の下見・保存前の値で見せる）。
+ *
+ * サーバーの `showsEarlyMark`（`api-user/src/badgeKeys.ts`）と**同じ規則**: 資格があり、本人の設定が
+ * あればそれ、無ければ（既定）名前の横に公式・Pro の印・選んだメダルのどれも出ていないとき。
+ * 保存した後に名前の横に出すのはサーバーの答え（応答の `earlyMark`）で、ここではない
+ */
+export function earlyMarkShown(profile: Pick<NameSideProfile, "badges" | "pro" | "verified">, side: NameSide): boolean {
+    if (!hasEarlyMemberQualification(profile.badges)) return false;
+    if (side.earlyMarkOn !== null) return side.earlyMarkOn;
+    const verifiedShown = profile.verified && !side.verifiedMarkOff;
+    const proShown = profile.pro && side.proMarkStyle !== "none";
+    const badgeShown = side.displayBadge !== null && profile.badges?.[side.displayBadge] !== undefined;
+    return !verifiedShown && !proShown && !badgeShown;
 }
 
 /**
@@ -67,17 +94,19 @@ export function readNameSide(raw: unknown): NameSideProfile | null {
  *
  * - `displayBadge` を外すときは `null`（サーバーは `null` / `""` で外す）
  * - `verifiedMarkOff` は**公式の人だけ**（真偽で送る。`false` が「付ける」）
+ * - `earlyMarkOn` は**初期メンバーの資格がある人だけ**（`null` は既定に戻す）
  * - 何も変わっていなければ空のオブジェクト（呼び出し側は送らない）
  */
 export function nameSideChanges(
     initial: NameSide,
     current: NameSide,
-    opts: { verified: boolean },
+    opts: { verified: boolean; early?: boolean },
 ): Partial<NameSide> {
     const body: Partial<NameSide> = {};
     if (initial.displayBadge !== current.displayBadge) body.displayBadge = current.displayBadge;
     if (initial.proMarkStyle !== current.proMarkStyle) body.proMarkStyle = current.proMarkStyle;
     if (opts.verified && initial.verifiedMarkOff !== current.verifiedMarkOff) body.verifiedMarkOff = current.verifiedMarkOff;
+    if (opts.early && initial.earlyMarkOn !== current.earlyMarkOn) body.earlyMarkOn = current.earlyMarkOn;
     return body;
 }
 

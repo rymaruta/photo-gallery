@@ -6,6 +6,8 @@
  * - 飾るメダル（`displayBadge`）を1つ選ぶ。押し直すと外れる
  * - Pro の印の形（`proMarkStyle`）: 絞り羽根・PRO の札・外す。**Pro の人にだけ出す**（印は Pro の間しか出ない）
  * - 公式の印（`verifiedMarkOff`）を付ける／外す。**公式の人にだけ出す**（外しても資格は残る。付け直せる）
+ * - 初期メンバーの印（`earlyMarkOn`・2026-10-28）を付ける／外す。**初期ユーザー章を持つ人にだけ出す**。
+ *   決めていない人（既定）は、名前の横に他の印が何も出ていないときだけ付く（`earlyMarkShown`）
  *
  * 上に「プロフィールでの見え方」の下見。保存は「決める」で、**変わった項目だけ**送る
  * （`nameSideChanges`・口は `PUT /user/profile`）。
@@ -22,10 +24,11 @@ import { lockBodyScroll, unlockBodyScroll } from "../../../lib/utils/scrollLock"
 import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils/api";
 import { badgeImage, badgeLabel, nameBadgeBox, ownedBadges } from "../../../lib/data/badges";
 import {
-    nameSideChanges, readNameSide,
+    earlyMarkShown, hasEarlyMemberQualification, nameSideChanges, readNameSide,
     type NameSide, type NameSideMarkStyle, type NameSideProfile,
 } from "../../../lib/data/badgeShelf";
 import VerifiedBadge from "../../components/VerifiedBadge";
+import EarlyMemberMark from "../../components/EarlyMemberMark";
 import { ProMark } from "../../components/ProfileNameMarks";
 import { MedalName } from "../../components/MedalShelf";
 
@@ -51,6 +54,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
         displayBadge: profile.displayBadge,
         proMarkStyle: profile.proMarkStyle,
         verifiedMarkOff: profile.verifiedMarkOff,
+        earlyMarkOn: profile.earlyMarkOn,
     });
     const [saving, setSaving] = useState(false);
     useEscapeKey(!saving, onClose);
@@ -65,10 +69,12 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
     const chosenSrc = draft.displayBadge && chosen ? badgeImage(draft.displayBadge, chosen.tier, true) : null;
     const chosenBox = draft.displayBadge ? nameBadgeBox(draft.displayBadge) : null;
     const name = profile.displayName ?? (en ? "Your name" : "あなたの名前");
+    const early = hasEarlyMemberQualification(profile.badges);
+    const earlyShown = earlyMarkShown(profile, draft);
 
     const save = async () => {
         if (saving) return;
-        const body = nameSideChanges(profile, draft, { verified: profile.verified });
+        const body = nameSideChanges(profile, draft, { verified: profile.verified, early });
         // 何も変えていなければ送らない（サーバーは空でも更新時刻を書き直す）
         if (Object.keys(body).length === 0) {
             onClose();
@@ -142,7 +148,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                         ).map((t) => <span key={t} className="inline-block">{t}</span>)}
                     </p>
 
-                    {/* 下見: プロフィールと同じ並び（名前 → 公式 → Pro の印 → メダル） */}
+                    {/* 下見: プロフィールと同じ並び（名前 → 公式 → Pro の印 → 初期メンバーの印 → メダル） */}
                     <div className="mt-3 rounded-2xl bg-white/[0.05] ring-1 ring-inset ring-white/[0.08] px-4 py-3 flex flex-col gap-1" data-testid="name-side-preview">
                         <span className={EYEBROW}>{en ? "On your profile" : "プロフィールでの見え方"}</span>
                         <span className="flex items-center gap-2 min-w-0">
@@ -151,6 +157,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                             {draft.proMarkStyle !== "none" && (
                                 <ProMark pro={profile.pro} style={draft.proMarkStyle} size={20} locale={locale} />
                             )}
+                            <EarlyMemberMark shown={earlyShown} size={20} locale={locale} />
                             {chosenSrc && chosenBox && (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
@@ -218,6 +225,43 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                                     </label>
                                 ))}
                             </div>
+                        </fieldset>
+                    )}
+
+                    {early && (
+                        <fieldset className="mt-3" data-testid="name-side-early"
+                            aria-describedby={draft.earlyMarkOn === null ? "name-side-early-auto" : undefined}>
+                            <legend className="sr-only">{en ? "Early member mark" : "初期メンバーの印"}</legend>
+                            <span aria-hidden="true" className="mb-1.5 text-[12px] text-white/75 flex items-center gap-1.5">
+                                <EarlyMemberMark shown size={14} locale={locale} />
+                                {en ? "Early member mark" : "初期メンバーの印"}
+                            </span>
+                            {/* 2026-10-28 判断: 選ばれている印は**本人が決めた値**（`earlyMarkOn`）だけで付ける。
+                                出ているか（`earlyShown`）で付けると、既定で出ている人の「付ける」が最初から選ばれて
+                                いて押しても何も起きず（ラジオは選択済みを押しても変わらない）、決めたつもりで
+                                既定のまま残る——あとでメダルを選ぶと印が消える。決めるまでは下の一行で今の状態を言う */}
+                            <div className={SEGMENTS}>
+                                {verifiedOptions.map((o) => (
+                                    <label key={String(o.off)} className={segmentClass(draft.earlyMarkOn === !o.off)} style={{ minHeight: 44 }}>
+                                        <input
+                                            type="radio"
+                                            name="early-mark"
+                                            value={o.off ? "off" : "on"}
+                                            checked={draft.earlyMarkOn === !o.off}
+                                            onChange={() => setDraft((d) => ({ ...d, earlyMarkOn: !o.off }))}
+                                            className="sr-only"
+                                        />
+                                        {en ? o.en : o.ja}
+                                    </label>
+                                ))}
+                            </div>
+                            {draft.earlyMarkOn === null && (
+                                <span id="name-side-early-auto" className="block mt-1.5 text-[12px] text-white/60" data-testid="name-side-early-auto">
+                                    {earlyShown
+                                        ? (en ? "Shown for now: nothing else is next to your name. Choose to keep it or remove it." : "いまは自動で付いています（名前の横にほかの印が無いため）。決めておくこともできます。")
+                                        : (en ? "Hidden for now: something else is next to your name. Choose Show to add it." : "いまは自動で外れています（名前の横にほかの印があるため）。「付ける」で並べて出せます。")}
+                                </span>
+                            )}
                         </fieldset>
                     )}
 
