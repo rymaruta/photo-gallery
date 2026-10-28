@@ -200,8 +200,26 @@ describe("generatePhotoStructuredData", () => {
         expect(url.license).toBe("https://creativecommons.org/licenses/by/4.0/");
         expect(url.acquireLicensePage).toContain("/photo/abc");
         const text = generatePhotoStructuredData({ ...base, license: "All rights reserved" });
-        expect(text.license).toBeUndefined();
+        expect(text.license).toBe("https://journey-photo.com/terms");
         expect(text.copyrightNotice).toBe("All rights reserved");
+    });
+
+    /**
+     * 2026-10-28: Search Console の「画像メタデータ」で `/photo/<id>` の28件が
+     * license・acquireLicensePage・copyrightNotice 無しと出た。実データの写真は
+     * license を持たないので、持たない写真にも3項目を出す
+     */
+    it("license を持たない写真にも 規約の license・写真ページ・© 投稿者 を出す", () => {
+        const data = generatePhotoStructuredData({ ...base, displayName: "丸田" });
+        expect(data.license).toBe("https://journey-photo.com/terms");
+        expect(data.acquireLicensePage).toBe("https://journey-photo.com/photo/abc");
+        expect(data.copyrightNotice).toBe("© 丸田");
+    });
+
+    it("名前が無い写真は copyrightNotice を作らない（license は出す）", () => {
+        const data = generatePhotoStructuredData({ ...base });
+        expect(data.license).toBe("https://journey-photo.com/terms");
+        expect(data.copyrightNotice).toBeUndefined();
     });
 
     it("photographer/displayName は creditText に入る", () => {
