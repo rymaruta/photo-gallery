@@ -64,6 +64,28 @@ describe("名前の横の印", () => {
         expect(heading.querySelector("[data-testid=name-badge] img")?.getAttribute("src")).toBe("/badges/medal-morning-3-s.webp");
     });
 
+    it("初期メンバーの印: サーバーが earlyMark: true を返した人だけ、Pro の印とメダルの間に出る", async () => {
+        profileResponse({
+            userId: ME, displayName: "旅人", pro: true, proMarkStyle: "iris", earlyMark: true,
+            badges: { earlyUser: { tier: 1, at: AT }, morning: { tier: 1, at: AT } }, displayBadge: "morning",
+        });
+        render(<UserProfileClient userId={ME} />);
+        const heading = await screen.findByRole("heading", { level: 1 });
+        await waitFor(() => expect(heading.querySelector("[data-testid=early-mark]")).not.toBeNull());
+        const order = [...heading.querySelectorAll("[data-testid=pro-mark], [data-testid=early-mark], [data-testid=name-badge]")]
+            .map((el) => el.getAttribute("data-testid"));
+        expect(order).toEqual(["pro-mark", "early-mark", "name-badge"]);
+        expect(heading.querySelector("[data-testid=early-mark]")?.getAttribute("aria-label")).toBe("初期からのメンバー");
+    });
+
+    it("初期メンバーの印: 資格があっても earlyMark が無ければ出さない（決めるのはサーバー）", async () => {
+        profileResponse({ userId: ME, displayName: "旅人", badges: { earlyUser: { tier: 1, at: AT } }, earlyMark: "true" });
+        render(<UserProfileClient userId={ME} />);
+        const heading = await screen.findByRole("heading", { level: 1 });
+        await waitFor(() => expect(heading.textContent).toContain("旅人"));
+        expect(heading.querySelector("[data-testid=early-mark]")).toBeNull();
+    });
+
     it("持っていないメダル・pro でない人には何も足さない", async () => {
         profileResponse({ userId: ME, displayName: "旅人", pro: false, badges: { first: { tier: 1, at: AT } }, displayBadge: "wish" });
         render(<UserProfileClient userId={ME} />);

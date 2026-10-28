@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
     UNITS, readNameSide, nameSideChanges, readBadgeProgress, progressText, ownShelf, othersShelf,
+    earlyMarkShown, hasEarlyMemberQualification,
     type NameSide,
 } from "../badgeShelf";
 import { sanitizeProfile } from "../../utils/profileShape";
@@ -41,7 +42,7 @@ describe("readNameSide: 初期値は自分のプロフィールの生の値か�
 });
 
 describe("nameSideChanges: 送るのは変わった項目だけ", () => {
-    const base: NameSide = { displayBadge: "first", proMarkStyle: "iris", verifiedMarkOff: false };
+    const base: NameSide = { displayBadge: "first", proMarkStyle: "iris", verifiedMarkOff: false, earlyMarkOn: null };
 
     it("何も変えていなければ空（送らない）", () => {
         expect(nameSideChanges(base, { ...base }, { verified: true })).toEqual({});
@@ -63,6 +64,53 @@ describe("nameSideChanges: 送るのは変わった項目だけ", () => {
 
     it("公式でない人の verifiedMarkOff は送らない", () => {
         expect(nameSideChanges(base, { ...base, verifiedMarkOff: true }, { verified: false })).toEqual({});
+    });
+});
+
+// 初期メンバーの印（2026-10-28 owner）。規則はサーバーの `showsEarlyMark` と同じ
+// （`api-user/src/__tests__/profileBadges.test.ts` の「初期メンバーの印」と同じ場合を並べる）
+describe("初期メンバーの印: 設定の下見", () => {
+    const EARLY = { earlyUser: { tier: 1, at: AT } };
+    const none: NameSide = { displayBadge: null, proMarkStyle: "iris", verifiedMarkOff: false, earlyMarkOn: null };
+    const who = (over: Partial<{ pro: boolean; verified: boolean; badges: Record<string, { tier: number; at: string }> }> = {}) =>
+        ({ pro: false, verified: false, badges: EARLY, ...over }) as Parameters<typeof earlyMarkShown>[0];
+
+    it("readNameSide: earlyMarkOn は真偽だけ読み、無い・文字は null（既定）", () => {
+        expect(readNameSide({ earlyMarkOn: false })?.earlyMarkOn).toBe(false);
+        expect(readNameSide({ earlyMarkOn: true })?.earlyMarkOn).toBe(true);
+        expect(readNameSide({ earlyMarkOn: "false" })?.earlyMarkOn).toBeNull();
+        expect(readNameSide({})?.earlyMarkOn).toBeNull();
+    });
+
+    it("資格は初期ユーザー章", () => {
+        expect(hasEarlyMemberQualification(EARLY)).toBe(true);
+        expect(hasEarlyMemberQualification({ first: { tier: 1, at: AT } })).toBe(false);
+        expect(hasEarlyMemberQualification(undefined)).toBe(false);
+        expect(earlyMarkShown(who({ badges: {} }), { ...none, earlyMarkOn: true })).toBe(false);
+    });
+
+    it("既定: 名前の横に何も出ていなければ付く。公式・Pro・メダルのどれかが出ていれば付かない", () => {
+        expect(earlyMarkShown(who(), none)).toBe(true);
+        expect(earlyMarkShown(who({ verified: true }), none)).toBe(false);
+        expect(earlyMarkShown(who({ pro: true }), none)).toBe(false);
+        expect(earlyMarkShown(who(), { ...none, displayBadge: "earlyUser" })).toBe(false);
+    });
+
+    it("既定: 外した印・持っていないメダルは「出ていない」", () => {
+        expect(earlyMarkShown(who({ verified: true }), { ...none, verifiedMarkOff: true })).toBe(true);
+        expect(earlyMarkShown(who({ pro: true }), { ...none, proMarkStyle: "none" })).toBe(true);
+        expect(earlyMarkShown(who(), { ...none, displayBadge: "first" })).toBe(true);
+    });
+
+    it("本人の設定が既定に勝つ", () => {
+        expect(earlyMarkShown(who({ pro: true }), { ...none, earlyMarkOn: true })).toBe(true);
+        expect(earlyMarkShown(who(), { ...none, earlyMarkOn: false })).toBe(false);
+    });
+
+    it("nameSideChanges: 資格のある人の変わった earlyMarkOn だけ送る", () => {
+        expect(nameSideChanges(none, { ...none, earlyMarkOn: false }, { verified: false, early: true })).toEqual({ earlyMarkOn: false });
+        expect(nameSideChanges(none, { ...none, earlyMarkOn: false }, { verified: false, early: false })).toEqual({});
+        expect(nameSideChanges(none, { ...none }, { verified: false, early: true })).toEqual({});
     });
 });
 
