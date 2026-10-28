@@ -53,6 +53,9 @@ export function TopicChips({ links }: { links: TopicLink[] }) {
     );
 }
 
+/** ホームの札の下の写真の表示（`compact`）の1行の高さ。押せる的の下限（WCAG 2.5.8 の 24px） */
+export const COMPACT_CREDIT_LINE = 24;
+
 /**
  * 写真の表示（CC BY・CC BY-SA の条件）。**スポットの頁の代表写真の下と同じ形**:
  * 「写真: 作者 / ライセンス（文面へのリンク）/ Wikimedia Commons（出典へ）」。
@@ -79,12 +82,25 @@ export function TopicCreditLine({ credit, compact = false }: { credit: TopicCred
     if (compact) {
         // 狭い札の下（ホーム）: 1行目はライセンス（文面へ・切らない）、2行目は作者で**出典（Commons のページ）へのリンク**
         // を兼ねる（「/ Wikimedia Commons」まで1行に入れると札の幅を越えて隣に重なった・画面写真で確かめた）
+        //
+        // **1行を 24px にする（2026-10-28・PageSpeed Insights のユーザー補助「タップする場所の大きさ・間隔」）。**
+        // 以前は 16px の行に2つのリンクが縦に並び、指で押す的が 14px・隣との間が 8〜18px しか無かった
+        // （WCAG 2.5.8 は 24px 四方か、24px の円が重ならない間隔）。字の大きさ（12px）は変えず、
+        // 行の高さだけを足す（札の列がそのぶん 12px 伸びる）。ライセンスは `inline-block` で的を 24px の高さに、
+        // 作者の行はリンクを `block` にして行ごと押せる的にする（`truncate` もリンクの側に掛けないと
+        // `inline-block` の中では「…」が出ない）。
+        // 44px（板の「押せるものは 44pt」）にすると札の下が 88px になり、列の形が変わるので採らない
+        const line = { fontSize: "12px", lineHeight: `${COMPACT_CREDIT_LINE}px` } as const;
+        const box = "inline-block align-top min-w-[24px]";
+        const compactLicense = credit.licenseUrl
+            ? <a href={credit.licenseUrl} target="_blank" rel="noopener noreferrer license" className={`${a} ${box}`}>{credit.license}</a>
+            : credit.license;
         return (
-            <div className="text-white/60 min-w-0" style={style} data-testid="topic-credit">
-                <p className="m-0 whitespace-nowrap">{license}</p>
+            <div className="text-white/60 min-w-0" style={line} data-testid="topic-credit">
+                <p className="m-0 whitespace-nowrap">{compactLicense}</p>
                 <p className="m-0 truncate" title={credit.author}>
                     {credit.sourceUrl
-                        ? <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white">{photo}{credit.author}</a>
+                        ? <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-white/60 hover:text-white">{photo}{credit.author}</a>
                         : <>{photo}{credit.author}</>}
                 </p>
             </div>
