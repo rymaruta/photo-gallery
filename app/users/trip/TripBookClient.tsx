@@ -22,6 +22,7 @@ import {
     coverOf, dateRange, daysLabel, daysOf, distanceText, findTrip, monthDay, placeCount, profileTripPhotos,
     routeStops, sampledStops, shareText, shelfTrips, tripDays, tripDistanceKm, type RouteStop, type Trip, type TripPhoto,
 } from "../../../lib/utils/tripBook";
+import { GLASS_BTN, GLASS_ICON_STYLE } from "../../components/buttonStyles";
 
 /**
  * **旅の一冊**（iOS の `Features/Trips/TripBookView.swift`・板 TripBook・2026-10-21 に Web へ）。
@@ -160,9 +161,9 @@ function Book({ trip, isJa, ownerName, profileHref, showToast, canShare }: {
                       style={{ height: "140px", background: "linear-gradient(to bottom, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0))" }} />
                 <Link href={profileHref} prefetch={false}
                       aria-label={isJa ? "プロフィールへ戻る" : "Back to profile"}
-                      className="absolute top-3 left-3 inline-flex items-center justify-center rounded-full bg-black/40 backdrop-blur text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                      style={{ width: "44px", height: "44px", touchAction: "manipulation" }}>
-                    <ArrowLeftIcon aria-hidden="true" style={{ width: "20px", height: "20px" }} />
+                      className={`absolute top-3 left-3 ${GLASS_BTN}`}
+                      style={{ touchAction: "manipulation" }}>
+                    <ArrowLeftIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
                 </Link>
                 <div className="absolute left-5 right-5 bottom-[18px] flex flex-col gap-1.5">
                     {/* 眉ラベル。**写真の上なので白**（真鍮は夕日の写真の上で読めない・iOS と同じ） */}

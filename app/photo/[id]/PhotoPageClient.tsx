@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { MINCHO_STACK as MINCHO } from "@/lib/utils/storyText";
 import { DISPLAY_MINCHO_STACK } from "@/lib/utils/headingFont";
 
 /**
@@ -82,6 +81,7 @@ import { LoadingState, ErrorState } from "@/app/components/StateViews";
 // 押さずに去る人が大半）。静的書き出しでは描かないので ssr: false
 const PhotoViewer = dynamic(() => import("./PhotoViewer"), { ssr: false });
 import { photoLightZone, directionsTarget, offersInspiredShoot } from "@/lib/utils/photoTrip";
+import { MoreLink } from "@/app/components/SectionHead";
 
 /**
  * 写真ページの戻る・共有・「…」。**スマホは写真の上のガラスの丸**（黒 55%＋ぼかし・白・44px。
@@ -261,7 +261,7 @@ function PhotoImage({
             <div className="flex items-center justify-center bg-black min-h-[400px] rounded-lg">
                 <div className="text-white/60 text-center px-4">
                     <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <p className="text-sm">画像を読み込めません</p>
                 </div>
@@ -1525,15 +1525,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 {related.nearby.length > 0 && (
                     <section aria-labelledby="photo-nearby-heading" className="pt-3" data-testid="photo-nearby">
                         <div className="flex items-baseline justify-between gap-3">
-                            <h2 id="photo-nearby-heading" className="m-0 font-semibold" style={{ fontSize: "19px", lineHeight: 1.3, fontFamily: MINCHO }}>
+                            {/* 明朝は Shippori だけ（`font-serif`）・18（iOS `JPTypeScale.title3`）。2026-10-30 束 0b C10（以前はヒラギノ明朝 19） */}
+                            <h2 id="photo-nearby-heading" className="m-0 font-serif font-bold" style={{ fontSize: "18px", lineHeight: "24px" }}>
                                 {locale === "en" ? "Taken nearby" : "この近くで撮られた写真"}
                             </h2>
                             {mapHash && (
-                                <Link href={`${ROUTES.MAP}${mapHash}`} prefetch={false}
-                                      className="flex-shrink-0 inline-flex items-center text-white/70 hover:text-white transition-colors"
-                                      style={{ fontSize: "13px", minHeight: "44px", touchAction: "manipulation" }}>
-                                    {locale === "en" ? "View on map ›" : "地図で見る ›"}
-                                </Link>
+                                <MoreLink href={`${ROUTES.MAP}${mapHash}`} label={locale === "en" ? "View on map" : "地図で見る"} />
                             )}
                         </div>
                         <div className="grid grid-cols-4 gap-0.5 rounded-xl overflow-hidden">
@@ -1557,7 +1554,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     距離は出さない（写真の場所を割り出させない）。見出しは明朝（上の節と同じ）。行は撮影地ページと同じ部品 */}
                 {nearbySpots.length > 0 && (
                     <section aria-labelledby="photo-nearby-spots-heading" className="pt-5" data-testid="photo-nearby-spots">
-                        <h2 id="photo-nearby-spots-heading" className="m-0 mb-3 font-semibold" style={{ fontSize: "19px", lineHeight: 1.3, fontFamily: MINCHO }}>
+                        <h2 id="photo-nearby-spots-heading" className="m-0 mb-3 font-serif font-bold" style={{ fontSize: "18px", lineHeight: "24px" }}>
                             {locale === "en" ? "Photo spots nearby" : "近くの撮影スポット"}
                         </h2>
                         <SpotRows rows={nearbySpots} isJa={locale !== "en"} />

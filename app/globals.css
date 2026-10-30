@@ -29,6 +29,7 @@
   --color-surface-8: #2c2c2e;    /* つながったセグメントの選んだ側 */
   --color-line: rgb(255 255 255 / 0.08);  /* 区切り線（v2 hairline・白8%）。札の縁・行の間・チップの縁。部品の縁が要る所は line-strong か outline */
   --color-line-strong: rgb(255 255 255 / 0.14); /* 線のボタン・入力欄の縁（v2 line・白14%） */
+  --color-glass-line: rgb(255 255 255 / 0.10); /* 写真の上のガラスの縁（iOS `jpGlass` の白10%・束 0b C12）。黒地の線（line）とは別の役 */
   --color-outline: #666666;      /* 3:1 が要る部品の縁（黒の上で 3.66） */
   --color-primary: #f0f0f0;      /* 白の塗り（白 94%・v1 は 92% の #ebebeb）。上の字は ink */
   --color-ink: #07090a;          /* 白・真鍮の塗りに載せる文字（墨） */
@@ -173,6 +174,14 @@
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
   }
+}
+
+/* **印の線は 1.6**（2026-10-30 束 0b C16・iOS の SF Symbols regular を目で比べた値・板 Components C16）。
+   Heroicons の線の印（`data-slot="icon"`・既定の線 1.5）を一か所でそろえる。`:where()` で強さを 0 にするので、
+   呼ぶ側が style / class で線を決めた印（小さな札の中の ✓・＋など、iOS も太字の所）はそのまま勝つ。
+   手で書いた `<path strokeWidth>` の印は各所で 1.6 に直した */
+:where(svg[data-slot="icon"][fill="none"]) {
+  stroke-width: 1.6;
 }
 
 /* `font-mono` は等幅の字ではなく**等幅数字**（上の `--font-mono`）。桁がそろう */

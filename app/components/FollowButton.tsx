@@ -8,7 +8,7 @@ import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { INLINE_BTN, INLINE_BTN_STYLE, FOLLOW_ON, FOLLOW_OFF } from "./buttonStyles";
 import { useFollow } from "../../lib/hooks/useFollow";
 import { useToast } from "../../lib/hooks/useToast";
-import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "./statCellStyle";
+import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_NUMBER_CLASS, STAT_LABEL_CLASS, STAT_CELL_CLASS } from "./statCellStyle";
 import FollowingSheet, { type FollowListKind } from "./FollowingSheet";
 
 type Props = {
@@ -86,22 +86,21 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale, va
             const open = isAuthenticated && countsKnown && n > 0;
             const inner = (
                 <>
-                    <span className="block font-bold tabular-nums leading-none" style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{shown(n)}</span>
-                    <span className="block text-white/60 mt-1 leading-none" style={{ fontSize: `${STAT_LABEL_PX}px` }}>{label}</span>
+                    <span className={STAT_NUMBER_CLASS} style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{shown(n)}</span>
+                    <span className={STAT_LABEL_CLASS} style={{ fontSize: `${STAT_LABEL_PX}px` }}>{label}</span>
                 </>
             );
             return open ? (
                 <button type="button" ref={ref} onClick={() => setSheet(kind)} aria-haspopup="dialog"
-                        className="flex-1 text-center hover:opacity-80 active:scale-95 transition"
+                        className={`${STAT_CELL_CLASS} hover:opacity-80 active:scale-95 transition`}
                         style={{ touchAction: "manipulation", minHeight: "44px" }}>
                     {inner}
                 </button>
-            ) : <div className="flex-1 text-center">{inner}</div>;
+            ) : <div className={STAT_CELL_CLASS}>{inner}</div>;
         };
         return (
             <>
                 {cell(followers, locale === "en" ? "followers" : "フォロワー", "followers", followersBtnRef)}
-                <span aria-hidden="true" className="w-px self-center bg-white/10" style={{ height: `${STAT_DIVIDER_PX}px` }} />
                 {cell(following, locale === "en" ? "following" : "フォロー中", "following", followingBtnRef)}
                 {sheet && (
                     <FollowingSheet

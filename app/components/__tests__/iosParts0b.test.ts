@@ -167,3 +167,58 @@ describe("C17 読み込み中・失敗", () => {
         expect(photo).not.toContain("w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin");
     });
 });
+
+import { GLASS_BTN } from "../buttonStyles";
+import { STAT_LABEL_PX, STAT_NUMBER_CLASS, STAT_LABEL_CLASS, STAT_CELL_CLASS, STAT_FIGURE_LARGE_PX } from "../statCellStyle";
+
+describe("C10 節の見出し", () => {
+    it("「すべて見る」は iOS の MoreLink（13・text-2・›・当たり 44）で、SectionHead もそれを使う", () => {
+        const src = read("app/components/SectionHead.tsx");
+        expect(src).toContain("export function MoreLink");
+        expect(src).toMatch(/min-h-\[44px\] min-w-\[44px\] text-text-2/);
+        expect(src).toContain("<MoreLink href={href} label={moreLabel} />");
+        expect(src).toContain("export function SectionTitle");
+    });
+    it("写真の詳細の節の見出しは Shippori（font-serif）18。ヒラギノ明朝 19 に戻らない", () => {
+        const src = read("app/photo/[id]/PhotoPageClient.tsx");
+        expect(src).not.toMatch(/fontSize: "19px", lineHeight: 1\.3, fontFamily: MINCHO/);
+        expect(src.match(/id="photo-nearby(-spots)?-heading" className="m-0 (mb-3 )?font-serif font-bold" style=\{\{ fontSize: "18px"/g)?.length).toBe(2);
+        expect(src).not.toContain('"地図で見る ›"');
+    });
+});
+
+describe("C12 写真の上の丸ボタン", () => {
+    it("44・黒55%＋ぼかし 18＋白10%の縁", () => {
+        expect(GLASS_BTN.split(/\s+/)).toEqual(expect.arrayContaining(["w-[44px]", "h-[44px]", "rounded-full", "bg-black/55", "backdrop-blur-[18px]", "ring-glass-line"]));
+    });
+    it.each(["app/users/UserProfileClient.tsx", "app/users/trip/TripBookClient.tsx", "app/components/SpotPageClient.tsx"])("%s は共通のガラスの丸を使う", (f) => {
+        const src = read(f);
+        expect(src).toContain("GLASS_BTN");
+        expect(src).not.toMatch(/w-9 h-9 rounded-full bg-black\/40/);
+    });
+});
+
+describe("C14 数", () => {
+    it("数は 20 semibold の等幅、名前は 12 text-3、左寄せで区切り線なし（iOS ProfileStat）", () => {
+        expect(STAT_NUMBER_CLASS).toContain("font-semibold");
+        expect(STAT_NUMBER_CLASS).toContain("tabular-nums");
+        expect(STAT_LABEL_PX).toBe(12);
+        expect(STAT_LABEL_CLASS).toContain("text-text-3");
+        expect(STAT_CELL_CLASS).toContain("text-left");
+        expect(STAT_FIGURE_LARGE_PX).toBe(28);
+        for (const f of ["app/users/UserProfileClient.tsx", "app/components/FollowButton.tsx"]) {
+            expect(read(f), f).not.toContain("STAT_DIVIDER_PX");
+        }
+        expect(read("app/users/TravelRecord.tsx")).not.toContain('fontSize: "30px"');
+    });
+});
+
+describe("C16 印の線", () => {
+    it("Heroicons の線の印は 1.6（強さ 0 の :where で、呼ぶ側の指定は勝つ）", () => {
+        const css = read("app/globals.css");
+        expect(css).toMatch(/:where\(svg\[data-slot="icon"\]\[fill="none"\]\)\s*\{\s*stroke-width:\s*1\.6;/);
+    });
+    it.each(["app/components/GalleryModal/ModalControls.tsx", "app/components/Thumb.tsx"])("%s の手で書いた印は 1.6", (f) => {
+        expect(read(f)).not.toMatch(/strokeLinejoin="round" strokeWidth=\{2\} d=/);
+    });
+});
