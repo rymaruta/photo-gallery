@@ -195445,5 +195445,6366 @@
     "officialWebsiteUrl": "https://www.mulathing.is/"
  
  
+  },
+  {
+    "spotId": "sp_de63e4396508",
+    "slug": "shibata-castle",
+    "name": "新発田城",
+    "nameEn": "Shibata Castle",
+    "reading": "しばたじょう",
+    "aliases": [
+      "菖蒲城",
+      "あやめ城"
+    ],
+    "address": "新潟県新発田市",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "新発田市"
+    },
+    "coords": {
+      "lat": 37.96,
+      "lng": 139.33
+    },
+    "category": "城",
+    "summary": "新発田藩の藩庁が置かれた平城。本丸表門と二の丸隅櫓が今も残り、復元された三階櫓と並んで堀に映ります。",
+    "description": "加治川を外堀に使った平城の跡です。本丸の表門と二の丸の隅櫓は江戸時代からの建物で、ほかに三階櫓と二重櫓が復元されています。櫓の外壁は雪への備えも兼ねた海鼠壁で、白と黒の格子が石垣と堀の上に並びます。城跡の多くは自衛隊の駐屯地で、外から見られるのは本丸の南側が中心です。",
+    "highlights": [
+      "本丸表門と二の丸隅櫓。江戸時代から残る建物です",
+      "海鼠壁の白黒の格子と石垣",
+      "堀越しに櫓が並ぶ南側の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "桜の名所で、堀端の桜と櫓を重ねられます。混む時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "堀の水面が落ち着き、櫓と石垣が映り込みます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が載ると海鼠壁の格子と屋根の白がそろいます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東から光が当たり、表門と石垣の凹凸が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で海鼠壁が暖かい色になり、堀にも映ります。"
+      },
+      {
+        "time": "dusk",
+        "text": "空に色が残る時間は、櫓の白壁が浮かんで見えます。"
+      }
+    ],
+    "compositionTips": [
+      "堀の対岸から表門と隅櫓を一枚に入れると、城の形が伝わります",
+      "海鼠壁は斜めから狙うと格子の立体感が出ます",
+      "駐屯地の中は入れません。撮るのは公開されている区域から"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%96%B0%E7%99%BA%E7%94%B0%E5%9F%8E",
+          "title": "Wikipedia「新発田城」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1039103",
+          "title": "Wikidata「Q1039103」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_20b9c27af908",
+    "slug": "fukushimagata",
+    "name": "福島潟",
+    "nameEn": "Fukushimagata Lagoon",
+    "reading": "ふくしまがた",
+    "aliases": [
+      "水の公園福島潟",
+      "福島潟自然公園"
+    ],
+    "address": "新潟県新潟市",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "新潟市"
+    },
+    "coords": {
+      "lat": 37.91,
+      "lng": 139.25
+    },
+    "category": "湖沼",
+    "summary": "新潟市北区の潟。オオヒシクイなど多くの渡り鳥が毎年飛来し、オニバスなど希少な水生植物も育つ水辺です。",
+    "description": "周りに水の公園福島潟が整えられた潟で、国の天然記念物のオオヒシクイをはじめ多くの渡り鳥が飛来し、国の鳥獣保護区になっています。オニバスやミズアオイなど全国的に少なくなった植物の自生地でもあります。広い水面とヨシ原の向こうに越後の山並みが続き、鳥と空を主役にした写真が撮れる場所です。",
+    "highlights": [
+      "冬に飛来するオオヒシクイなどの渡り鳥",
+      "広い水面とヨシ原",
+      "オニバスなど希少な水生植物"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水生植物が茂り、水面の緑が濃くなります。朝夕の涼しい時間が撮りやすい時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "渡り鳥が集まり始めます。夕方のねぐら入りを待てます。"
+      },
+      {
+        "season": "winter",
+        "text": "渡り鳥が多い季節です。雪の山並みを背景に入れられます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "鳥が飛び立つ時間です。逆光の空に群れのシルエットが出ます。"
+      },
+      {
+        "time": "dusk",
+        "text": "空の色が水面に映り、帰ってくる鳥の群れも狙えます。"
+      }
+    ],
+    "compositionTips": [
+      "鳥は近づくと逃げます。望遠レンズで距離を取って撮ります",
+      "水面の映り込みは風の弱い朝が向きます",
+      "保護区なので、決められた道と場所から撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%A6%8F%E5%B3%B6%E6%BD%9F",
+          "title": "Wikipedia「福島潟」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11593172",
+          "title": "Wikidata「Q11593172」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_0432c7e7d642",
+    "slug": "hakusan-park-niigata",
+    "name": "白山公園（新潟市）",
+    "nameEn": "Hakusan Park, Niigata",
+    "reading": "はくさんこうえん",
+    "aliases": [
+      "新潟白山公園"
+    ],
+    "address": "新潟県新潟市",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "新潟市"
+    },
+    "coords": {
+      "lat": 37.91,
+      "lng": 139.04
+    },
+    "category": "公園",
+    "summary": "日本で最初に開かれた都市公園のひとつで、国の名勝。白山神社の境内に広がり、蓮池や燕喜館があります。",
+    "description": "1873年の太政官布告で開かれた最初期の都市公園で、2018年度に国の名勝になりました。白山神社の境内にあり、蓮池にはラジオ塔が立ち、北西部には燕喜館があります。江戸時代から信濃川越しに弥彦山や角田山を眺める景勝地として親しまれてきた場所で、町なかで歴史のある庭の景色が撮れます。",
+    "highlights": [
+      "蓮池とラジオ塔",
+      "燕喜館のある北西部",
+      "白山神社の境内と梅林"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "梅林の花が咲き、境内の景色が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "蓮池の葉が水面を覆い、花の時期は早朝が見頃です。"
+      },
+      {
+        "season": "autumn",
+        "text": "木々が色づき、燕喜館の周りの庭が落ち着いた色になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "蓮の花は朝に開きます。人の少ない時間でもあります。"
+      },
+      {
+        "time": "day",
+        "text": "木陰が濃く、建物は日なたとの差に気をつけて撮ります。"
+      }
+    ],
+    "compositionTips": [
+      "蓮池はラジオ塔を背景に入れると、この公園らしい一枚になります",
+      "神社の境内なので、参拝の人の妨げにならない位置で",
+      "燕喜館の中の撮影は施設の決まりに従います"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%99%BD%E5%B1%B1%E5%85%AC%E5%9C%92_(%E6%96%B0%E6%BD%9F%E5%B8%82)",
+          "title": "Wikipedia「白山公園 (新潟市)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q5640656",
+          "title": "Wikidata「Q5640656」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_122f9a9a052a",
+    "slug": "hoppou-bunka-museum",
+    "name": "北方文化博物館",
+    "nameEn": "Northern Culture Museum",
+    "reading": "ほっぽうぶんかはくぶつかん",
+    "aliases": [
+      "豪農の館",
+      "伊藤邸"
+    ],
+    "address": "新潟県新潟市",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "新潟市"
+    },
+    "coords": {
+      "lat": 37.83,
+      "lng": 139.15
+    },
+    "category": "建築",
+    "summary": "越後の豪農・伊藤文吉の邸宅をそのまま博物館にした私立博物館。主屋や洋館、茶室、土蔵が残ります。",
+    "description": "新潟市江南区沢海にある、戦後初の私立博物館です。農地改革のあと、豪農伊藤家の邸宅が財団法人の博物館として残されました。主屋・洋館・茶室・待合・土蔵・表門・煉瓦塀などの建物がまとまって残り、豪農の暮らしの大きさを一か所で撮れます。新潟分館や新発田の清水谷御殿の庭園も同じ博物館が持っています。",
+    "highlights": [
+      "豪農伊藤家の主屋",
+      "洋館と茶室",
+      "表門と煉瓦塀"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "庭木が芽吹き、主屋の座敷から見る緑が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "庭の木々が色づき、座敷越しの景色が映えます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の屋根と庭が見られます。足元に気をつけて回ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開館直後は人が少なく、座敷や廊下を広く撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "障子越しのやわらかい光で室内が撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "座敷は畳の線を手前から奥へ通すと奥行きが出ます",
+      "室内の撮影の可否は館の決まりに従います",
+      "暗い室内は手ぶれに注意し、感度を上げて撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%8C%97%E6%96%B9%E6%96%87%E5%8C%96%E5%8D%9A%E7%89%A9%E9%A4%A8",
+          "title": "Wikipedia「北方文化博物館」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11246368",
+          "title": "Wikidata「Q11246368」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_99f1ebf47a01",
+    "slug": "lake-kamo-sado",
+    "name": "加茂湖（佐渡）",
+    "nameEn": "Lake Kamo, Sado",
+    "reading": "かもこ",
+    "aliases": [
+      "佐渡 加茂湖"
+    ],
+    "address": "新潟県佐渡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "佐渡市"
+    },
+    "coords": {
+      "lat": 38.06,
+      "lng": 138.44
+    },
+    "category": "湖沼",
+    "summary": "佐渡島の国中平野の北東にある汽水湖で、日本百景のひとつ。昭和初期から続くカキの養殖の筏が湖面に並びます。",
+    "description": "佐渡市の両津と新穂にまたがる汽水湖で、日本百景に選ばれています。昭和初期からカキの養殖が盛んで、湖面には筏が並び、背後に佐渡の山並みが重なります。両津の町から近く、海とは違う静かな水面が広がるので、朝夕の映り込みや筏の並びを主役にした写真が撮れます。",
+    "highlights": [
+      "湖面に並ぶカキ養殖の筏",
+      "湖越しの佐渡の山並み",
+      "両津の町に近い静かな水面"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の残雪と湖面を一緒に撮れることがあります。"
+      },
+      {
+        "season": "summer",
+        "text": "朝の凪いだ湖面に筏と山が映ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、山の稜線がはっきりします。"
+      },
+      {
+        "season": "winter",
+        "text": "雪をかぶった山並みと冬の湖面が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "凪いでいれば、空の色と筏が湖面に映ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光で筏の影が水面に伸びます。"
+      }
+    ],
+    "compositionTips": [
+      "筏を手前に並べ、遠くの山を背景にすると奥行きが出ます",
+      "養殖の作業の邪魔にならない岸から撮ります",
+      "風が出ると映り込みが消えます。朝の早い時間を狙います"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%8A%A0%E8%8C%82%E6%B9%96",
+          "title": "Wikipedia「加茂湖」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11398862",
+          "title": "Wikidata「Q11398862」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_813771318269",
+    "slug": "awashima-niigata",
+    "name": "粟島（新潟県）",
+    "nameEn": "Awashima Island",
+    "reading": "あわしま",
+    "aliases": [
+      "粟島浦村",
+      "粟生島"
+    ],
+    "address": "新潟県岩船郡粟島浦村",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "岩船郡粟島浦村"
+    },
+    "coords": {
+      "lat": 38.46,
+      "lng": 139.24
+    },
+    "category": "島",
+    "summary": "村上市の北西の日本海に浮かぶ島。東の内浦と西の釜谷の2つの集落があり、島全体が粟島浦村です。",
+    "description": "村上市から北西35kmの日本海にある島で、全域が粟島浦村に属します。東側の内浦と西側の釜谷に集落があり、海と山に挟まれた小さな港の景色が残ります。縄文時代の遺跡も見つかっている古くからの島で、海の色と集落を撮るなら、海の明るい夏が向きます。",
+    "highlights": [
+      "東の内浦の港と集落",
+      "西の釜谷の集落",
+      "島を囲む日本海"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海の青が明るく、港と集落の白い家並みが映えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕方の海の色が深くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東の内浦は朝の光が港に当たります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西の釜谷は日本海に沈む夕日の方角です。"
+      }
+    ],
+    "compositionTips": [
+      "船の便は限られます。帰りの船を先に決めてから回ります",
+      "集落は生活の場です。家や人を撮るときは声をかけます",
+      "港は高い所から見下ろすと、船と集落の形が入ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%B2%9F%E5%B3%B6_(%E6%96%B0%E6%BD%9F%E7%9C%8C)",
+          "title": "Wikipedia「粟島 (新潟県)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q49511",
+          "title": "Wikidata「Q49511」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_af89debc4c09",
+    "slug": "mt-naeba",
+    "name": "苗場山",
+    "nameEn": "Mount Naeba",
+    "reading": "なえばさん",
+    "aliases": [
+      "苗場山頂湿原"
+    ],
+    "address": "新潟県南魚沼郡湯沢町",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "南魚沼郡湯沢町"
+    },
+    "coords": {
+      "lat": 36.85,
+      "lng": 138.69
+    },
+    "category": "山岳",
+    "summary": "新潟と長野の県境にある標高2,145メートルの火山。平らな山頂に池塘の湿地帯が広がり、日本百名山に選ばれています。",
+    "description": "山頂付近は高層湿原と雪田草原の湿地帯で、日本の重要湿地500に選ばれています。池塘にミヤマホタルイやヤチスゲが苗のように茂る姿が苗代田に似ることが山名の由来という説があります。平らな山頂に無数の池塘が並び、空を映した水面と草原を広角で撮れる、夏の山らしい場所です。",
+    "highlights": [
+      "山頂に広がる池塘と湿地帯",
+      "苗代田のように草が茂る池塘",
+      "空を映す水面と草原"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "雪が消えて湿原の草が伸びる時期です。池塘に空が映ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "草紅葉で湿原が金色になります。天気の崩れが早い季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "風の弱い朝は池塘の映り込みがきれいです。"
+      },
+      {
+        "time": "day",
+        "text": "雲の影が湿原に落ち、草原の起伏が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "木道から外れないで撮ります。湿原は踏むと戻りません",
+      "池塘を手前に、空と雲を大きく入れると山頂の広さが出ます",
+      "日帰りは時間の余裕を持ち、山の天気予報を確かめます"
+    ],
+    "officialWebsiteUrl": "https://www.naeba.gr.jp/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%8B%97%E5%A0%B4%E5%B1%B1",
+          "title": "Wikipedia「苗場山」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q2345178",
+          "title": "Wikidata「Q2345178」（座標・所在地）"
+        },
+        {
+          "url": "https://www.naeba.gr.jp/",
+          "title": "公式サイト「苗場旅館組合・苗場観光協会オフィシャルページ」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_616c06e52ba3",
+    "slug": "oppoji",
+    "name": "乙宝寺（乙寶寺）",
+    "nameEn": "Oppo-ji Temple",
+    "reading": "おっぽうじ",
+    "aliases": [
+      "猿供養寺",
+      "乙寺"
+    ],
+    "address": "新潟県胎内市",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "胎内市"
+    },
+    "coords": {
+      "lat": 38.12,
+      "lng": 139.4
+    },
+    "category": "寺社",
+    "summary": "胎内市乙にある真言宗の古寺。国の重要文化財の三重塔が建ち、芭蕉の句碑や珍しい乙桜もあります。",
+    "description": "猿供養寺・乙寺とも呼ばれる古くからの寺で、釈迦の左眼を納めたと伝えられます。境内には国の重要文化財の三重塔と大日堂、六角堂、弁天堂などが建ちます。石段の脇には松尾芭蕉が奥の細道の旅で詠んだ句の碑があり、大日堂の横には花と葉が同時に出る乙桜があります。",
+    "highlights": [
+      "国の重要文化財の三重塔",
+      "大日堂の横の乙桜",
+      "石段脇の芭蕉の句碑"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "乙桜が咲くと、花と葉が一緒に出る珍しい姿が撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "境内の木々の緑が濃く、三重塔の朱が引き立ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪をかぶった三重塔が撮れます。足元に注意します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、三重塔を落ち着いて撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光が塔の軒に当たり、組物の影が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "三重塔は木の間から見上げると、軒の重なりが出ます",
+      "寺の境内です。法要の時は撮影を控えます"
+    ],
+    "officialWebsiteUrl": "https://oppouji.info/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B9%99%E5%AF%B6%E5%AF%BA",
+          "title": "Wikipedia「乙寶寺」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11369928",
+          "title": "Wikidata「Q11369928」（座標・所在地）"
+        },
+        {
+          "url": "https://oppouji.info/",
+          "title": "公式サイト「乙宝寺[おっぽうじ]新潟県胎内市」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_9b411981cf9e",
+    "slug": "ijimino-ochaya",
+    "name": "五十公野御茶屋",
+    "nameEn": "Ijimino Ochaya Garden",
+    "reading": "いじみのおちゃや",
+    "aliases": [
+      "奉先堂公園"
+    ],
+    "address": "新潟県新発田市",
+    "region": {
+      "country": "日本",
+      "prefecture": "新潟県",
+      "city": "新発田市"
+    },
+    "coords": {
+      "lat": 37.93,
+      "lng": 139.35
+    },
+    "category": "庭園",
+    "summary": "新発田藩主溝口家の別邸・茶寮として使われた庭園。国の名勝で、奉先堂公園として日本の歴史公園100選にも選ばれています。",
+    "description": "明暦元年に四代藩主溝口重雄が幕府の庭方を招いて庭園を造り、別邸を茶寮としました。参勤交代のときには藩主が新発田城から行列してここで旅装に着替えたと伝えられます。茶屋の建物と庭が一緒に残っているので、座敷からの庭、庭からの茶屋の両方を撮れます。",
+    "highlights": [
+      "溝口家の別邸だった茶屋の建物",
+      "茶寮から眺める庭園",
+      "奉先堂公園の木々"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "庭木の新緑が明るく、茶屋の屋根との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "庭の木々が色づき、建物越しの景色に色が入ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の庭と茶屋が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "人が少なく、庭の水面や苔が落ち着いて撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "建物の陰と庭の明るさの差が大きいので、露出に気をつけます。"
+      }
+    ],
+    "compositionTips": [
+      "茶屋の縁側から庭を見る構図は、柱を額縁に使えます",
+      "公開の日や時間は事前に確かめます"
+    ],
+    "officialWebsiteUrl": "https://www.city.shibata.lg.jp/shisetsu/kanko/kanko/1005066.html",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%BA%94%E5%8D%81%E5%85%AC%E9%87%8E%E5%BE%A1%E8%8C%B6%E5%B1%8B",
+          "title": "Wikipedia「五十公野御茶屋」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11372055",
+          "title": "Wikidata「Q11372055」（座標・所在地）"
+        },
+        {
+          "url": "https://www.city.shibata.lg.jp/shisetsu/kanko/kanko/1005066.html",
+          "title": "公式サイト「施設案内 五十公野御茶屋｜新潟県新発田市公式ホームページ」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_9ac7911cf9bf",
+    "slug": "shokoji-takaoka",
+    "name": "勝興寺",
+    "nameEn": "Shoko-ji Temple",
+    "reading": "しょうこうじ",
+    "aliases": [
+      "ふるこはん",
+      "雲龍山勝興寺"
+    ],
+    "address": "富山県高岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "高岡市"
+    },
+    "coords": {
+      "lat": 36.79,
+      "lng": 137.05
+    },
+    "category": "寺社",
+    "summary": "高岡市伏木にある浄土真宗本願寺派の寺院。国宝の建物2棟と重要文化財の建物を多く持つ大きな伽藍です。",
+    "description": "地元では「ふるこはん」と呼ばれる寺で、蓮如が創建した土山御坊に始まります。国宝2棟を含む多くの建物が文化財になっていて、大きな本堂を中心に門や書院が並ぶ伽藍がまとまって残ります。越中国府のあった伏木の高台にあり、大きな屋根の連なりと境内の広さを撮れる寺です。",
+    "highlights": [
+      "大きな本堂の屋根",
+      "門と書院が並ぶ伽藍",
+      "伏木の高台の境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、大屋根の瓦と緑が対比します。"
+      },
+      {
+        "season": "summer",
+        "text": "空が高く、本堂の大屋根を青空に抜いて撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もると大屋根の線がくっきりします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東からの光で本堂の正面が明るくなります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で瓦が光り、屋根の重なりが出ます。"
+      }
+    ],
+    "compositionTips": [
+      "大屋根は少し離れて広角で、屋根の反りを画面に収めます",
+      "堂内の撮影は寺の決まりに従います"
+    ],
+    "officialWebsiteUrl": "https://www.shoukouji.jp/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%8B%9D%E8%88%88%E5%AF%BA",
+          "title": "Wikipedia「勝興寺」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11400475",
+          "title": "Wikidata「Q11400475」（座標・所在地）"
+        },
+        {
+          "url": "https://www.shoukouji.jp/",
+          "title": "公式サイト「[ 国宝 ] 雲龍山勝興寺公式ホームページ」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_58dbee5a5763",
+    "slug": "kokutaiji-takaoka",
+    "name": "国泰寺（高岡市）",
+    "nameEn": "Kokutai-ji Temple, Takaoka",
+    "reading": "こくたいじ",
+    "aliases": [
+      "國泰寺",
+      "摩頂山国泰寺"
+    ],
+    "address": "富山県高岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "高岡市"
+    },
+    "coords": {
+      "lat": 36.81,
+      "lng": 137.01
+    },
+    "category": "寺社",
+    "summary": "高岡市の二上山の麓にある臨済宗国泰寺派の本山。山門や大方丈、法堂などの伽藍が森の中に並びます。",
+    "description": "慈雲妙意が二上山に結んだ草庵に始まる禅寺で、臨済宗国泰寺派の本山です。山門・総門・大方丈・法堂・禅堂・鐘楼などの伽藍が並び、木々に囲まれた静かな境内が続きます。禅寺らしい簡素な建物と森の緑を、落ち着いた光で撮れる場所です。",
+    "highlights": [
+      "山門と総門",
+      "大方丈と法堂",
+      "森に囲まれた禅寺の境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が境内を包み、木造の伽藍が明るい緑に映えます。"
+      },
+      {
+        "season": "summer",
+        "text": "森の木陰が濃くなります。8月の地蔵盆では観音堂で法要があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づき、山門の周りに色が入ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "木漏れ日が参道に落ち、伽藍の輪郭が浮かびます。"
+      },
+      {
+        "time": "day",
+        "text": "森の中は暗めです。建物と空の明るさの差に気をつけます。"
+      }
+    ],
+    "compositionTips": [
+      "山門から奥の伽藍へ参道の線を通すと、禅寺の奥行きが出ます",
+      "修行の場でもあります。静かに撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.kokutaiji.jp/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%9B%BD%E6%B3%B0%E5%AF%BA_(%E9%AB%98%E5%B2%A1%E5%B8%82)",
+          "title": "Wikipedia「国泰寺 (高岡市)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1504555",
+          "title": "Wikidata「Q1504555」（座標・所在地）"
+        },
+        {
+          "url": "https://www.kokutaiji.jp/",
+          "title": "公式サイト「臨済宗國泰寺派大本山 國泰寺【公式】」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_71766e04b075",
+    "slug": "mt-tsurugi",
+    "name": "剱岳",
+    "nameEn": "Mount Tsurugi",
+    "reading": "つるぎだけ",
+    "aliases": [
+      "劔岳",
+      "剣岳",
+      "劒岳"
+    ],
+    "address": "富山県中新川郡上市町",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "中新川郡上市町"
+    },
+    "coords": {
+      "lat": 36.62,
+      "lng": 137.62
+    },
+    "category": "山岳",
+    "summary": "立山連峰にある標高2,999mの山。氷河に削られた鋭い岩峰で、「岩の殿堂」と呼ばれます。日本百名山のひとつです。",
+    "description": "富山県の上市町と立山町にまたがる中部山岳国立公園の山で、最終氷期の氷河に削られた氷食尖峰です。峻険な山容から登山家に「岩と雪の殿堂」と呼ばれ、山域にはライチョウが棲み、アオノツガザクラやハクサンイチゲなどの高山植物が咲きます。頂上に立つのは熟達者の領域で、多くの人は周りの稜線や山小屋から岩峰を撮ります。",
+    "highlights": [
+      "鋭く切り立った岩峰",
+      "剱沢雪渓",
+      "ライチョウと高山植物"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "雪渓が残り、高山植物が咲く時期です。岩峰と雪の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "稜線の草木が色づき、早ければ新雪が岩峰に載ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "朝日が岩峰の東面を赤く染めます。山小屋からが狙いやすい時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の斜光で岩の襞が深く刻まれます。"
+      }
+    ],
+    "compositionTips": [
+      "岩峰の鋭さは、望遠で切り取ると強調できます",
+      "頂上への道は岩場が続く上級者向けです。撮影は無理のない場所から",
+      "ライチョウには近づかず、静かに距離を取ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%89%B1%E5%B2%B3",
+          "title": "Wikipedia「剱岳」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1109050",
+          "title": "Wikidata「Q1109050」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_148f53e890bf",
+    "slug": "arimine-lake",
+    "name": "有峰湖（有峰ダム）",
+    "nameEn": "Lake Arimine (Arimine Dam)",
+    "reading": "ありみねこ",
+    "aliases": [
+      "有峰湖",
+      "有峰"
+    ],
+    "address": "富山県富山市",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "富山市"
+    },
+    "coords": {
+      "lat": 36.49,
+      "lng": 137.45
+    },
+    "category": "湖沼",
+    "summary": "常願寺川水系和田川の標高1089m地点にある北陸電力の発電用ダムと、その上にできた有峰湖。山に囲まれた湖です。",
+    "description": "高さ140メートルの重力式コンクリートダムで、上流は豪雪地帯の水を集める地形です。ダム湖の周りは山に囲まれ、北アルプスへ向かう登山口の折立も近く、夏には登山者向けのバスが走ります。山の中の大きな湖とダムの堤体を一緒に撮れる場所です。",
+    "highlights": [
+      "山に囲まれた有峰湖",
+      "重力式コンクリートダムの堤体",
+      "北アルプスの登山口・折立へ向かう道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "登山者向けのバスが走る季節で、湖と山の緑が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "湖を囲む山が色づき、水面に映ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "湖面に朝霧が出ることがあり、山の稜線が浮かびます。"
+      },
+      {
+        "time": "day",
+        "text": "湖の色が出やすい時間です。堤体の白も明るく写ります。"
+      }
+    ],
+    "compositionTips": [
+      "湖へ入る道は通行できる期間と時間が決まっています。事前に確かめます",
+      "堤体は斜めから撮ると、高さと湖の両方が入ります"
+    ],
+    "officialWebsiteUrl": "https://www.rikuden.co.jp/pr/arimine.html",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%9C%89%E5%B3%B0%E3%83%80%E3%83%A0",
+          "title": "Wikipedia「有峰ダム」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q3435733",
+          "title": "Wikidata「Q3435733」（座標・所在地）"
+        },
+        {
+          "url": "https://www.rikuden.co.jp/pr/arimine.html",
+          "title": "公式サイト「有峰記念館 アーカイブス有峰（ＰＲ施設） 北陸電力株式会社」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_4e5e48e8715f",
+    "slug": "toyama-botanic-gardens",
+    "name": "富山県中央植物園",
+    "nameEn": "Botanic Gardens of Toyama",
+    "reading": "とやまけんちゅうおうしょくぶつえん",
+    "aliases": [
+      "ドリアス"
+    ],
+    "address": "富山県富山市",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "富山市"
+    },
+    "coords": {
+      "lat": 36.66,
+      "lng": 137.18
+    },
+    "category": "植物園",
+    "summary": "富山市にある県の植物園。屋外の展示園と展示温室・サンライトホールがあり、季節の花と温室の植物が撮れます。",
+    "description": "1993年に屋外展示園を開き、1996年に展示温室やサンライトホールを整えて全面開園した植物園で、公益財団法人花と緑の銀行が運営しています。愛称はドリアスです。屋外の園で季節の花を、温室で熱帯の植物を撮れるので、天気が悪い日でも撮るものがあります。",
+    "highlights": [
+      "季節の花が咲く屋外展示園",
+      "展示温室の熱帯の植物",
+      "サンライトホール"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "屋外の園で花が次々に咲く季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、温室の外でも植物の勢いが撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "園の木々が色づき、落ち着いた色の園内を撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "屋外は静かな時期で、温室の植物が主役になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "花に朝露が残り、光もやわらかい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "温室の中は明るく、植物の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "花の接写は背景を暗くまとめると、色が引き立ちます",
+      "温室はレンズが曇ることがあるので、入る前に慣らします"
+    ],
+    "officialWebsiteUrl": "https://www.bgtym.org/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%AF%8C%E5%B1%B1%E7%9C%8C%E4%B8%AD%E5%A4%AE%E6%A4%8D%E7%89%A9%E5%9C%92",
+          "title": "Wikipedia「富山県中央植物園」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q4948424",
+          "title": "Wikidata「Q4948424」（座標・所在地）"
+        },
+        {
+          "url": "https://www.bgtym.org/",
+          "title": "公式サイト「トップページ｜富山県中央植物園ウェブサイト」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_a290826d8ae7",
+    "slug": "miyazaki-sakai-coast",
+    "name": "宮崎・境海岸（ヒスイ海岸）",
+    "nameEn": "Miyazaki-Sakai Coast (Hisui Coast)",
+    "reading": "みやざき・さかいかいがん",
+    "aliases": [
+      "ヒスイ海岸",
+      "翡翠海岸",
+      "宮崎・境海岸海水浴場"
+    ],
+    "address": "富山県下新川郡朝日町",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "下新川郡朝日町"
+    },
+    "coords": {
+      "lat": 36.98,
+      "lng": 137.59
+    },
+    "category": "海岸",
+    "summary": "朝日町の宮崎から境にかけて続く日本海の砂利浜。ヒスイ海岸とも呼ばれ、快水浴場百選と日本の渚百選に選ばれています。",
+    "description": "幅200m・東西約4kmの砂利浜で、海水浴場として整えられています。水のきれいさで知られ、環境省による快水浴場百選と、日本の渚百選に選ばれました。打ち寄せる波と丸い小石の浜が続き、晴れた日には透き通った海の色が撮れます。夏には海の家も並び、近くにヒスイテラスやオートキャンプ場があります。",
+    "highlights": [
+      "透き通った日本海と砂利浜",
+      "波に洗われる丸い小石",
+      "東西に長く続く海岸線"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海水浴の季節で、海の色が最も明るく見えます。人の少ない朝が撮りやすい時間です。"
+      },
+      {
+        "season": "autumn",
+        "text": "人が減り、波と小石だけの静かな浜が撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "荒れた日本海の波が浜に打ち寄せます。近づきすぎないこと。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "順光の時間帯は海の透明感が出やすくなります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で小石が光り、浜の質感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "足元の小石を手前に大きく入れ、海を奥に置くと浜らしさが出ます",
+      "偏光フィルターで水面の反射を抑えると、透明感が増します",
+      "波が高い日は波打ち際に近づかないでください"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%AE%AE%E5%B4%8E%E3%83%BB%E5%A2%83%E6%B5%B7%E5%B2%B8",
+          "title": "Wikipedia「宮崎・境海岸」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11454173",
+          "title": "Wikidata「Q11454173」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_25665dfd6a8d",
+    "slug": "chiringashima",
+    "name": "知林ヶ島",
+    "nameEn": "Chiringashima Island",
+    "reading": "ちりんがしま",
+    "aliases": [
+      "知林ヶ島の砂州"
+    ],
+    "address": "鹿児島県指宿市",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "指宿市"
+    },
+    "coords": {
+      "lat": 31.28,
+      "lng": 130.68
+    },
+    "category": "島",
+    "summary": "指宿市の沖、錦江湾の入口近くにある島。干潮の時だけ陸と砂の道（陸繋砂州・トンボロ）でつながります。",
+    "description": "干潮時に陸地と陸繋砂州でつながる陸繋島で、3月から10月頃には長さ約800メートルの砂州が現れ、歩いて渡れます。潮が引くにつれて海の中から白い道が伸びていく様子は、時間を追って撮りたくなる景色です。渡るときは潮の時刻を確かめ、満ちる前に戻ります。",
+    "highlights": [
+      "干潮時に現れる砂の道（トンボロ）",
+      "錦江湾に浮かぶ島の姿",
+      "潮が引いていく砂州の変化"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "砂州が現れ始める季節です。潮の時刻を合わせて訪ねます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の色が明るく、白い砂州と青い海の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "砂州が現れる期間の終わりごろ。夕方の干潮が狙い目になる日もあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の干潮の日は、人の少ない砂州を撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光で砂州の波紋が浮かび上がります。"
+      }
+    ],
+    "compositionTips": [
+      "砂州は高い所から見下ろすと、陸と島をつなぐ線がはっきりします",
+      "満ち潮は早く進みます。潮の時刻を確かめ、余裕を持って戻ります",
+      "濡れてよい靴で行きます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%9F%A5%E6%9E%97%E3%83%B6%E5%B3%B6",
+          "title": "Wikipedia「知林ヶ島」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q5101919",
+          "title": "Wikidata「Q5101919」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_a894314cde75",
+    "slug": "kagoshima-jingu",
+    "name": "鹿児島神宮",
+    "nameEn": "Kagoshima Jingu Shrine",
+    "reading": "かごしまじんぐう",
+    "aliases": [
+      "大隅正八幡宮",
+      "国分八幡宮",
+      "大隅国一宮"
+    ],
+    "address": "鹿児島県霧島市",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "霧島市"
+    },
+    "coords": {
+      "lat": 31.75,
+      "lng": 130.74
+    },
+    "category": "寺社",
+    "summary": "霧島市隼人町にある大隅国一宮。山幸彦と豊玉比売命を祀り、本殿・拝殿・勅使殿などが国の重要文化財です。",
+    "description": "かつて大隅正八幡宮・国分八幡宮とも呼ばれた古社で、旧社格は官幣大社です。兵火で焼けたあと島津貴久が再興を命じ、のちに今の社殿が建てられました。2021年に本殿及び拝殿・勅使殿・摂社四所神社本殿が国の重要文化財になると決まりました。社殿と広い境内を撮れる神社です。",
+    "highlights": [
+      "重要文化財の本殿と拝殿",
+      "勅使殿",
+      "境内と参道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、社殿の朱と緑が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "木陰の濃い参道と、日差しを受けた社殿の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、社殿の色がはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、社殿の正面を広く撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "社殿の彩色に光が当たり、色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "拝殿の屋根の重なりは斜めから撮ると立体感が出ます",
+      "参拝の人の妨げにならない位置で撮ります"
+    ],
+    "officialWebsiteUrl": "https://kagoshima-jingu.jp/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%B9%BF%E5%85%90%E5%B3%B6%E7%A5%9E%E5%AE%AE",
+          "title": "Wikipedia「鹿児島神宮」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q704695",
+          "title": "Wikidata「Q704695」（座標・所在地）"
+        },
+        {
+          "url": "https://kagoshima-jingu.jp/",
+          "title": "公式サイト「海幸彦 山幸彦 伝承の地 鹿兒島神宮 (鹿児島県霧島市)」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_a6df161afc9e",
+    "slug": "terukuni-jinja",
+    "name": "照国神社",
+    "nameEn": "Terukuni Shrine",
+    "reading": "てるくにじんじゃ",
+    "aliases": [
+      "照國神社"
+    ],
+    "address": "鹿児島県鹿児島市",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "鹿児島市"
+    },
+    "coords": {
+      "lat": 31.59,
+      "lng": 130.55
+    },
+    "category": "寺社",
+    "summary": "鹿児島市照国町にある、薩摩藩第11代藩主島津斉彬を祀る神社。鹿児島の町なかにあります。",
+    "description": "照國大明神として島津斉彬を祀る神社で、旧社格は別格官幣社です。斉彬の遺志を継いだ弟の久光と甥の忠義が鹿児島城内西域に社地を選んだのが始まりです。江戸時代後期から明治時代初期に流行した藩祖を祀る神社のひとつで、町なかの鳥居と社殿を、境内の緑と一緒に撮れます。",
+    "highlights": [
+      "参道の鳥居",
+      "島津斉彬を祀る社殿",
+      "鹿児島の町なかの境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が新緑になり、社殿の背景が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "境内の緑が濃く、鳥居を空に抜いて撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "初詣の時期はにぎわいます。落ち着いて撮るなら時間をずらします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参道に人が少なく、鳥居から社殿まで見通せます。"
+      },
+      {
+        "time": "day",
+        "text": "町なかの明るい光で、社殿の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "参道の正面から鳥居を額縁にして社殿を収めます",
+      "祭事の日は撮影の場所に気をつけます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%85%A7%E5%9B%BD%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「照国神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q704219",
+          "title": "Wikidata「Q704219」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_ae5614176511",
+    "slug": "hirakiki-jinja",
+    "name": "枚聞神社",
+    "nameEn": "Hirakiki Shrine",
+    "reading": "ひらききじんじゃ",
+    "aliases": [
+      "薩摩国一宮",
+      "和田都美神社"
+    ],
+    "address": "鹿児島県指宿市",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "指宿市"
+    },
+    "coords": {
+      "lat": 31.21,
+      "lng": 130.54
+    },
+    "category": "寺社",
+    "summary": "指宿市開聞十町にある薩摩国一宮。開聞岳を神体とする山岳信仰に根ざした神社と考えられ、北麓に鎮座します。",
+    "description": "式内社で薩摩国一宮、旧社格は国幣小社です。もとは開聞岳を神体とする山岳信仰の神社で、南麓にあったものが噴火で避難し、北麓の今の場所に移ったと伝えられます。開聞岳のふもとにあるので、社殿と開聞岳の関係を意識して撮れる神社です。",
+    "highlights": [
+      "開聞岳の北麓に建つ社殿",
+      "薩摩国一宮の境内",
+      "参道の鳥居"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々の緑が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "晴れた日は開聞岳の稜線がはっきりします。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、山と社殿を撮りやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東からの光が社殿に当たります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の斜光で社殿の彩色が深くなります。"
+      }
+    ],
+    "compositionTips": [
+      "境内の外から開聞岳を背にした鳥居を探すと、この神社らしい一枚になります",
+      "参拝の人の妨げにならない位置で撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%9E%9A%E8%81%9E%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「枚聞神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q3136198",
+          "title": "Wikidata「Q3136198」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_6bd7d5086d9e",
+    "slug": "onami-pond",
+    "name": "大浪池",
+    "nameEn": "Onami Pond",
+    "reading": "おおなみのいけ",
+    "aliases": [
+      "大波池"
+    ],
+    "address": "鹿児島県霧島市",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "霧島市"
+    },
+    "coords": {
+      "lat": 31.92,
+      "lng": 130.85
+    },
+    "category": "湖沼",
+    "summary": "霧島山にある直径630m、ほぼ円形の火口湖。霧島山の火山活動でできた火口の跡に水がたまりました。",
+    "description": "霧島市の北東部、霧島山の中にある火口湖で、周囲約2kmの丸い湖面を火口壁が取り囲みます。古くは大波池とも呼ばれました。南西側の登山口から歩いて火口縁に上がると、丸い水面を見下ろせます。火口縁を回る道からは、角度を変えて湖と周りの山を撮れます。",
+    "highlights": [
+      "火口壁に囲まれた丸い湖面",
+      "火口縁から見下ろす眺め",
+      "周りの霧島の山並み"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "火口の木々が芽吹き、湖の周りが明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の火口壁と青い湖面の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "火口壁の木々が色づき、湖面に映ります。"
+      },
+      {
+        "season": "winter",
+        "text": "冷え込んだ朝は霧氷や雪が見られることがあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "風の弱い朝は湖面が静かで、火口壁が映ります。"
+      },
+      {
+        "time": "day",
+        "text": "真上からの光で湖の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "火口縁から広角で湖全体を入れると、丸い形が伝わります",
+      "登山道を歩きます。山歩きの装備で行きます",
+      "霧島山は火山です。噴火警戒の情報を確かめます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%A4%A7%E6%B5%AA%E6%B1%A0",
+          "title": "Wikipedia「大浪池」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11437467",
+          "title": "Wikidata「Q11437467」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_7ae659ee774c",
+    "slug": "maruike-yusui",
+    "name": "丸池（湧水町）",
+    "nameEn": "Maruike Spring Pond",
+    "reading": "まるいけ",
+    "aliases": [
+      "霧島山麓丸池湧水",
+      "丸池湧水"
+    ],
+    "address": "鹿児島県姶良郡湧水町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "姶良郡湧水町"
+    },
+    "coords": {
+      "lat": 31.95,
+      "lng": 130.72
+    },
+    "category": "湧水",
+    "summary": "湧水町木場で湧き出す水をせき止めた池で、名水百選のひとつです。透き通った水面が広がります。",
+    "description": "霧島山のふもとで湧く水を堰き止めた池で、1985年に、名水百選に選ばれました（霧島山麓丸池湧水）。近くには近代化産業遺産の丸池湧水煉瓦暗渠があります。湧き水の透き通った水面と水底を撮れる場所です。",
+    "highlights": [
+      "透き通った湧水の池",
+      "水底まで見える水",
+      "近くの丸池湧水煉瓦暗渠"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水面の緑と湧き水の冷たさが伝わる写真が撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "冷え込んだ朝は水面から湯気のような霧が立つことがあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "斜めの光が水の中に入り、水底が見えます。"
+      },
+      {
+        "time": "day",
+        "text": "真上からの光で水の透明度が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "偏光フィルターで水面の反射を抑えると、水底まで写ります",
+      "水に入らず、岸から撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B8%B8%E6%B1%A0_(%E6%B9%A7%E6%B0%B4%E7%94%BA)",
+          "title": "Wikipedia「丸池 (湧水町)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11368381",
+          "title": "Wikidata「Q11368381」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_1773ac772fd8",
+    "slug": "kakeromajima",
+    "name": "加計呂麻島",
+    "nameEn": "Kakeroma Island",
+    "reading": "かけろまじま",
+    "aliases": [
+      "加計呂麻"
+    ],
+    "address": "鹿児島県大島郡瀬戸内町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "大島郡瀬戸内町"
+    },
+    "coords": {
+      "lat": 28.12,
+      "lng": 129.24
+    },
+    "category": "島",
+    "summary": "奄美大島の南、大島海峡を隔てた島。リアス式の入り江に白い砂浜と「加計呂麻ブルー」と呼ばれる青い海が並びます。",
+    "description": "瀬戸内町に属する奄美群島の島で、複雑なリアス式海岸の間にサンゴ由来の真っ白な砂浜が点在します。その白と対になる青い海は加計呂麻ブルーと呼ばれます。諸鈍のデイゴ並木や武名のガジュマル、嘉入の滝など、海以外の撮りどころも島じゅうにあります。",
+    "highlights": [
+      "白い砂浜と加計呂麻ブルーの海",
+      "諸鈍のデイゴ並木",
+      "武名のガジュマル"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海の色が明るくなり始め、人の少ない浜が撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の青が最も濃く見える季節です。台風の予報を確かめて行きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "日差しが少しやわらぎ、浜の白と海の青の差がきれいに出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "入り江の水面が静かで、海の透明感が出ます。"
+      },
+      {
+        "time": "day",
+        "text": "日が高いと海の青が最も鮮やかになります。"
+      }
+    ],
+    "compositionTips": [
+      "偏光フィルターで水面の反射を抑えると、海の色が深くなります",
+      "島内の移動は車が便利です。船の時刻と合わせて計画します",
+      "集落の道は生活の場です。静かに通ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%8A%A0%E8%A8%88%E5%91%82%E9%BA%BB%E5%B3%B6",
+          "title": "Wikipedia「加計呂麻島」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q711584",
+          "title": "Wikidata「Q711584」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_31162bb4c7c4",
+    "slug": "kamikoshikijima",
+    "name": "上甑島",
+    "nameEn": "Kamikoshiki Island",
+    "reading": "かみこしきしま",
+    "aliases": [
+      "甑島 長目の浜",
+      "長目の浜"
+    ],
+    "address": "鹿児島県薩摩川内市",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "薩摩川内市"
+    },
+    "coords": {
+      "lat": 31.84,
+      "lng": 129.88
+    },
+    "category": "島",
+    "summary": "東シナ海の甑島列島の北部にある島。池と海を砂州で隔てた長目の浜や、里集落のトンボロなど、地形の変化が豊かです。",
+    "description": "薩摩川内市に属する離島で、里集落の陸繋砂州、3つの池と東シナ海を砂州で区切った長目の浜、奥まで海が入り込んだリアス式海岸の浦内湾など、横に広がる地形の変化が見どころです。2009年に国土交通省の島の宝100景に選ばれました。高台から見下ろすと、池と海を分ける細い浜の形がよく分かります。",
+    "highlights": [
+      "池と海を砂州で隔てた長目の浜",
+      "里集落のトンボロ",
+      "リアス式の浦内湾"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海の色が明るくなり、長目の浜の池と海の色の違いが出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の青が濃い季節です。台風の影響を受けやすいので予報を確かめます。"
+      },
+      {
+        "season": "winter",
+        "text": "季節風が強く、荒れた海が撮れます。船の運航に注意します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "日が高いと池と海の色の違いがはっきりします。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "東シナ海側は夕日の方角です。"
+      }
+    ],
+    "compositionTips": [
+      "長目の浜は展望所など高い所から見下ろすと、砂州の形が伝わります",
+      "船の便は天候で止まることがあります。日程に余裕を持ちます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B8%8A%E7%94%91%E5%B3%B6",
+          "title": "Wikipedia「上甑島」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q14948405",
+          "title": "Wikidata「Q14948405」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_f27f37a8b81b",
+    "slug": "kurokami-buried-torii",
+    "name": "黒神埋没鳥居（腹五社神社）",
+    "nameEn": "Kurokami Buried Torii (Haragosha Shrine)",
+    "reading": "くろかみまいぼつとりい",
+    "aliases": [
+      "黒神埋没鳥居",
+      "原五社神社"
+    ],
+    "address": "鹿児島県鹿児島市",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "鹿児島市"
+    },
+    "coords": {
+      "lat": 31.58,
+      "lng": 130.71
+    },
+    "category": "寺社",
+    "summary": "桜島の東部、黒神町にある神社の鳥居。1914年の大正大噴火の噴石に埋まり、上部だけが地面から出ています。",
+    "description": "活火山桜島の東部にある腹五社神社の鳥居は、1914年の桜島の大正大噴火で噴き出した噴石に埋まり、上の部分だけを残しています。黒神埋没鳥居と呼ばれ、鹿児島県の天然記念物です。桜島・錦江湾ジオパークのジオサイトのひとつで、噴火の大きさを一枚で伝えられる被写体です。",
+    "highlights": [
+      "上部だけが地面から出た鳥居",
+      "背後にそびえる桜島",
+      "大正大噴火を伝えるジオサイト"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "空気がやわらかく、桜島の山肌の色が穏やかに写ります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の濃い季節で、鳥居の石と周りの緑の対比が撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、背後の桜島がはっきり見える日が多くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東から光が当たり、鳥居の正面が明るくなります。"
+      },
+      {
+        "time": "day",
+        "text": "桜島の山肌と鳥居を同じ明るさで撮りやすい時間です。"
+      }
+    ],
+    "compositionTips": [
+      "鳥居を低い位置から撮り、背景に桜島を入れると埋まった深さが伝わります",
+      "桜島は活火山です。噴火警戒の情報と降灰の予報を確かめます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%85%B9%E4%BA%94%E7%A4%BE%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「腹五社神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q111620833",
+          "title": "Wikidata「Q111620833」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_cb8d25e59808",
+    "slug": "tosa-jinja",
+    "name": "土佐神社",
+    "nameEn": "Tosa Shrine",
+    "reading": "とさじんじゃ",
+    "aliases": [
+      "土佐一宮",
+      "土佐国一宮"
+    ],
+    "address": "高知県高知市",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.59,
+      "lng": 133.58
+    },
+    "category": "寺社",
+    "summary": "高知市一宮にある土佐国一宮。長宗我部元親が造営した社殿と、山内忠義が造営した楼門・鼓楼が国の重要文化財です。",
+    "description": "高知市の北東、逢坂越えの西麓に鎮座する式内社で、旧社格は国幣中社です。主要な社殿は戦国大名の長宗我部元親が、楼門（神光門）と鼓楼は土佐藩2代藩主の山内忠義が造営し、いずれも国の重要文化財です。土佐三大祭のひとつに数えられる例祭の志那禰祭が古代から続いています。",
+    "highlights": [
+      "長宗我部元親が造営した社殿",
+      "楼門（神光門）と鼓楼",
+      "例祭の志那禰祭"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、社殿の古い木肌と新緑が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "夏の例祭の志那禰祭の時期は、境内がにぎわいます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、楼門の屋根の線がはっきりします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、楼門から社殿までを落ち着いて撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光で楼門の組物に影ができ、立体感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "楼門を額縁にして奥の社殿を入れると、境内の並びが伝わります",
+      "祭事の日は撮影の場所に気をつけます"
+    ],
+    "officialWebsiteUrl": "https://tosajinja.com/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%9C%9F%E4%BD%90%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「土佐神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q704890",
+          "title": "Wikidata「Q704890」（座標・所在地）"
+        },
+        {
+          "url": "https://tosajinja.com/",
+          "title": "公式サイト「土佐一ノ宮 土佐神社 - 土佐の一ノ宮にある土佐神社。」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_655b3029d8f4",
+    "slug": "todoro-falls-kochi",
+    "name": "香美 轟の滝",
+    "nameEn": "Todoro Falls, Kami",
+    "reading": "とどろのたき",
+    "aliases": [
+      "香北 轟の滝"
+    ],
+    "address": "高知県香美市",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "香美市"
+    },
+    "coords": {
+      "lat": 33.71,
+      "lng": 133.83
+    },
+    "category": "滝",
+    "summary": "香美市香北町、物部川の支流・日比原川にある滝。日本の滝百選に選ばれ、玉織姫の平家伝説が残ります。",
+    "description": "県指定の天然記念物と名勝で、日本の滝百選と四国八十八景に選ばれています。滝の周りは原生林で、モミジなど落葉樹が多く、秋には紅葉の名所になります。岩の間を段になって落ちる水と、周りの森の色を合わせて撮れる滝です。近くには轟の滝キャンプ場があります。",
+    "highlights": [
+      "岩の間を落ちる滝",
+      "滝を囲む原生林",
+      "秋のモミジ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "森の緑が濃く、滝の周りが涼しい季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "モミジが色づき、滝と紅葉を一緒に撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "滝に直射が入る前は、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は森の中の明暗差が小さく、撮りやすくなります。"
+      }
+    ],
+    "compositionTips": [
+      "遅いシャッターで水の流れを伸ばすなら三脚と減光フィルターが要ります",
+      "岩場は濡れて滑ります。足元に気をつけます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%BD%9F%E3%81%AE%E6%BB%9D_(%E9%AB%98%E7%9F%A5%E7%9C%8C)",
+          "title": "Wikipedia「轟の滝 (高知県)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11637780",
+          "title": "Wikidata「Q11637780」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_ef713242b5de",
+    "slug": "iokido-cave",
+    "name": "伊尾木洞",
+    "nameEn": "Iokido Cave",
+    "reading": "いおきどう",
+    "aliases": [
+      "伊尾木洞 渓谷"
+    ],
+    "address": "高知県安芸市",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "安芸市"
+    },
+    "coords": {
+      "lat": 33.49,
+      "lng": 133.93
+    },
+    "category": "洞窟",
+    "summary": "安芸市伊尾木にある天然の洞窟と、その先に続く渓谷。海で積もった地層が隆起し、水に削られてできました。",
+    "description": "鮮新世から更新世に海で堆積した穴内層が隆起し、渓谷の水に浸食されてできた天然の洞窟です。洞窟は年間を通して温度がほぼ一定に保たれています。洞窟を抜けると渓谷が続き、岩壁と水の流れが作る緑の空間を、洞窟の出口から見る構図で撮れます。",
+    "highlights": [
+      "洞窟の出口から見る渓谷",
+      "削られた地層の岩壁",
+      "渓谷を流れる水"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "渓谷の緑が明るくなり、洞窟の出口が光って見えます。"
+      },
+      {
+        "season": "summer",
+        "text": "外が暑い日も洞窟と渓谷は涼しく、緑が最も濃い季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "人が少なく、洞窟の中を落ち着いて撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日が高いと渓谷に光が入り、洞窟の出口との明暗が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "洞窟の中から出口を撮ると、明暗差が大きくなります。出口の明るさに合わせます",
+      "足元が濡れています。滑りにくい靴で行きます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%BC%8A%E5%B0%BE%E6%9C%A8%E6%B4%9E",
+          "title": "Wikipedia「伊尾木洞」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q72183596",
+          "title": "Wikidata「Q72183596」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_a4b77ab73961",
+    "slug": "otonashi-jinja",
+    "name": "鳴無神社",
+    "nameEn": "Otonashi Shrine",
+    "reading": "おとなしじんじゃ",
+    "aliases": [
+      "土佐の宮島"
+    ],
+    "address": "高知県須崎市",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "須崎市"
+    },
+    "coords": {
+      "lat": 33.41,
+      "lng": 133.37
+    },
+    "category": "寺社",
+    "summary": "須崎市浦ノ内にある神社。参道が海に向かって延び、「土佐の宮島」と呼ばれます。本殿・幣殿・拝殿は国の重要文化財です。",
+    "description": "一言主命を祀る神社で、土佐国一宮の土佐神社はこの神社の別宮だったとされます。参道が浦ノ内湾の海へ向かってまっすぐ延び、海の中の鳥居と社殿が並ぶ姿から土佐の宮島と呼ばれます。毎年8月24日から25日には夏祭の志那禰祭が行われます。",
+    "highlights": [
+      "海へ延びる参道と鳥居",
+      "国の重要文化財の本殿・幣殿・拝殿",
+      "浦ノ内湾の静かな水面"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "8月下旬の夏祭の志那禰祭の時期です。湾の緑と海の青が濃い季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、湾の水面に社殿と鳥居が映ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "湾が凪いでいれば、鳥居と参道が水面に映ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光で社殿の彩色が深くなります。"
+      }
+    ],
+    "compositionTips": [
+      "海側の鳥居から社殿へ参道の線を通すと、この神社らしい一枚になります",
+      "潮の満ち引きで鳥居の見え方が変わります。潮の時刻を確かめます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%B3%B4%E7%84%A1%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「鳴無神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11675401",
+          "title": "Wikidata「Q11675401」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_fee21d986866",
+    "slug": "kongofukuji",
+    "name": "金剛福寺",
+    "nameEn": "Kongofuku-ji Temple",
+    "reading": "こんごうふくじ",
+    "aliases": [
+      "四国第三十八番札所",
+      "蹉跎山 金剛福寺"
+    ],
+    "address": "高知県土佐清水市",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "土佐清水市"
+    },
+    "coords": {
+      "lat": 32.73,
+      "lng": 133.02
+    },
+    "category": "寺社",
+    "summary": "足摺岬にある真言宗豊山派の寺院で、四国八十八箇所の第三十八番札所。境内には亜熱帯の植物が茂ります。",
+    "description": "蹉跎山・補陀洛院と号し、本尊は千手観世音菩薩です。境内には亜熱帯植物が茂り、多宝塔の右奥には芭蕉の句碑が和泉式部の逆修塔と並びます。足摺岬の遊歩道沿いには弘法大師の七不思議と呼ばれる石が点在し、岬の海と寺の伽藍を一度の訪問で撮れます。",
+    "highlights": [
+      "亜熱帯植物の茂る境内",
+      "多宝塔と芭蕉の句碑",
+      "足摺岬の遊歩道の七不思議"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の植物の緑が明るく、伽藍の朱が映えます。"
+      },
+      {
+        "season": "summer",
+        "text": "亜熱帯の植物が勢いよく茂る季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "季節風の日は岬の海が荒れ、波の写真も撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "札所の参拝が始まる前の静かな境内を撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "多宝塔に光が当たり、塔の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "多宝塔は境内の植物を手前に入れると、南国の寺らしさが出ます",
+      "お遍路さんの参拝の妨げにならない位置で撮ります"
+    ],
+    "officialWebsiteUrl": "https://kongoufukuji.com",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%87%91%E5%89%9B%E7%A6%8F%E5%AF%BA",
+          "title": "Wikipedia「金剛福寺」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11646540",
+          "title": "Wikidata「Q11646540」（座標・所在地）"
+        },
+        {
+          "url": "https://kongoufukuji.com",
+          "title": "公式サイト「蹉跎山 補陀洛院 金剛福寺 | 日本遺産「四国霊場」第三十八番札所」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_173be1450a3a",
+    "slug": "shoryuji-tosa",
+    "name": "青龍寺（土佐市）",
+    "nameEn": "Shoryu-ji Temple, Tosa",
+    "reading": "しょうりゅうじ",
+    "aliases": [
+      "四国第三十六番札所",
+      "波切不動"
+    ],
+    "address": "高知県土佐市",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "土佐市"
+    },
+    "coords": {
+      "lat": 33.43,
+      "lng": 133.45
+    },
+    "category": "寺社",
+    "summary": "土佐市宇佐町にある真言宗豊山派の寺院で、四国八十八箇所の第三十六番札所。本尊は波切不動明王です。",
+    "description": "独鈷山・伊舎那院と号し、竜のお不動さんの愛称があります。本堂のある上段が如意山、客殿が摩尼山の麓、奥の院が独鈷山にあり、山の斜面に堂が段になって並びます。長い石段を上って本堂へ向かう参道と、木々に囲まれた堂の並びを撮れる札所です。",
+    "highlights": [
+      "本堂へ続く石段",
+      "山の斜面に並ぶ堂",
+      "奥の院のある独鈷山"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "参道の木々が芽吹き、石段が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "木陰の濃い石段と堂の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づき、石段に色が入ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "石段に斜めの光が入り、段の陰影が出ます。"
+      },
+      {
+        "time": "day",
+        "text": "木陰の中の堂は暗めです。空を入れずに撮ると色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "石段は下から見上げると長さが伝わります",
+      "お遍路さんの参拝の妨げにならない位置で撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%9D%92%E9%BE%8D%E5%AF%BA_(%E5%9C%9F%E4%BD%90%E5%B8%82)",
+          "title": "Wikipedia「青龍寺 (土佐市)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11662839",
+          "title": "Wikidata「Q11662839」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_598327a976ea",
+    "slug": "okinoshima-kochi",
+    "name": "宿毛 沖の島",
+    "nameEn": "Okinoshima Island, Kochi",
+    "reading": "おきのしま",
+    "aliases": [
+      "宿毛 沖の島",
+      "うどの浜"
+    ],
+    "address": "高知県宿毛市",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "宿毛市"
+    },
+    "coords": {
+      "lat": 32.73,
+      "lng": 132.55
+    },
+    "category": "島",
+    "summary": "宿毛市片島の沖合約24kmにある島。足摺宇和海国立公園の一部で、海岸の大部分が断崖です。",
+    "description": "高知県の南西にある面積10.02km2の島で、最も高いのは妹背山の頂です。海岸はほとんどが断崖絶壁で、平地は少ない島です。海水浴場や磯釣り、マリンスポーツが島の大切な産業で、古屋野集落のうどの浜海水浴場は四国で早く海開きをすることで知られます。",
+    "highlights": [
+      "断崖の続く海岸",
+      "島を囲む澄んだ海",
+      "うどの浜海水浴場"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海開きの早い島で、春の終わりから海の色が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "海水浴の季節です。断崖と澄んだ海の色を撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "人が減り、集落と海の静かな景色を撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きの海に朝の光が入ります。"
+      },
+      {
+        "time": "day",
+        "text": "日が高いと海の色が最も鮮やかになります。"
+      }
+    ],
+    "compositionTips": [
+      "定期船の時刻を先に決めてから回ります",
+      "集落は生活の場です。家や人を撮るときは声をかけます",
+      "断崖の上は柵の無い所があります。近づきすぎないこと"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%B2%96%E3%81%AE%E5%B3%B6_(%E9%AB%98%E7%9F%A5%E7%9C%8C)",
+          "title": "Wikipedia「沖の島 (高知県)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11552466",
+          "title": "Wikidata「Q11552466」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_5f9e88bb4828",
+    "slug": "kiragawa-townscape",
+    "name": "吉良川の町並み（吉良川町）",
+    "nameEn": "Kiragawa Historic Townscape",
+    "reading": "きらがわのまちなみ",
+    "aliases": [
+      "室戸市吉良川町伝建地区",
+      "吉良川町伝統的建造物群保存地区"
+    ],
+    "address": "高知県室戸市",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "室戸市"
+    },
+    "coords": {
+      "lat": 33.33,
+      "lng": 134.1
+    },
+    "category": "町並み",
+    "summary": "室戸市北西部の吉良川町。一部が国の重要伝統的建造物群保存地区に選ばれ、土蔵や座敷庭を配した家々が残ります。",
+    "description": "国道55号沿い、室戸岬から北西にある町で、一部が室戸市吉良川町伝建地区として国の重要伝統的建造物群保存地区に選ばれています。主屋・釜屋に土蔵や離れ、座敷庭を配した分棟型の家屋が残ります。鎌倉時代から続く御田祭は国の重要無形民俗文化財で、西暦の奇数年の5月3日に催されます。",
+    "highlights": [
+      "伝建地区に残る家並み",
+      "土蔵や離れを配した分棟型の家屋",
+      "奇数年の御田祭"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "奇数年の5月3日には御田祭が催されます。"
+      },
+      {
+        "season": "summer",
+        "text": "強い日差しで白壁と瓦の陰影がくっきり出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "秋の神祭の時期は町がにぎわいます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "通りに斜めの光が入り、壁の質感が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光で家並みが暖かい色になります。"
+      }
+    ],
+    "compositionTips": [
+      "通りの奥へ家並みを重ねると、町並みの続きが伝わります",
+      "住まいの町です。家の中を覗き込まず、静かに撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%90%89%E8%89%AF%E5%B7%9D%E7%94%BA",
+          "title": "Wikipedia「吉良川町」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11414229",
+          "title": "Wikidata「Q11414229」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_fd3dc3a3257e",
+    "slug": "ryuo-falls-otoyo",
+    "name": "龍王の滝",
+    "nameEn": "Ryuo Falls",
+    "reading": "りゅうおうのたき",
+    "aliases": [
+      "梶ヶ森 龍王の滝"
+    ],
+    "address": "高知県長岡郡大豊町",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "長岡郡大豊町"
+    },
+    "coords": {
+      "lat": 33.77,
+      "lng": 133.76
+    },
+    "category": "滝",
+    "summary": "大豊町佐賀山、梶ヶ森の7合目付近にある落差20メートルの滝。日本の滝百選と高知県の名水40選に選ばれています。",
+    "description": "吉野川支流の南小川水系佐賀山川にある滝で、梶ヶ森の中腹に位置します。上部が小さく段になって落ちる水と、まわりの森が作る景色が見どころです。山の中の滝なので、緑の濃い季節や紅葉の季節に、森ごと撮ると滝の大きさが伝わります。",
+    "highlights": [
+      "梶ヶ森の中腹で落ちる滝",
+      "岩肌を落ちる白い流れ",
+      "滝を囲む森"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "森の緑が濃く、滝の白が引き立つ季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "周りの木々が色づき、滝と紅葉を一緒に撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "直射が入る前は水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は森の中の明暗差が小さくなります。"
+      }
+    ],
+    "compositionTips": [
+      "遅いシャッターで流れを伸ばすなら三脚が要ります",
+      "山道は細いので、運転と足元に気をつけます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%BE%8D%E7%8E%8B%E3%81%AE%E6%BB%9D",
+          "title": "Wikipedia「龍王の滝」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11679302",
+          "title": "Wikidata「Q11679302」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_22880e9588db",
+    "slug": "kajo-park",
+    "name": "霞城公園（山形城跡）",
+    "nameEn": "Kajo Park (Yamagata Castle Ruins)",
+    "reading": "かじょうこうえん",
+    "aliases": [
+      "山形城跡",
+      "霞ヶ城"
+    ],
+    "address": "山形県山形市",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "山形市"
+    },
+    "coords": {
+      "lat": 38.26,
+      "lng": 140.33
+    },
+    "category": "公園",
+    "summary": "山形市の中心にある、国の史跡・山形城跡を整えた都市公園。二の丸の堀と石垣が残り、桜の名所として知られます。",
+    "description": "山形城の二の丸の堀と石垣などの遺構を中心に整えた公園で、市街地の中に一辺500mほどの緑地が広がります。桜の名所として知られ、石垣の桜はライトアップされて堀の水面に映ります。桜の季節には隣を走る奥羽本線が速度を落として通るので、堀と桜と列車を一枚に収められます。",
+    "highlights": [
+      "二の丸の堀と石垣",
+      "堀に映る石垣の桜",
+      "公園の横を走る奥羽本線"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "桜の季節。石垣の桜が堀に映り、列車も速度を落として通ります。"
+      },
+      {
+        "season": "summer",
+        "text": "堀の水面に緑の土手と石垣が映ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の石垣と堀の対比が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "風の弱い朝は堀の映り込みがきれいです。"
+      },
+      {
+        "time": "night",
+        "text": "桜のライトアップの時期は、堀に映る夜桜が撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "堀の外から石垣と桜を重ね、水面の映り込みを下に入れます",
+      "列車は堀端の線路を通ります。線路に近づかず、安全な場所から撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%9C%9E%E5%9F%8E%E5%85%AC%E5%9C%92",
+          "title": "Wikipedia「霞城公園」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11660827",
+          "title": "Wikidata「Q11660827」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_520c2131969a",
+    "slug": "namekawa-otaki",
+    "name": "滑川大滝",
+    "nameEn": "Namekawa Great Falls",
+    "reading": "なめがわおおたき",
+    "aliases": [
+      "滑川の大滝"
+    ],
+    "address": "山形県米沢市",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "米沢市"
+    },
+    "coords": {
+      "lat": 37.78,
+      "lng": 140.22
+    },
+    "category": "滝",
+    "summary": "米沢市、松川の上流にある落差80m・幅40mの滝。日本の滝百選のひとつで、山の中の展望地から全景を見渡せます。",
+    "description": "阿武隈川の支流・松川の上流、標高860m付近にある滝で、流紋岩の岩肌を幅広く落ちます。滑川温泉の駐車場から山道を歩いた先の開けた場所から全景が見えます。雪解けなど水の多い時期には、滝の右上に布引の滝と呼ばれる別の流れが現れることがあります。",
+    "highlights": [
+      "幅広く落ちる大きな滝",
+      "流紋岩の岩肌",
+      "水の多い時期に現れる布引の滝"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "雪解けの水で水量が増え、布引の滝が見られることがあります。"
+      },
+      {
+        "season": "summer",
+        "text": "山の緑が濃く、白い滝との対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "滝の周りの山が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "直射が入る前は水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は森と滝の明暗差が小さくなります。"
+      }
+    ],
+    "compositionTips": [
+      "展望地は山の中の開けた場所です。山歩きの靴で行きます",
+      "滝全体を入れるなら広角、岩肌の流れを切り取るなら望遠を使います"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%BB%91%E5%B7%9D%E5%A4%A7%E6%BB%9D",
+          "title": "Wikipedia「滑川大滝」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11565006",
+          "title": "Wikidata「Q11565006」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_b622cde5f2c6",
+    "slug": "otori-pond",
+    "name": "大鳥池",
+    "nameEn": "Otori Pond",
+    "reading": "おおとりいけ",
+    "aliases": [
+      "朝日山地 大鳥池"
+    ],
+    "address": "山形県鶴岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "鶴岡市"
+    },
+    "coords": {
+      "lat": 38.36,
+      "lng": 139.83
+    },
+    "category": "湖沼",
+    "summary": "鶴岡市大鳥、朝日山地の以東岳北麓にある標高966m付近の山上湖。幻の魚タキタロウの伝説で知られます。",
+    "description": "山形・新潟県境の朝日山地にある山上湖で、赤川水系の東大鳥川の上流にあたります。北岸には避難小屋の大鳥小屋（タキタロウ山荘）があります。登山道を歩いてたどり着く湖で、山に囲まれた静かな湖面と以東岳へ続く稜線を撮れます。",
+    "highlights": [
+      "山に囲まれた山上湖",
+      "以東岳へ続く稜線",
+      "北岸の大鳥小屋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "登山の季節です。湖の青と山の緑が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "湖を囲む山が色づき、湖面に映ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "小屋に泊まれば、朝の湖面に山の影が映る時間を撮れます。"
+      },
+      {
+        "time": "morning",
+        "text": "風の弱い朝は湖面が静かです。"
+      }
+    ],
+    "compositionTips": [
+      "登山道を歩いて行く湖です。山の装備と天気予報を確かめます",
+      "湖岸から以東岳の方向を入れると、湖の位置が伝わります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%A4%A7%E9%B3%A5%E6%B1%A0",
+          "title": "Wikipedia「大鳥池」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q10938643",
+          "title": "Wikidata「Q10938643」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_60873ace6033",
+    "slug": "onogawa-onsen",
+    "name": "小野川温泉",
+    "nameEn": "Onogawa Onsen",
+    "reading": "おのがわおんせん",
+    "aliases": [
+      "小野川温泉 ほたる公園"
+    ],
+    "address": "山形県米沢市",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "米沢市"
+    },
+    "coords": {
+      "lat": 37.88,
+      "lng": 140.05
+    },
+    "category": "温泉",
+    "summary": "米沢市小野川町の温泉で、米沢八湯のひとつ。小野小町に由来するといわれる美人湯と、温泉街の外れのホタル公園があります。",
+    "description": "米沢の市街から離れた山あいの温泉街で、小野小町に由来すると伝わる湯で知られます。温泉街の外れにはホタル公園が整えられ、夏から秋の日曜には朝市が開かれます。冬には積雪があり、雪の温泉街も撮れます。",
+    "highlights": [
+      "山あいの温泉街",
+      "温泉街の外れのホタル公園",
+      "日曜の朝市"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "ホタル公園のホタルを狙える季節です。夏から秋の日曜は朝市も開かれます。"
+      },
+      {
+        "season": "winter",
+        "text": "温泉街が雪に包まれ、湯けむりが立ちます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "日曜の朝市の時間は温泉街がにぎわいます。"
+      },
+      {
+        "time": "night",
+        "text": "ホタルは暗くなってから。光を出す道具は使わず撮ります。"
+      }
+    ],
+    "compositionTips": [
+      "ホタルは長時間露光で光の線を重ねます。三脚が要ります",
+      "ホタルを撮るときはライトやフラッシュを使いません",
+      "温泉街は宿の人や湯治の人の場所です。静かに撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%B0%8F%E9%87%8E%E5%B7%9D%E6%B8%A9%E6%B3%89",
+          "title": "Wikipedia「小野川温泉」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11464055",
+          "title": "Wikidata「Q11464055」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_a369d18011ec",
+    "slug": "zenpoji-tsuruoka",
+    "name": "善宝寺（善寳寺）",
+    "nameEn": "Zenpo-ji Temple",
+    "reading": "ぜんぽうじ",
+    "aliases": [
+      "龍澤山善寳寺",
+      "善寶寺"
+    ],
+    "address": "山形県鶴岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "鶴岡市"
+    },
+    "coords": {
+      "lat": 38.77,
+      "lng": 139.77
+    },
+    "category": "寺社",
+    "summary": "鶴岡市にある曹洞宗の寺院。龍神信仰の寺で、航海安全や大漁を願う海の人々から信仰を集めます。",
+    "description": "山号は龍澤山で、本尊は薬師如来です。妙厳寺・最乗寺と並ぶ曹洞宗三大祈祷所に数えられます。寺号を授けた二龍神が寺内の貝喰池に身を隠したという伝承が残り、天保年間に再建された龍王殿が建ちます。大きな堂と池のある境内を撮れる寺です。",
+    "highlights": [
+      "天保年間に再建された龍王殿",
+      "二龍神の伝承が残る貝喰池",
+      "広い境内の伽藍"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、堂の屋根と緑が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "貝喰池の周りの緑が濃い季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の境内と堂の屋根が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、龍王殿の正面を撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "池の水面に光が入り、周りの木々が映ります。"
+      }
+    ],
+    "compositionTips": [
+      "龍王殿は境内の奥から見上げると、屋根の大きさが出ます",
+      "法要の時は撮影を控えます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%96%84%E5%AF%B3%E5%AF%BA",
+          "title": "Wikipedia「善寳寺」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11418916",
+          "title": "Wikidata「Q11418916」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_e6b02e68b893",
+    "slug": "hiyoriyama-sakata",
+    "name": "酒田 日和山公園",
+    "nameEn": "Hiyoriyama Park, Sakata",
+    "reading": "ひよりやまこうえん",
+    "aliases": [
+      "酒田 日和山"
+    ],
+    "address": "山形県酒田市",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "酒田市"
+    },
+    "coords": {
+      "lat": 38.92,
+      "lng": 139.83
+    },
+    "category": "公園",
+    "summary": "酒田港を見下ろす高台の公園。日本の都市公園100選と歴史公園100選に選ばれ、日本の夕陽百選でもあります。",
+    "description": "園内から酒田市街・日本海・最上川・出羽三山を見渡せる高台の公園です。日本の夕陽百選に選ばれた夕日の名所で、桜の名所でもあり、毎年4月中旬には酒田日和山桜まつりが開かれます。港町の高台から海へ沈む夕日を撮れる場所です。",
+    "highlights": [
+      "日本海へ沈む夕日",
+      "酒田港と市街の眺め",
+      "春の桜"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "4月中旬の桜まつりの時期は、桜越しに港を撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "日が長く、夕日が日本海の上に沈みます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、出羽三山の方向まで見渡せます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西日が港と海を照らします。"
+      },
+      {
+        "time": "dusk",
+        "text": "日本海へ沈む夕日を狙えます。"
+      }
+    ],
+    "compositionTips": [
+      "夕日は港の景色を手前に入れると、酒田らしい一枚になります",
+      "夕日の位置は季節で動きます。日の入りの方角を確かめておきます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%97%A5%E5%92%8C%E5%B1%B1%E5%85%AC%E5%9C%92_(%E9%85%92%E7%94%B0%E5%B8%82)",
+          "title": "Wikipedia「日和山公園 (酒田市)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q21654332",
+          "title": "Wikidata「Q21654332」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_3c9c57722220",
+    "slug": "uesugi-mausoleum",
+    "name": "上杉家廟所",
+    "nameEn": "Uesugi Family Mausoleum",
+    "reading": "うえすぎけびょうしょ",
+    "aliases": [
+      "米沢藩主上杉家墓所",
+      "上杉家御廟所"
+    ],
+    "address": "山形県米沢市",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "米沢市"
+    },
+    "coords": {
+      "lat": 37.91,
+      "lng": 140.09
+    },
+    "category": "史跡",
+    "summary": "米沢市にある米沢藩の歴代藩主の墓所。1984年に米沢藩主上杉家墓所として国の史跡に指定されました。",
+    "description": "上杉謙信をはじめ米沢藩の歴代藩主を祀る墓所です。木立に囲まれた静かな敷地に廟が並び、国の史跡に指定されています。木々の影と古い石や木の建物が作る落ち着いた景色を、静かな気持ちで撮る場所です。",
+    "highlights": [
+      "歴代藩主の廟が並ぶ敷地",
+      "敷地を囲む木立",
+      "上杉謙信を祀る廟"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑の木立が廟を包みます。"
+      },
+      {
+        "season": "summer",
+        "text": "木陰が濃く、静かな敷地が撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪に包まれた廟と木立が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "木漏れ日が廟の並びに落ちます。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は木立の中の明暗差が小さくなります。"
+      }
+    ],
+    "compositionTips": [
+      "廟の並びは横から斜めに撮ると、奥への連なりが出ます",
+      "墓所です。静かに、決められた所から撮ります"
+    ],
+    "officialWebsiteUrl": "https://uesugigobyo.com/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B8%8A%E6%9D%89%E5%AE%B6%E5%BB%9F%E6%89%80",
+          "title": "Wikipedia「上杉家廟所」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11359155",
+          "title": "Wikidata「Q11359155」（座標・所在地）"
+        },
+        {
+          "url": "https://uesugigobyo.com/",
+          "title": "公式サイト「山形県米沢市 | 【公式】米澤藩主上杉家廟所」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_4e261c4d1cfc",
+    "slug": "hoshi-onsen",
+    "name": "法師温泉",
+    "nameEn": "Hoshi Onsen",
+    "reading": "ほうしおんせん",
+    "aliases": [
+      "法師温泉 長寿館"
+    ],
+    "address": "群馬県利根郡みなかみ町",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "利根郡みなかみ町"
+    },
+    "coords": {
+      "lat": 36.74,
+      "lng": 138.83
+    },
+    "category": "温泉",
+    "summary": "みなかみ町永井にある一軒宿の温泉。水上温泉郷のひとつで、与謝野晶子や川端康成など多くの文人が訪れました。",
+    "description": "湯宿温泉・川古温泉とともに国民保養温泉地に指定されている一軒宿の温泉で、地形からかなり古い開湯と推察されています。与謝野鉄幹・晶子、若山牧水、川端康成ら多くの文人が訪れた宿として知られます。山あいの谷にたたずむ木造の宿と、周りの森の季節の色を撮れる場所です。",
+    "highlights": [
+      "山あいの一軒宿",
+      "文人が訪れた木造の宿",
+      "宿を囲む森"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の新緑が宿を包みます。"
+      },
+      {
+        "season": "summer",
+        "text": "谷の緑が濃く、涼しい山の宿の景色が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "周りの山が色づき、宿の屋根と紅葉を一緒に撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪に埋もれた一軒宿の景色が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "谷に朝霧が残ることがあり、宿の屋根が浮かびます。"
+      },
+      {
+        "time": "dusk",
+        "text": "宿の灯りがともり始める時間が撮りやすい時間です。"
+      }
+    ],
+    "compositionTips": [
+      "宿の中や浴室の撮影は宿の決まりに従います",
+      "宿の外観は少し離れて、森ごと入れると山の宿らしさが出ます"
+    ],
+    "officialWebsiteUrl": "https://hoshi-onsen.com/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%B3%95%E5%B8%AB%E6%B8%A9%E6%B3%89",
+          "title": "Wikipedia「法師温泉」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11555123",
+          "title": "Wikidata「Q11555123」（座標・所在地）"
+        },
+        {
+          "url": "https://hoshi-onsen.com/",
+          "title": "公式サイト「法師温泉 長寿館 【公式】 ｜群馬県みなかみ町・国登録有形文化財の秘湯宿」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_d7a7b10a46b4",
+    "slug": "shiriyaki-onsen",
+    "name": "尻焼温泉",
+    "nameEn": "Shiriyaki Onsen",
+    "reading": "しりやきおんせん",
+    "aliases": [
+      "尻焼温泉 川の湯"
+    ],
+    "address": "群馬県吾妻郡中之条町",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "吾妻郡中之条町"
+    },
+    "coords": {
+      "lat": 36.65,
+      "lng": 138.64
+    },
+    "category": "温泉",
+    "summary": "中之条町入山、長笹川沿いの温泉。川底から湯が湧く「川の湯」で知られ、平家の落人が見つけたと伝えられます。",
+    "description": "吾妻川支流の白砂川のさらに支流、長笹川沿いに旅館が並ぶ温泉です。最も知られるのは川底から温泉が湧き出す「川の湯」で、川そのものが湯船になります。名前は温まった川底の石に腰を下ろして痔を治したことに由来するといわれます。雨の多い時期や雪解けの時期、上流で夕立があった時は急流になり、川の中には入れません。",
+    "highlights": [
+      "川底から湯が湧く川の湯",
+      "長笹川沿いの宿",
+      "山あいの渓流"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "川の緑が濃い季節です。夕立のあとは急流になるので近づきません。"
+      },
+      {
+        "season": "autumn",
+        "text": "川沿いの木々が色づき、湯けむりと紅葉が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "川面から湯けむりが立ちやすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "川底の石と水の色が見えやすい時間です。"
+      }
+    ],
+    "compositionTips": [
+      "入浴している人がいる時は撮りません",
+      "増水している時は川に近づかないでください"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%B0%BB%E7%84%BC%E6%B8%A9%E6%B3%89",
+          "title": "Wikipedia「尻焼温泉」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11464890",
+          "title": "Wikidata「Q11464890」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_98914ff61e5a",
+    "slug": "manza-onsen",
+    "name": "万座温泉",
+    "nameEn": "Manza Onsen",
+    "reading": "まんざおんせん",
+    "aliases": [
+      "万座"
+    ],
+    "address": "群馬県吾妻郡嬬恋村",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "吾妻郡嬬恋村"
+    },
+    "coords": {
+      "lat": 36.64,
+      "lng": 138.51
+    },
+    "category": "温泉",
+    "summary": "嬬恋村干俣、上信越高原国立公園の中の標高1,800mにある温泉。白く濁った硫黄泉で知られます。",
+    "description": "草津白根山のふもとにある温泉で、白濁や黄濁した酸性硫黄泉が特徴です。近くには湯釜・涸釜・水釜の3つの爆裂火口湖があります。冬はスキー場としてにぎわい、湯けむりの立つ高原と白い湯、周りの山の景色を撮れる場所です。",
+    "highlights": [
+      "白く濁った硫黄泉",
+      "湯けむりの立つ高原",
+      "冬のスキー場"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "高原の涼しい季節で、緑の山と白い湯けむりが撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "高原の木々が早く色づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の高原と湯けむりが撮れます。スキー場もにぎわいます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は湯けむりが濃く立ちます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光が湯けむりを照らします。"
+      }
+    ],
+    "compositionTips": [
+      "火山ガスの出る場所があります。立ち入り禁止の表示に従います",
+      "浴室の撮影は宿の決まりに従います"
+    ],
+    "officialWebsiteUrl": "https://www.manzaonsen.gr.jp/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B8%87%E5%BA%A7%E6%B8%A9%E6%B3%89",
+          "title": "Wikipedia「万座温泉」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11353839",
+          "title": "Wikidata「Q11353839」（座標・所在地）"
+        },
+        {
+          "url": "https://www.manzaonsen.gr.jp/",
+          "title": "公式サイト「万座温泉公式ホームページ」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_194ef67b1645",
+    "slug": "lake-nozori",
+    "name": "野反湖（野反ダム）",
+    "nameEn": "Lake Nozori (Nozori Dam)",
+    "reading": "のぞりこ",
+    "aliases": [
+      "野反湖",
+      "野反池"
+    ],
+    "address": "群馬県吾妻郡中之条町",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "吾妻郡中之条町"
+    },
+    "coords": {
+      "lat": 36.72,
+      "lng": 138.64
+    },
+    "category": "湖沼",
+    "summary": "中之条町、信濃川水系中津川の野反ダムがつくった湖。夏は湖の周りにノゾリキスゲやレンゲツツジなどの花が咲きます。",
+    "description": "高さ44メートルのロックフィルダムでできた人造湖で、高原の冷涼な空気に包まれています。夏には湖の周りにノゾリキスゲ（ニッコウキスゲの当地での名）やレンゲツツジなどの高山植物が咲き、湖と花を一緒に撮れます。水温は夏でも低く、泳ぐのには向きません。",
+    "highlights": [
+      "高原に広がる湖",
+      "夏のノゾリキスゲ",
+      "レンゲツツジ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "ノゾリキスゲやレンゲツツジが咲く季節です。湖と花を一緒に撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "湖を囲む山が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "高原の朝は湖面が静かで、花に露が残ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光で花と湖面が暖かい色になります。"
+      }
+    ],
+    "compositionTips": [
+      "花を手前に大きく、湖を奥に入れると高原の湖らしさが出ます",
+      "花の群落には入らず、遊歩道から撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%87%8E%E5%8F%8D%E3%83%80%E3%83%A0",
+          "title": "Wikipedia「野反ダム」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11645099",
+          "title": "Wikidata「Q11645099」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_b8f2c3f4abbe",
+    "slug": "onioshidashi",
+    "name": "鬼押出し園",
+    "nameEn": "Onioshidashi Park",
+    "reading": "おにおしだしえん",
+    "aliases": [
+      "鬼押出し",
+      "鬼押し出し"
+    ],
+    "address": "群馬県吾妻郡嬬恋村",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "吾妻郡嬬恋村"
+    },
+    "coords": {
+      "lat": 36.44,
+      "lng": 138.53
+    },
+    "category": "自然現象",
+    "summary": "嬬恋村鎌原にある、1783年の浅間山の天明大噴火の溶岩が冷え固まってできた景勝地。黒い溶岩の原が広がります。",
+    "description": "浅間山の天明大噴火で流れた溶岩が冷え固まってできた景勝地を、有料で公開している施設です。ごつごつした黒い溶岩の原の向こうに浅間山がそびえ、園内には東京上野の寛永寺の別院である浅間山観音堂があります。噴火の犠牲者を弔うために建てられた堂で、溶岩と朱の堂の対比が撮れます。",
+    "highlights": [
+      "黒い溶岩の原",
+      "溶岩越しの浅間山",
+      "浅間山観音堂"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "溶岩の間に緑が出始めます。"
+      },
+      {
+        "season": "summer",
+        "text": "高原の空と黒い溶岩、緑の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "溶岩の間の木々が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "斜めの光で溶岩の凹凸が浮き上がります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日が浅間山の山肌を照らします。"
+      }
+    ],
+    "compositionTips": [
+      "溶岩を手前に大きく入れ、浅間山を背景に置くと噴火の跡が伝わります",
+      "浅間山は火山です。噴火警戒の情報を確かめます"
+    ],
+    "officialWebsiteUrl": "https://www.princehotels.co.jp/amuse/onioshidashi/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%AC%BC%E6%8A%BC%E5%87%BA%E3%81%97%E5%9C%92",
+          "title": "Wikipedia「鬼押出し園」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11673482",
+          "title": "Wikidata「Q11673482」（座標・所在地）"
+        },
+        {
+          "url": "https://www.princehotels.co.jp/amuse/onioshidashi/",
+          "title": "公式サイト「鬼押出し園」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_0185fd3fcd14",
+    "slug": "nukisaki-jinja",
+    "name": "一之宮貫前神社",
+    "nameEn": "Ichinomiya Nukisaki Shrine",
+    "reading": "いちのみやぬきさきじんじゃ",
+    "aliases": [
+      "貫前神社",
+      "上野国一宮",
+      "抜鉾神社"
+    ],
+    "address": "群馬県富岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "富岡市"
+    },
+    "coords": {
+      "lat": 36.26,
+      "lng": 138.86
+    },
+    "category": "寺社",
+    "summary": "富岡市一ノ宮にある上野国一宮。石段を上って総門をくぐり、石段を下ると社殿がある「下り宮」の配置で知られます。",
+    "description": "鏑川左岸の河岸段丘の上にある式内社で、旧社格は国幣中社です。社殿は江戸時代に徳川家光・綱吉が整えたもので、本殿・拝殿・楼門などが国の重要文化財です。参道から一度石段を上がり、総門から下った先に社殿が現れる下り宮の配置は、上から社殿を見下ろす構図で撮れます。",
+    "highlights": [
+      "総門から社殿へ下る石段",
+      "国の重要文化財の楼門と社殿",
+      "下り宮の配置"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、社殿の彩色が映えます。"
+      },
+      {
+        "season": "summer",
+        "text": "木陰の濃い石段と明るい社殿の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、社殿の色がはっきりします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、総門から社殿を見下ろす構図を撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "社殿に光が当たり、彩色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "総門の上から下の社殿を見下ろすと、下り宮の形が伝わります",
+      "参拝の人の妨げにならない位置で撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B8%80%E4%B9%8B%E5%AE%AE%E8%B2%AB%E5%89%8D%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「一之宮貫前神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q10863796",
+          "title": "Wikidata「Q10863796」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_59841e1b3cee",
+    "slug": "shorinzan-darumaji",
+    "name": "少林山達磨寺（達磨寺）",
+    "nameEn": "Shorinzan Daruma-ji Temple",
+    "reading": "しょうりんざんだるまじ",
+    "aliases": [
+      "少林山",
+      "少林山達磨寺",
+      "高崎のだるま市"
+    ],
+    "address": "群馬県高崎市",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "高崎市"
+    },
+    "coords": {
+      "lat": 36.33,
+      "lng": 138.96
+    },
+    "category": "寺社",
+    "summary": "高崎市の鼻高丘陵の北斜面にある黄檗宗の禅寺。縁起だるま発祥の地とされ、毎年1月の少林山七草大祭だるま市で知られます。",
+    "description": "山号は少林山で、縁起だるまの発祥の地とされる寺です。毎年1月6日から7日にかけて開かれる少林山七草大祭だるま市には、たくさんのだるまが並びます。丘陵の斜面に堂が建ち、境内に奉納された赤いだるまの色が、季節を問わず写真の主役になります。",
+    "highlights": [
+      "境内に並ぶ赤いだるま",
+      "1月の七草大祭だるま市",
+      "丘陵の斜面に建つ堂"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、堂と赤いだるまの色が並びます。"
+      },
+      {
+        "season": "winter",
+        "text": "1月6日から7日のだるま市は、境内がだるまで埋まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、奉納されただるまを落ち着いて撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "だるまの赤に光が当たり、色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "だるまを手前に大きく入れ、堂を背景にぼかすと寺らしい一枚になります",
+      "だるま市の日は混みます。人の流れを止めない所で撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%81%94%E7%A3%A8%E5%AF%BA_(%E9%AB%98%E5%B4%8E%E5%B8%82)",
+          "title": "Wikipedia「達磨寺 (高崎市)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11641897",
+          "title": "Wikidata「Q11641897」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_42c4a8a376c5",
+    "slug": "mizusawa-kannon",
+    "name": "水澤観音（水澤寺）",
+    "nameEn": "Mizusawa Kannon (Mizusawa-dera)",
+    "reading": "みずさわかんのん",
+    "aliases": [
+      "水沢観音",
+      "水沢寺",
+      "五徳山水澤寺"
+    ],
+    "address": "群馬県渋川市",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "渋川市"
+    },
+    "coords": {
+      "lat": 36.48,
+      "lng": 138.95
+    },
+    "category": "寺社",
+    "summary": "渋川市にある天台宗の寺院で、坂東三十三観音の第16番札所。観音堂や六角二重塔、仁王門が県の重要文化財です。",
+    "description": "山号は五徳山、本尊は十一面千手観世音菩薩です。本堂（観音堂）、六角二重塔（輪蔵）、仁王門が県指定の重要文化財になっています。回すことのできる六角二重塔は形が珍しく、本堂とともに境内の主役になります。",
+    "highlights": [
+      "六角二重塔（輪蔵）",
+      "本堂（観音堂）",
+      "仁王門"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、堂の朱が映えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づき、六角二重塔の周りに色が入ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪をかぶった堂と塔が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、六角二重塔をゆっくり撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光で塔の軒に影ができ、六角の形が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "六角二重塔は斜めから撮ると、六角の面が分かります",
+      "札所の参拝の妨げにならない位置で撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%B0%B4%E6%BE%A4%E5%AF%BA",
+          "title": "Wikipedia「水澤寺」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q24883792",
+          "title": "Wikidata「Q24883792」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_52bbe17cd304",
+    "slug": "sanbaseki-gorge",
+    "name": "三波石峡",
+    "nameEn": "Sanbaseki Gorge",
+    "reading": "さんばせききょう",
+    "aliases": [
+      "三波石"
+    ],
+    "address": "群馬県藤岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "群馬県",
+      "city": "藤岡市"
+    },
+    "coords": {
+      "lat": 36.13,
+      "lng": 139.03
+    },
+    "category": "渓谷",
+    "summary": "神流川の上流、群馬県と埼玉県にまたがる渓谷。国の名勝・天然記念物で、青緑の岩肌に白い模様の三波石が並びます。",
+    "description": "青から緑色の岩肌に白い模様が入った三波石が川の中に並び、新緑や紅葉の木々とともに水面に映る渓谷美は、江戸時代の史料にも登場します。国の名勝と天然記念物に指定されています。石の色と模様を、水の流れと季節の木々と合わせて撮れる場所です。",
+    "highlights": [
+      "青緑の岩肌に白い模様の三波石",
+      "石の間を流れる神流川",
+      "水面に映る木々"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が水面に映り、石の青緑と重なります。"
+      },
+      {
+        "season": "summer",
+        "text": "木陰の濃い渓谷で、石と水の色を撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉の木々が水面に映ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "直射が入る前は石の色が落ち着いて写ります。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は石の模様がはっきり出ます。"
+      }
+    ],
+    "compositionTips": [
+      "偏光フィルターで水面の反射を抑えると、石の色が出ます",
+      "石を持ち帰ったり動かしたりしないでください"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B8%89%E6%B3%A2%E7%9F%B3%E5%B3%A1",
+          "title": "Wikipedia「三波石峡」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11356265",
+          "title": "Wikidata「Q11356265」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_24d81f570376",
+    "slug": "heiwadai-park",
+    "name": "平和台公園",
+    "nameEn": "Heiwadai Park",
+    "reading": "へいわだいこうえん",
+    "aliases": [
+      "宮崎県立平和台公園",
+      "平和の塔"
+    ],
+    "address": "宮崎県宮崎市",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "宮崎市"
+    },
+    "coords": {
+      "lat": 31.95,
+      "lng": 131.41
+    },
+    "category": "公園",
+    "summary": "宮崎市下北方町の丘陵地にある県立の都市公園。石造りの大きな平和の塔（八紘之基柱）で知られます。",
+    "description": "宮崎市の北の丘陵にある公園で、平和の塔（八紘之基柱）が立ちます。戦後には塔の文字と像が取り除かれた時期があり、時代ごとの歴史を背負った塔です。丘の上の広い園地から塔を見上げる構図や、丘の緑の中を歩く道を撮れます。",
+    "highlights": [
+      "丘の上に立つ平和の塔",
+      "塔の前に広がる園地",
+      "丘陵の緑"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "園地の木々が芽吹き、塔の石の色と緑が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "空が高く、塔を青空に抜いて撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、塔の石肌がはっきりします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東からの光が塔の正面に当たります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で塔の石が暖かい色になります。"
+      }
+    ],
+    "compositionTips": [
+      "塔は離れて低い位置から見上げると、高さが伝わります",
+      "広い園地なので、広角で空を大きく入れられます"
+    ],
+    "officialWebsiteUrl": "https://h.park-miyazaki.jp/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%B9%B3%E5%92%8C%E5%8F%B0%E5%85%AC%E5%9C%92",
+          "title": "Wikipedia「平和台公園」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q3364135",
+          "title": "Wikidata「Q3364135」（座標・所在地）"
+        },
+        {
+          "url": "https://h.park-miyazaki.jp/",
+          "title": "公式サイト「平和台公園 - 木々や草花がいっぱい！街の真ん中にある文化・アスレチックスポット「総合文化公園」。図書館や美術館、芸術劇」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_08e62bd33b29",
+    "slug": "omi-jinja-hyuga",
+    "name": "大御神社（日向市）",
+    "nameEn": "Omi Shrine, Hyuga",
+    "reading": "おおみじんじゃ",
+    "aliases": [
+      "日向のお伊勢さま"
+    ],
+    "address": "宮崎県日向市",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "日向市"
+    },
+    "coords": {
+      "lat": 32.41,
+      "lng": 131.65
+    },
+    "category": "寺社",
+    "summary": "日向市日知屋にある、地元で「日向のお伊勢さま」と呼ばれる神社。境内にはさざれ石の群れがあり、社殿は国の登録有形文化財です。",
+    "description": "天照皇大御神を祀る神社で、境内に大規模なさざれ石群があります。2003年の境内地拡張のときに見つかったもので、さざれ石の巨石は神座と呼ばれます。海辺の岩の上に建つ社殿と、ごつごつした石の連なりを撮れる神社です。",
+    "highlights": [
+      "境内のさざれ石群",
+      "さざれ石の巨石・神座",
+      "国の登録有形文化財の社殿"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海の色が明るくなり、社殿と海を一緒に撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "日差しが強く、石の凹凸と海の青がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、海の水平線がくっきりします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "海側から朝日が昇り、さざれ石に斜めの光が当たります。"
+      },
+      {
+        "time": "day",
+        "text": "社殿の色と海の青がはっきり出ます。"
+      }
+    ],
+    "compositionTips": [
+      "さざれ石は低い位置から撮ると、石の連なりが大きく見えます",
+      "岩の上は滑ります。足元に気をつけます"
+    ],
+    "officialWebsiteUrl": "https://oomijinja.com/index.html",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%A4%A7%E5%BE%A1%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「大御神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q120968100",
+          "title": "Wikidata「Q120968100」（座標・所在地）"
+        },
+        {
+          "url": "https://oomijinja.com/index.html",
+          "title": "公式サイト「大御神社 【公式サイト】」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_6b3b3547af30",
+    "slug": "tsuno-jinja",
+    "name": "都農神社",
+    "nameEn": "Tsuno Shrine",
+    "reading": "つのじんじゃ",
+    "aliases": [
+      "日向国一宮",
+      "一の宮神社",
+      "宮崎宮"
+    ],
+    "address": "宮崎県児湯郡都農町",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "児湯郡都農町"
+    },
+    "coords": {
+      "lat": 32.26,
+      "lng": 131.56
+    },
+    "category": "寺社",
+    "summary": "都農町にある日向国一宮。大己貴命を祀り、社伝では神武天皇が東征に向かう際に鎮祭したことに始まるといいます。",
+    "description": "式内社で、旧社格は国幣小社です。明治以前は宮崎社・宮崎宮とも呼ばれ、地元では一の宮神社として親しまれます。かつては壮大な社殿と広い境内を持つ日向国第一の大社だったと伝えられます。北東には奥宮の瀧神社があり、境内と合わせて回れます。",
+    "highlights": [
+      "日向国一宮の社殿",
+      "鳥居から続く参道",
+      "奥宮の瀧神社"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、社殿の背景が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "木陰の濃い参道と社殿の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、社殿の屋根の線がはっきりします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、参道から社殿まで見通せます。"
+      },
+      {
+        "time": "day",
+        "text": "社殿に光が当たり、色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "鳥居を額縁にして社殿を収めると、参道の奥行きが出ます",
+      "参拝の人の妨げにならない位置で撮ります"
+    ],
+    "officialWebsiteUrl": "https://tunojinjya6.webnode.jp/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%83%BD%E8%BE%B2%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「都農神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q3541675",
+          "title": "Wikidata「Q3541675」（座標・所在地）"
+        },
+        {
+          "url": "https://tunojinjya6.webnode.jp/",
+          "title": "公式サイト「都農神社公式ホームページ」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_f297eaae68ce",
+    "slug": "yatogi-falls",
+    "name": "矢研の滝",
+    "nameEn": "Yatogi Falls",
+    "reading": "やとぎのたき",
+    "aliases": [
+      "尾鈴山瀑布群 矢研の滝"
+    ],
+    "address": "宮崎県児湯郡都農町",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "児湯郡都農町"
+    },
+    "coords": {
+      "lat": 32.29,
+      "lng": 131.47
+    },
+    "category": "滝",
+    "summary": "都農町の名貫川上流、矢研谷にかかる滝。日本の滝百選のひとつで、国の名勝・尾鈴山瀑布群の一部です。",
+    "description": "尾鈴県立自然公園の中にある滝で、尾鈴山の東の角崎山から流れ出る水が73mの岩壁を数条に分かれて落ちます。縦に長い岩壁を何本もの白い筋が落ちる姿が見どころで、周りの森と合わせて撮ると滝の高さが伝わります。",
+    "highlights": [
+      "岩壁を数条に分かれて落ちる水",
+      "縦に長い岩壁",
+      "尾鈴山の森"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "森の緑が濃く、滝の白い筋が引き立ちます。"
+      },
+      {
+        "season": "autumn",
+        "text": "周りの木々が色づき、滝と紅葉を一緒に撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "直射が入る前は水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は岩壁の明暗差が小さくなります。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図で岩壁全体を入れると、落差が伝わります",
+      "雨の後は増水します。滝つぼに近づかないでください"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%9F%A2%E7%A0%94%E3%81%AE%E6%BB%9D",
+          "title": "Wikipedia「矢研の滝」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11584230",
+          "title": "Wikidata「Q11584230」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_7e989f47771a",
+    "slug": "nobeoka-castle",
+    "name": "延岡城跡（城山公園）",
+    "nameEn": "Nobeoka Castle Ruins (Shiroyama Park)",
+    "reading": "のべおかじょうあと",
+    "aliases": [
+      "城山公園 (延岡市)",
+      "千人殺しの石垣",
+      "縣城"
+    ],
+    "address": "宮崎県延岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "延岡市"
+    },
+    "coords": {
+      "lat": 32.58,
+      "lng": 131.66
+    },
+    "category": "城跡",
+    "summary": "延岡市本小路にあった平山城の跡。石をはずすと全体が崩れるといわれる「千人殺し」の石垣で知られます。",
+    "description": "江戸時代に高橋元種が築いた平山城で、もとは縣城、別名を亀井城といいます。本城と西の丸の2郭からなり、五ヶ瀬川と大瀬川を外堀にしていました。「千人殺し」と呼ばれる石垣は高さ約19ｍで、見上げるとその迫力が伝わります。城跡は城山公園として整えられています。",
+    "highlights": [
+      "千人殺しと呼ばれる高い石垣",
+      "城山公園の園地",
+      "五ヶ瀬川と大瀬川を望む高台"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "城山公園の桜が咲き、石垣と花を一緒に撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "石垣に夏の緑が映え、高台から川と町を見渡せます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、石垣の石の質感がはっきりします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "石垣に斜めの光が入り、石の凹凸が浮かびます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で石垣が暖かい色になります。"
+      }
+    ],
+    "compositionTips": [
+      "千人殺しの石垣は真下から見上げると、高さが伝わります",
+      "石垣には登らず、通路から撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%BB%B6%E5%B2%A1%E5%9F%8E",
+          "title": "Wikipedia「延岡城」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11486526",
+          "title": "Wikidata「Q11486526」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_de37cabbdcb5",
+    "slug": "mt-okue",
+    "name": "大崩山",
+    "nameEn": "Mount Okue",
+    "reading": "おおくえやま",
+    "aliases": [
+      "大崩山群"
+    ],
+    "address": "宮崎県延岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "延岡市"
+    },
+    "coords": {
+      "lat": 32.74,
+      "lng": 131.51
+    },
+    "category": "山岳",
+    "summary": "延岡市北西部、九州山地の大崩山群の主峰。東側の斜面に露出した花崗岩が崩れたように見えることが名前の由来です。",
+    "description": "周りには屹立する岩峰群があり、北東の山麓には祝子川渓谷、南西の山麓には鹿川渓谷がある景勝地です。風化した花崗岩の白い岩肌と森の緑の対比が見どころで、岩峰の上からは九州山地の山並みが広がります。岩場の多い山なので、登山の経験と装備が要ります。",
+    "highlights": [
+      "屹立する花崗岩の岩峰群",
+      "祝子川渓谷",
+      "鹿川渓谷"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の新緑と白い岩肌の対比が撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "渓谷の緑が濃く、沢の水が涼しい季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "岩峰の周りの木々が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "岩峰に朝日が当たり、白い花崗岩が光ります。"
+      },
+      {
+        "time": "day",
+        "text": "岩と空の対比がはっきりします。"
+      }
+    ],
+    "compositionTips": [
+      "岩峰は望遠で切り取ると、白い岩肌の質感が出ます",
+      "岩場の多い山です。登山の経験と装備を整えて行きます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%A4%A7%E5%B4%A9%E5%B1%B1",
+          "title": "Wikipedia「大崩山」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11435081",
+          "title": "Wikidata「Q11435081」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_3c9cebce1945",
+    "slug": "kirishima-higashi-jinja",
+    "name": "霧島東神社",
+    "nameEn": "Kirishima Higashi Shrine",
+    "reading": "きりしまひがしじんじゃ",
+    "aliases": [
+      "霧島東神社 御池"
+    ],
+    "address": "宮崎県西諸県郡高原町",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "西諸県郡高原町"
+    },
+    "coords": {
+      "lat": 31.89,
+      "lng": 130.96
+    },
+    "category": "寺社",
+    "summary": "高原町、霧島連山の高千穂峰の東側の山腹にある神社。南東に御池の水面を見下ろす場所に鎮座します。",
+    "description": "霧島連山の霊峰・高千穂峰の東の山腹にある延喜式内社の論社で、旧社格は県社です。氏子だけで行われる祓川神楽は、狭野神社の狭野神楽とともに「髙原の神舞」として国の重要無形民俗文化財に指定されています。山腹の境内から御池の水面を見下ろす眺めが撮れる神社です。",
+    "highlights": [
+      "山腹から見下ろす御池",
+      "高千穂峰の東の山腹の境内",
+      "祓川神楽の伝わる神社"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の木々が芽吹き、境内から見る御池の色が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の濃い山腹と青い御池の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "山の木々が色づき、御池の周りに色が入ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きの山腹に朝の光が入ります。"
+      },
+      {
+        "time": "day",
+        "text": "御池の水面の色が出やすい時間です。"
+      }
+    ],
+    "compositionTips": [
+      "境内から御池を見下ろす構図は、木の枝を額縁に使えます",
+      "霧島山は火山です。噴火警戒の情報を確かめます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%9C%A7%E5%B3%B6%E6%9D%B1%E7%A5%9E%E7%A4%BE",
+          "title": "Wikipedia「霧島東神社」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q113691340",
+          "title": "Wikidata「Q113691340」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_3709eac1e595",
+    "slug": "takanabe-daishi",
+    "name": "高鍋大師",
+    "nameEn": "Takanabe Daishi Stone Statues",
+    "reading": "たかなべだいし",
+    "aliases": [
+      "持田 石像群"
+    ],
+    "address": "宮崎県児湯郡高鍋町",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "児湯郡高鍋町"
+    },
+    "coords": {
+      "lat": 32.14,
+      "lng": 131.52
+    },
+    "category": "仏像",
+    "summary": "高鍋町持田にある石像群。近くの持田古墳群の霊を慰めるため、町の米穀店主・岩岡保吉が作らせたものです。",
+    "description": "持田古墳群の霊を慰めるために、岩岡保吉という人物が八十八箇所にちなんで石像をつくり続けたのが始まりです。丘の上に大きな石像が並び立つ光景は独特で、空を背景に石像の表情を撮れます。古墳群とあわせて回れる場所です。",
+    "highlights": [
+      "丘の上に並び立つ石像",
+      "石像の表情",
+      "近くの持田古墳群"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "丘の草木が芽吹き、石像と緑の対比が撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "空が高く、石像を青空に抜いて撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、石の質感がはっきりします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東からの光が石像の正面に当たります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で石像の表情に陰影が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "石像は低い位置から空を背景に撮ると、大きさが伝わります",
+      "供養の場です。石像に触れたり登ったりしないでください"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%AB%98%E9%8D%8B%E5%A4%A7%E5%B8%AB",
+          "title": "Wikipedia「高鍋大師」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q55532223",
+          "title": "Wikidata「Q55532223」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_e9b8b9b146ca",
+    "slug": "mt-sobo",
+    "name": "祖母山",
+    "nameEn": "Mount Sobo",
+    "reading": "そぼさん",
+    "aliases": [
+      "祖母傾山系",
+      "祖母嶽"
+    ],
+    "address": "宮崎県西臼杵郡高千穂町",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "西臼杵郡高千穂町"
+    },
+    "coords": {
+      "lat": 32.83,
+      "lng": 131.35
+    },
+    "category": "山岳",
+    "summary": "大分県と宮崎県の県境にある標高1,756mの山。宮崎県の最高峰で、日本百名山に選ばれています。",
+    "description": "九州山地の中核をなす祖母傾山系の主峰です。登山道は整えられた道から断崖を登る道まであり、四季を通じて登山客が訪れます。山頂からは九州山地の山並みが幾重にも重なって見え、稜線や岩場、森の景色を季節ごとに撮れる山です。",
+    "highlights": [
+      "九州山地の山並みを見渡す山頂",
+      "祖母傾山系の稜線",
+      "断崖を登る登山道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の木々が芽吹き、稜線に花が咲き始めます。"
+      },
+      {
+        "season": "summer",
+        "text": "雲が湧きやすく、山並みに雲海がかかる朝もあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "山の木々が色づき、稜線が錦になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "山頂付近から朝日と重なる山並みを狙えます。"
+      },
+      {
+        "time": "morning",
+        "text": "斜めの光で山の襞が深く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "重なる山並みは望遠で圧縮すると、奥行きが出ます",
+      "登山道によっては断崖を登ります。経験と装備に合った道を選びます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%A5%96%E6%AF%8D%E5%B1%B1",
+          "title": "Wikipedia「祖母山」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q3695986",
+          "title": "Wikidata「Q3695986」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_75e3cdd1b44d",
+    "slug": "kunenan",
+    "name": "九年庵",
+    "nameEn": "Kunen-an",
+    "reading": "くねんあん",
+    "aliases": [
+      "伊丹氏別邸"
+    ],
+    "address": "佐賀県神埼市",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "神埼市"
+    },
+    "coords": {
+      "lat": 33.36,
+      "lng": 130.36
+    },
+    "category": "庭園",
+    "summary": "神埼市神埼町の仁比山にある数寄屋造りの邸宅と日本庭園。明治期に実業家の伊丹家が造り、時期を限って公開されます。",
+    "description": "佐賀県出身の実業家・伊丹文右衛門と弥太郎の親子が造った別邸で、今は佐賀県が持っています。庭園の高木はモミジ、中低木はツツジ類が大半を占め、秋の紅葉が知られます。客間には四方正目の栂の柱や檜の長押が使われ、上質な材と質素な壁の対比が美しい建物です。公開は時期が限られます。",
+    "highlights": [
+      "モミジの多い庭園",
+      "数寄屋造りの邸宅",
+      "苔と木々の庭"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "ツツジ類が多い庭で、新緑とともに花が見られます。"
+      },
+      {
+        "season": "autumn",
+        "text": "モミジの紅葉の季節で、公開の時期にあたります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "公開の時間の早いうちは人が少なく、庭を見渡せます。"
+      },
+      {
+        "time": "day",
+        "text": "木漏れ日が苔に落ち、庭の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "公開の期間と時間は事前に確かめます",
+      "邸宅から庭を見る構図は、柱と軒を額縁に使えます",
+      "混む時期は三脚を使わず、人の流れを止めずに撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B9%9D%E5%B9%B4%E5%BA%B5",
+          "title": "Wikipedia「九年庵」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11370369",
+          "title": "Wikidata「Q11370369」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_bfbec1f6e37f",
+    "slug": "mikaeri-falls",
+    "name": "見帰りの滝",
+    "nameEn": "Mikaeri Falls",
+    "reading": "みかえりのたき",
+    "aliases": [
+      "見帰りの滝 アジサイ"
+    ],
+    "address": "佐賀県唐津市",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.37,
+      "lng": 130.04
+    },
+    "category": "滝",
+    "summary": "唐津市相知町、天山県立自然公園の中にある滝。日本の滝百選に選ばれ、6月にはアジサイ祭りが開かれます。",
+    "description": "松浦川の支流・左伊岐佐川にある滝で、右岸には不動尊・十一面観音・地蔵尊があり、すぐ下流にはしぶき橋・あじさい橋が架かります。滝と下流の周りには約40種・4万株のアジサイが植えられ、1988年から毎年6月に見帰りの滝アジサイ祭りが開かれます。滝とアジサイを一枚に入れられる場所です。",
+    "highlights": [
+      "岩壁を落ちる滝",
+      "滝の周りに咲くアジサイ",
+      "しぶき橋とあじさい橋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "6月はアジサイ祭りの季節です。滝とアジサイを一緒に撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "滝の周りの木々が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "直射が入る前は、滝の白とアジサイの色が落ち着いて写ります。"
+      },
+      {
+        "time": "day",
+        "text": "曇りや小雨の日はアジサイの色が深く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "アジサイを手前に入れ、奥に滝を置くと、季節の一枚になります",
+      "祭りの時期は混みます。人の少ない朝が撮りやすい時間です"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%A6%8B%E5%B8%B0%E3%82%8A%E3%81%AE%E6%BB%9D",
+          "title": "Wikipedia「見帰りの滝」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11630184",
+          "title": "Wikidata「Q11630184」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_c9fb13fcb44b",
+    "slug": "takeo-onsen",
+    "name": "武雄温泉",
+    "nameEn": "Takeo Onsen",
+    "reading": "たけおおんせん",
+    "aliases": [
+      "武雄温泉楼門"
+    ],
+    "address": "佐賀県武雄市",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "武雄市"
+    },
+    "coords": {
+      "lat": 33.2,
+      "lng": 130.01
+    },
+    "category": "温泉",
+    "summary": "武雄市の温泉街。辰野金吾が設計した朱塗りの楼門と新館は国の重要文化財で、温泉街のシンボルです。",
+    "description": "武雄温泉楼門と新館は、いずれも1914年に完成祝賀会が開かれた辰野金吾の設計による建物で、国の重要文化財に指定されています。2003年には新館が復元されました。温泉街では春と夏に祭りがあります。",
+    "highlights": [
+      "辰野金吾が設計した楼門",
+      "復元された新館",
+      "楼門を中心にした温泉街"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "温泉街の祭りの季節で、楼門の周りがにぎわいます。"
+      },
+      {
+        "season": "summer",
+        "text": "夏祭りの時期は温泉街に人が集まります。"
+      },
+      {
+        "season": "winter",
+        "text": "湯けむりの立つ温泉街と楼門が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "楼門の朱に光が当たり、色が出ます。"
+      },
+      {
+        "time": "dusk",
+        "text": "空に色が残る時間は、楼門の朱が落ち着いた色で写ります。"
+      }
+    ],
+    "compositionTips": [
+      "楼門は正面から少し下がって、左右の対称を生かして撮ります",
+      "温泉の利用者が写り込まないように気をつけます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%AD%A6%E9%9B%84%E6%B8%A9%E6%B3%89",
+          "title": "Wikipedia「武雄温泉」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11546632",
+          "title": "Wikidata「Q11546632」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_eb090fdeb74c",
+    "slug": "taku-seibyo",
+    "name": "多久聖廟",
+    "nameEn": "Taku Seibyo (Confucian Temple)",
+    "reading": "たくせいびょう",
+    "aliases": [
+      "多久 孔子廟"
+    ],
+    "address": "佐賀県多久市",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "多久市"
+    },
+    "coords": {
+      "lat": 33.26,
+      "lng": 130.1
+    },
+    "category": "史跡",
+    "summary": "多久市にある孔子廟で、1708年に完成。建物は国の重要文化財に指定されています。",
+    "description": "肥前多久邑主の多久茂文が教育を広めるために建てた孔子廟で、学問所の東原庠舎とともに整えられました。建物は1933年に当時の国宝保存法で旧国宝となり、1950年に国の重要文化財になりました。中国風の意匠の廟を、境内の木々と合わせて撮れる場所です。",
+    "highlights": [
+      "1708年に完成した孔子廟",
+      "中国風の意匠の建物",
+      "境内の木々"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、廟の色と緑が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "空が高く、廟の屋根を青空に抜いて撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、廟の正面を落ち着いて撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光で屋根の反りに陰影が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "廟は正面から左右の対称を生かして撮ります",
+      "祭事の日は撮影の場所に気をつけます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%A4%9A%E4%B9%85%E8%81%96%E5%BB%9F",
+          "title": "Wikipedia「多久聖廟」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q2278548",
+          "title": "Wikidata「Q2278548」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_205642fafe50",
+    "slug": "yobuko-ohashi",
+    "name": "呼子大橋",
+    "nameEn": "Yobuko Bridge",
+    "reading": "よぶこおおはし",
+    "aliases": [
+      "呼子大橋線"
+    ],
+    "address": "佐賀県唐津市",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.54,
+      "lng": 129.88
+    },
+    "category": "橋",
+    "summary": "唐津市の離島・加部島と九州本土を結ぶ道路橋。土木学会田中賞を受けた、玄界灘に架かる白い橋です。",
+    "description": "加部島の住民の交通を良くし、水道のパイプラインで農業用水を安定して送るために架けられた橋で、昭和63年度の土木学会田中賞などを受けています。呼子港の沖、玄界灘の青い海の上に白い橋がのび、港や加部島の側から海と橋を一緒に撮れます。",
+    "highlights": [
+      "玄界灘に架かる白い橋",
+      "呼子港から見る橋",
+      "加部島側からの眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海の色が明るくなり、白い橋がよく映えます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の青が濃く、橋の白との対比が撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "季節風の日は玄界灘が荒れ、波の写真も撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "日が高いと海の色が鮮やかになります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で橋の白が暖かい色になります。"
+      }
+    ],
+    "compositionTips": [
+      "港から望遠で橋を撮ると、橋と海の色が重なります",
+      "橋の上での駐停車はしないでください"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%91%BC%E5%AD%90%E5%A4%A7%E6%A9%8B",
+          "title": "Wikipedia「呼子大橋」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11417065",
+          "title": "Wikidata「Q11417065」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_5daf0b2d08bf",
+    "slug": "todoroki-falls-ureshino",
+    "name": "嬉野 轟の滝",
+    "nameEn": "Todoroki Falls, Ureshino",
+    "reading": "とどろきのたき",
+    "aliases": [
+      "轟の滝公園"
+    ],
+    "address": "佐賀県嬉野市",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "嬉野市"
+    },
+    "coords": {
+      "lat": 33.09,
+      "lng": 129.98
+    },
+    "category": "滝",
+    "summary": "嬉野市にある滝。火山活動でできた段差を水が落ち、付近一帯は公園になっていて春には桜が咲きます。",
+    "description": "堆積岩の大地を貫いた溶岩流が段差をつくり、川の浸食で柔らかい岩が削られて今の滝の景観ができました。付近一帯は公園として整えられ、春には桜が咲いて多くの見物客が訪れます。段差を落ちる水と公園の木々を合わせて撮れます。",
+    "highlights": [
+      "段差を落ちる滝",
+      "滝の周りの公園",
+      "春の桜"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "桜が咲き、滝と花を一緒に撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "公園の緑が濃く、滝の白が引き立ちます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "直射が入る前は水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "公園の明るい光で、滝と木々の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "遅いシャッターで流れを伸ばすなら三脚が要ります",
+      "増水しているときは川に近づかないでください"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:31:30.174Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%BD%9F%E3%81%AE%E6%BB%9D_(%E4%BD%90%E8%B3%80%E7%9C%8C)",
+          "title": "Wikipedia「轟の滝 (佐賀県)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q21653764",
+          "title": "Wikidata「Q21653764」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_5476c8c02aa9",
+    "slug": "tajima-mihonoura",
+    "name": "但馬御火浦",
+    "nameEn": "Tajima Mihonoura Coast",
+    "reading": "たじまみほのうら",
+    "aliases": [
+      "御火浦",
+      "釣鐘洞門"
+    ],
+    "address": "兵庫県美方郡香美町",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "美方郡香美町"
+    },
+    "coords": {
+      "lat": 35.65,
+      "lng": 134.5
+    },
+    "category": "海岸",
+    "summary": "香美町と新温泉町にまたがる約8キロメートルの岩礁海岸。日本海の荒波が刻んだ断崖や洞門、柱状節理が続きます。",
+    "description": "香住海岸の西端の伊笹岬から浜坂海岸の東端の観音山まで続く岩礁海岸で、御火浦という名は漁火に始まるとされます。断崖絶壁、海食洞、柱状節理、岩脈、岩礁と島々が連続し、2つの洞門が組み合わさった釣鐘洞門が特に知られます。海の上から洞門や岩を見る景色は、夏の穏やかな海の日が撮りやすい季節です。",
+    "highlights": [
+      "2つの洞門が組み合わさった釣鐘洞門",
+      "断崖と海食洞の連なり",
+      "流紋岩の柱状節理"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が穏やかな日が多く、海の色と岩の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、断崖の岩肌がはっきりします。"
+      },
+      {
+        "season": "winter",
+        "text": "日本海の荒波が岩に砕けます。海岸には近づきすぎないこと。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東から斜めの光が断崖に当たり、岩の凹凸が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で岩肌が暖かい色になります。"
+      }
+    ],
+    "compositionTips": [
+      "洞門は海の上から見ると形がよく分かります。遊覧船の運航は事前に確かめます",
+      "岩場は滑りやすく、波も急に高くなります。足元に気をつけます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%BD%86%E9%A6%AC%E5%BE%A1%E7%81%AB%E6%B5%A6",
+          "title": "Wikipedia「但馬御火浦」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11381630",
+          "title": "Wikidata「Q11381630」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_7ac052b2b5e5",
+    "slug": "saruo-falls",
+    "name": "猿尾滝",
+    "nameEn": "Saruo Falls",
+    "reading": "さるおだき",
+    "aliases": [
+      "猿尾の滝"
+    ],
+    "address": "兵庫県美方郡香美町",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "美方郡香美町"
+    },
+    "coords": {
+      "lat": 35.43,
+      "lng": 134.61
+    },
+    "category": "滝",
+    "summary": "香美町村岡区にある滝。但馬三名瀑のひとつで日本の滝百選。毎年7月の猿尾滝祭りでは大きなソーメン流しが行われます。",
+    "description": "矢田川の支流、妙見山を源とする湯舟川支流の作山川の流れにある滝です。江戸時代にこの地を治めた山名氏が夏にソーメン流しを楽しんだと伝えられ、毎年7月第2日曜日の猿尾滝祭りで大規模なソーメン流しが行われます。周りの原生林はブナやモミジなどの落葉樹が多く、秋は紅葉の名所です。",
+    "highlights": [
+      "森の中を落ちる白い滝",
+      "周りのブナやモミジの原生林",
+      "7月の猿尾滝祭り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "7月第2日曜日の猿尾滝祭りの季節です。森の緑と白い滝の対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "ブナやモミジが色づき、紅葉の名所になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "直射が入る前は、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は森と滝の明暗差が小さくなります。"
+      }
+    ],
+    "compositionTips": [
+      "遅いシャッターで流れを伸ばすなら三脚と減光フィルターが要ります",
+      "祭りの日は混みます。撮るなら前後の日が落ち着きます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%8C%BF%E5%B0%BE%E6%BB%9D",
+          "title": "Wikipedia「猿尾滝」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11572094",
+          "title": "Wikidata「Q11572094」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_7e9eb421aa10",
+    "slug": "mt-hyonosen",
+    "name": "氷ノ山",
+    "nameEn": "Mount Hyonosen",
+    "reading": "ひょうのせん",
+    "aliases": [
+      "須賀ノ山",
+      "氷の山"
+    ],
+    "address": "兵庫県養父市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "養父市"
+    },
+    "coords": {
+      "lat": 35.35,
+      "lng": 134.51
+    },
+    "category": "山岳",
+    "summary": "兵庫県養父市と鳥取県若桜町の県境にある標高1,510mの山。兵庫県の最高峰で、日本二百名山に選ばれています。",
+    "description": "中国地方では大山に次ぐ高峰で、須賀ノ山とも呼ばれます。豪雪地帯にあるため麓にはスキー場が多い一方、それ以外の山域は原生林が保たれています。ハチ高原などから登る道があり、山頂からは中国山地の山並みが広がります。夏は高原の涼しさの中で稜線と森を、冬は雪の山を撮れます。",
+    "highlights": [
+      "山頂から見渡す中国山地",
+      "保たれた原生林",
+      "ハチ高原から登る道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の木々が芽吹き、残雪と新緑が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "高原は涼しく、稜線の緑と夏の雲が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "保たれた原生林が色づき、山が錦になります。"
+      },
+      {
+        "season": "winter",
+        "text": "豪雪の山です。冬の山は装備と経験が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "山頂付近から朝日と山並みを狙えます。"
+      },
+      {
+        "time": "morning",
+        "text": "斜めの光で稜線の起伏が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "山並みは望遠で重ねると、奥行きが出ます",
+      "天候が変わりやすい山です。予報と装備を確かめて登ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%B0%B7%E3%83%8E%E5%B1%B1",
+          "title": "Wikipedia「氷ノ山」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q6921386",
+          "title": "Wikidata「Q6921386」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_e5185f493e4b",
+    "slug": "izushi-castle",
+    "name": "出石城跡",
+    "nameEn": "Izushi Castle Ruins",
+    "reading": "いずしじょうあと",
+    "aliases": [
+      "出石城 隅櫓"
+    ],
+    "address": "兵庫県豊岡市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "豊岡市"
+    },
+    "coords": {
+      "lat": 35.46,
+      "lng": 134.87
+    },
+    "category": "城跡",
+    "summary": "豊岡市出石町内町にあった梯郭式の平山城。江戸時代には出石藩の藩庁で、本丸跡に再建された隅櫓と登城橋があります。",
+    "description": "山腹に稲荷曲輪、本丸、二ノ丸などが階段状に並び、平地に堀に囲まれた三ノ丸が置かれた城でした。本丸跡には1968年に住民の寄付などで東西2棟の隅櫓が再建され、1994年には登城門と登城橋が再建されました。石垣と隅櫓、城下の町並みを一緒に撮れる城跡です。",
+    "highlights": [
+      "本丸跡に再建された東西の隅櫓",
+      "登城門と登城橋",
+      "階段状に並ぶ石垣"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "城跡の桜が咲き、隅櫓と花を一緒に撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "石垣に夏の緑が映え、空を抜いて櫓を撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の石垣と櫓が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東からの光で石垣の凹凸が浮かびます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で櫓の白壁が暖かい色になります。"
+      }
+    ],
+    "compositionTips": [
+      "登城橋の手前から石垣と隅櫓を重ねると、城跡の高さが伝わります",
+      "石垣には登らず、通路から撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%87%BA%E7%9F%B3%E5%9F%8E",
+          "title": "Wikipedia「出石城」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q2968296",
+          "title": "Wikidata「Q2968296」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_ea5ef1d66e6e",
+    "slug": "sumoto-castle",
+    "name": "洲本城",
+    "nameEn": "Sumoto Castle",
+    "reading": "すもとじょう",
+    "aliases": [
+      "三熊城",
+      "三熊山"
+    ],
+    "address": "兵庫県洲本市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "洲本市"
+    },
+    "coords": {
+      "lat": 34.34,
+      "lng": 134.9
+    },
+    "category": "城跡",
+    "summary": "淡路島の洲本市、三熊山にある国の史跡の城跡。登り石垣を含む石垣が残り、天守台から大浜や洲本の町を見渡せます。",
+    "description": "1526年に三好氏の重臣・安宅治興が築いた城で、のちに天守が造られ、石垣の大改修では倭城での経験から登り石垣が築かれました。曲輪・池・石段・石垣・櫓跡などが残ります。天守台からの「大浜を大観」と三熊山東側展望台からの「マリーナを展望」は洲本八景の1と2に選ばれています。",
+    "highlights": [
+      "山上に残る石垣と登り石垣",
+      "天守台から見る大浜",
+      "東側展望台から見る洲本の港"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の木々が芽吹き、石垣と緑の対比が撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の色が明るく、天守台から大浜と海を見渡せます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、遠くの海まで見通せます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東の海から光が入り、町と港が明るくなります。"
+      },
+      {
+        "time": "night",
+        "text": "石垣のライトアップの時は、夜の石垣が撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "天守台から広角で海と町を入れると、城の立地が伝わります",
+      "山上の石垣は高い所があります。柵の外へ出ないでください"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%B4%B2%E6%9C%AC%E5%9F%8E",
+          "title": "Wikipedia「洲本城」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q5369846",
+          "title": "Wikidata「Q5369846」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_231bffdce912",
+    "slug": "sumaura-park",
+    "name": "須磨浦公園",
+    "nameEn": "Sumaura Park",
+    "reading": "すまうらこうえん",
+    "aliases": [
+      "須磨浦山上遊園"
+    ],
+    "address": "兵庫県神戸市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "神戸市"
+    },
+    "coords": {
+      "lat": 34.64,
+      "lng": 135.1
+    },
+    "category": "公園",
+    "summary": "神戸市須磨区一ノ谷町、鉢伏山と鉄拐山の山麓の斜面に広がる約103.8ヘクタールの公園。山上へロープウェイが通じます。",
+    "description": "神戸市が管理する公園で、海に面した山の斜面に園地が広がります。須磨浦ロープウェイで山上に上がると須磨浦山上遊園があり、斜面の上から須磨の海を見下ろせます。山の斜面と海が一枚に入る景色を撮れる場所です。",
+    "highlights": [
+      "山上から見下ろす須磨の海",
+      "須磨浦ロープウェイ",
+      "海に面した山の斜面の園地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "斜面の園地に花が咲き、海と一緒に撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の青が濃く、山上から見下ろす海岸が明るく写ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、遠くの島や橋まで見通せる日があります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西日が海を照らし、海面が光ります。"
+      },
+      {
+        "time": "dusk",
+        "text": "海に沈む夕日と、対岸の灯りが重なる時間です。"
+      }
+    ],
+    "compositionTips": [
+      "山上からは望遠で海の上の船や橋を切り取れます",
+      "ロープウェイの運行時間を確かめてから上がります"
+    ],
+    "officialWebsiteUrl": "https://www.kobe-park.or.jp/park/sumaura/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:31:30.176Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%A0%88%E7%A3%A8%E6%B5%A6%E5%85%AC%E5%9C%92",
+          "title": "Wikipedia「須磨浦公園」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11664682",
+          "title": "Wikidata「Q11664682」（座標・所在地）"
+        },
+        {
+          "url": "https://www.kobe-park.or.jp/park/sumaura/",
+          "title": "公式サイト「須磨浦公園   神戸市公園緑化協会   神戸の公園ナビ」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_ba363a4bdf5f",
+    "slug": "rokko-alpine-garden",
+    "name": "六甲高山植物園",
+    "nameEn": "Rokko Alpine Botanical Garden",
+    "reading": "ろっこうこうざんしょくぶつえん",
+    "aliases": [
+      "六甲山高山植物園"
+    ],
+    "address": "兵庫県神戸市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "神戸市"
+    },
+    "coords": {
+      "lat": 34.76,
+      "lng": 135.24
+    },
+    "category": "植物園",
+    "summary": "神戸市の六甲山上にある植物園。牧野富太郎博士の指導を受けて開園し、世界の高山植物など約1,500種を育てています。",
+    "description": "山上の冷涼な気候を生かして、世界の高山植物や寒冷地の植物を栽培している植物園です。4月にはミズバショウ、4月下旬にはコガネミズバショウやイワウチワ、5月にはクリンソウなどが咲きます。町では見られない高山の花を、六甲山の森の中で撮れる場所です。",
+    "highlights": [
+      "4月のミズバショウ",
+      "5月のクリンソウ",
+      "世界の高山植物"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "ミズバショウやクリンソウなど、高山の花が次々に咲く季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "山上は町より涼しく、夏の高山植物と緑が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "園の木々が色づき、山上の秋が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "花に朝露が残り、光もやわらかい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は花の色が深く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "花の接写は背景を暗くまとめると、色が引き立ちます",
+      "園路から外れず、植物を踏まないように撮ります",
+      "開園の期間を事前に確かめます"
+    ],
+    "officialWebsiteUrl": "https://www.rokkosan.com/hana/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%85%AD%E7%94%B2%E9%AB%98%E5%B1%B1%E6%A4%8D%E7%89%A9%E5%9C%92",
+          "title": "Wikipedia「六甲高山植物園」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q7360060",
+          "title": "Wikidata「Q7360060」（座標・所在地）"
+        },
+        {
+          "url": "https://www.rokkosan.com/hana/",
+          "title": "公式サイト「六甲高山植物園」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_6693801795fc",
+    "slug": "kiyomizudera-kato",
+    "name": "播州 清水寺（加東市）",
+    "nameEn": "Kiyomizu-dera Temple, Kato",
+    "reading": "きよみずでら",
+    "aliases": [
+      "御嶽山清水寺"
+    ],
+    "address": "兵庫県加東市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "加東市"
+    },
+    "coords": {
+      "lat": 34.97,
+      "lng": 135.08
+    },
+    "category": "寺社",
+    "summary": "加東市の御嶽山にある天台宗の寺院で、西国三十三所の第25番札所。山の上に根本中堂と大講堂が建ちます。",
+    "description": "推古天皇の勅願で根本中堂が、聖武天皇の勅願で行基により大講堂が建てられたと伝えられる古刹です。大正時代の火災で焼けたあと再建されました。寺名の由来となった霊泉の「おかげの井戸」もあります。山の上の境内に大きな堂が並び、季節の木々と合わせて撮れる寺です。",
+    "highlights": [
+      "山上に建つ根本中堂",
+      "大講堂",
+      "寺名の由来のおかげの井戸"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の木々が芽吹き、堂の屋根と緑が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "山上は木陰が多く、緑の濃い境内が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づき、堂の周りに色が入ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "山上に朝の光が入り、堂の正面が明るくなります。"
+      },
+      {
+        "time": "day",
+        "text": "木陰の中の堂は暗めです。空を入れずに撮ると色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "大講堂は石段の下から見上げると、山の寺らしさが出ます",
+      "札所の参拝の妨げにならない位置で撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%B8%85%E6%B0%B4%E5%AF%BA_(%E5%8A%A0%E6%9D%B1%E5%B8%82)",
+          "title": "Wikipedia「清水寺 (加東市)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11560913",
+          "title": "Wikidata「Q11560913」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_9a20ddbf8031",
+    "slug": "kogenji-tamba",
+    "name": "高源寺（丹波市）",
+    "nameEn": "Kogen-ji Temple, Tamba",
+    "reading": "こうげんじ",
+    "aliases": [
+      "瑞巌山高源寺"
+    ],
+    "address": "兵庫県丹波市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "丹波市"
+    },
+    "coords": {
+      "lat": 35.25,
+      "lng": 134.97
+    },
+    "category": "寺社",
+    "summary": "丹波市にある臨済宗妙心寺派の寺院。天目かえでの「もみじの寺」で、円通寺・石龕寺とともに丹波紅葉三山のひとつです。",
+    "description": "山号は瑞巌山、本尊は釈迦如来です。もみじの寺として知られ、境内の天目かえでが秋に色づきます。山門の額は表側が伏見宮貞義親王、裏側が雪軒の筆と伝えられます。山の斜面に沿って伽藍が並ぶので、紅葉と堂の重なりを石段の上下から撮れます。",
+    "highlights": [
+      "天目かえでの紅葉",
+      "山門と石段",
+      "斜面に並ぶ伽藍"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "かえでの新緑が境内を包みます。"
+      },
+      {
+        "season": "summer",
+        "text": "青もみじが濃く、木陰の石段が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "天目かえでが色づく、紅葉の季節です。混み合います。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "人の少ない時間で、石段と紅葉を落ち着いて撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "逆光で葉を透かすと、紅葉の色が鮮やかになります。"
+      }
+    ],
+    "compositionTips": [
+      "葉を透かして撮ると色が出ます。空を背景にすると明るく写ります",
+      "紅葉の時期は混みます。石段では立ち止まらずに撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%AB%98%E6%BA%90%E5%AF%BA_(%E4%B8%B9%E6%B3%A2%E5%B8%82)",
+          "title": "Wikipedia「高源寺 (丹波市)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11671868",
+          "title": "Wikidata「Q11671868」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_2ab21cfb7798",
+    "slug": "murotsu-port",
+    "name": "室津",
+    "nameEn": "Murotsu Port Town",
+    "reading": "むろつ",
+    "aliases": [
+      "室津港",
+      "御津町室津"
+    ],
+    "address": "兵庫県たつの市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "たつの市"
+    },
+    "coords": {
+      "lat": 34.77,
+      "lng": 134.51
+    },
+    "category": "町並み",
+    "summary": "たつの市御津町、播磨灘に面する港町。奈良時代に行基が整えた港に始まり、約1300年の歴史を持つ漁港です。",
+    "description": "古くから港町として栄え、明治以降は瀬戸内の漁港としてカキの養殖が盛んになりました。11月初旬には室乃津祭りが開かれます。山に囲まれた小さな入り江に漁船が並び、歴史のある港の景色と漁村の家並みを撮れる場所です。お夏清十郎の清十郎の生誕地としても知られます。",
+    "highlights": [
+      "山に囲まれた入り江の港",
+      "港に並ぶ漁船",
+      "漁村の家並み"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "港の周りの山が芽吹き、海の色が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "瀬戸内の穏やかな海と漁船の景色が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "11月初旬の室乃津祭りの時期は港がにぎわいます。"
+      },
+      {
+        "season": "winter",
+        "text": "カキの季節で、港の作業の様子が見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "漁から戻る船や港の作業が見られる時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光が入り江を照らし、港が暖かい色になります。"
+      }
+    ],
+    "compositionTips": [
+      "高台から入り江を見下ろすと、港町の形が伝わります",
+      "港は仕事の場です。作業の邪魔にならない所から撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%AE%A4%E6%B4%A5",
+          "title": "Wikipedia「室津」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11453029",
+          "title": "Wikidata「Q11453029」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_fcf905553dc0",
+    "slug": "mt-seppiko",
+    "name": "雪彦山",
+    "nameEn": "Mount Seppiko",
+    "reading": "せっぴこさん",
+    "aliases": [
+      "洞ケ岳",
+      "大天井岳"
+    ],
+    "address": "兵庫県姫路市",
+    "region": {
+      "country": "日本",
+      "prefecture": "兵庫県",
+      "city": "姫路市"
+    },
+    "coords": {
+      "lat": 35.07,
+      "lng": 134.65
+    },
+    "category": "山岳",
+    "summary": "姫路市北部の山。弥彦山・英彦山とともに日本三彦山として知られる修験道の地で、岩峰が連なります。",
+    "description": "日本百景や関西百名山などに選ばれた山で、登山案内では大天井岳・不行岳・三峰岳・地蔵岳などの岩峰からなる洞ケ岳の大天井岳（標高811m）を雪彦山と呼ぶことが多くあります。切り立った岩峰が連なる山容は修験の山らしく、岩と森の景色を登山道から撮れます。",
+    "highlights": [
+      "連なる岩峰",
+      "修験道の山の景色",
+      "洞ケ岳の大天井岳"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "岩峰の周りの木々が芽吹きます。"
+      },
+      {
+        "season": "summer",
+        "text": "森の緑が濃く、岩峰との対比が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "岩峰の周りの木々が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "岩峰に朝の光が当たり、岩肌が浮かび上がります。"
+      },
+      {
+        "time": "day",
+        "text": "岩と空の対比がはっきりします。"
+      }
+    ],
+    "compositionTips": [
+      "岩峰は少し離れた所から望遠で撮ると、連なりが分かります",
+      "岩場や鎖場のある山です。経験と装備に合った道を選びます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%9B%AA%E5%BD%A6%E5%B1%B1",
+          "title": "Wikipedia「雪彦山」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q8525239",
+          "title": "Wikidata「Q8525239」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_926fcd8380fc",
+    "slug": "yokokan-garden",
+    "name": "養浩館庭園",
+    "nameEn": "Yokokan Garden",
+    "reading": "ようこうかんていえん",
+    "aliases": [
+      "養浩館",
+      "御泉水屋敷"
+    ],
+    "address": "福井県福井市",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "福井市"
+    },
+    "coords": {
+      "lat": 36.07,
+      "lng": 136.22
+    },
+    "category": "庭園",
+    "summary": "福井市宝永にある大名庭園で、国の名勝。福井藩主松平家の別邸で、池に面した数寄屋造りの屋敷が庭と一体になっています。",
+    "description": "福井城本丸の北約400メートルの市の中心部にある庭園で、江戸時代の福井藩主松平家の別邸・御泉水屋敷が原型です。米国の日本庭園専門誌『数寄屋リビング』の日本庭園ランキングに2006年から登場しています。屋敷の座敷から池を見る構図、池の向こうに屋敷を置く構図の両方で撮れます。",
+    "highlights": [
+      "池に面した数寄屋造りの屋敷",
+      "座敷から見る池",
+      "池越しに見る屋敷"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "庭木が芽吹き、池の水面に新緑が映ります。"
+      },
+      {
+        "season": "summer",
+        "text": "池の周りの緑が濃く、屋敷の陰と庭の明るさが対比します。"
+      },
+      {
+        "season": "autumn",
+        "text": "庭の木々が色づき、池に映ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の庭と屋敷が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "風の弱い朝は池の水面に屋敷が映ります。"
+      },
+      {
+        "time": "day",
+        "text": "座敷の中から庭を撮ると、明るい庭が額縁の中に収まります。"
+      }
+    ],
+    "compositionTips": [
+      "座敷から庭を撮るときは、柱と軒を額縁に使います",
+      "建物の中の撮影は施設の決まりに従います"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%A4%8A%E6%B5%A9%E9%A4%A8%E5%BA%AD%E5%9C%92",
+          "title": "Wikipedia「養浩館庭園」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11666839",
+          "title": "Wikidata「Q11666839」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_c295950eae8b",
+    "slug": "fukui-castle",
+    "name": "福井城跡",
+    "nameEn": "Fukui Castle Ruins",
+    "reading": "ふくいじょうあと",
+    "aliases": [
+      "福井城址",
+      "北ノ庄"
+    ],
+    "address": "福井県福井市",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "福井市"
+    },
+    "coords": {
+      "lat": 36.07,
+      "lng": 136.22
+    },
+    "category": "城跡",
+    "summary": "福井市大手にあった平城の跡。本丸の石垣と堀が残り、本丸跡には福井県庁が建ちます。",
+    "description": "越前国足羽郡北ノ庄（のちの福居・福井）にあった城で、二の丸と三の丸は市街地になりましたが、本丸の石垣と堀が残ります。本丸跡に県庁や県議会の建物が建つ珍しい城跡で、石垣と堀の向こうに現代の庁舎が並びます。福井市には櫓や御門などを木造で復元する計画があります。",
+    "highlights": [
+      "本丸の石垣と堀",
+      "石垣の上に建つ県庁",
+      "堀に映る石垣"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "堀端の桜が咲き、石垣と花を一緒に撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "堀の水面に石垣と緑が映ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の石垣と堀の対比が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "風の弱い朝は堀の映り込みがきれいです。"
+      },
+      {
+        "time": "night",
+        "text": "庁舎の灯りと石垣を一緒に撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "堀の外から石垣を斜めに撮ると、石の積み方が分かります",
+      "庁舎の中は撮影の場所ではありません。外から撮ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:31:30.177Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%A6%8F%E4%BA%95%E5%9F%8E",
+          "title": "Wikipedia「福井城」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1073692",
+          "title": "Wikidata「Q1073692」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_29e18454c34a",
+    "slug": "nishiyama-park-sabae",
+    "name": "西山公園（鯖江市）",
+    "nameEn": "Nishiyama Park, Sabae",
+    "reading": "にしやまこうえん",
+    "aliases": [
+      "鯖江 西山公園",
+      "道の駅西山公園"
+    ],
+    "address": "福井県鯖江市",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "鯖江市"
+    },
+    "coords": {
+      "lat": 35.95,
+      "lng": 136.18
+    },
+    "category": "公園",
+    "summary": "鯖江市桜町にある都市公園。約5万株のツツジが植えられたツツジの名所で、5月上旬にはつつじまつりが開かれます。",
+    "description": "市を代表する観光地で、日本海側でも大規模なツツジの名所です。毎年5月上旬にはつつじまつり、11月上旬にはもみじまつりが開かれます。園内を埋めるツツジの色を、春の光の中で撮れる公園です。",
+    "highlights": [
+      "園内を埋めるツツジ",
+      "11月のもみじ",
+      "5月上旬のつつじまつり"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "5月上旬のつつじまつりの季節。園内がツツジの色で埋まります。"
+      },
+      {
+        "season": "summer",
+        "text": "公園の緑が濃く、木陰の園路を撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "11月上旬のもみじまつりの季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "人の少ない時間で、ツツジの斜面を広く撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "低い光でツツジの色が深くなります。"
+      }
+    ],
+    "compositionTips": [
+      "ツツジは低い位置から花を手前に重ねると、花の量が伝わります",
+      "花の中に入らず、園路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.nishiyama-park.jp/",
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:31:30.177Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%A5%BF%E5%B1%B1%E5%85%AC%E5%9C%92_(%E9%AF%96%E6%B1%9F%E5%B8%82)",
+          "title": "Wikipedia「西山公園 (鯖江市)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11627810",
+          "title": "Wikidata「Q11627810」（座標・所在地）"
+        },
+        {
+          "url": "https://www.nishiyama-park.jp/",
+          "title": "公式サイト「道の駅西山公園」"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_a42e56a2ced9",
+    "slug": "nakaikemi-wetland",
+    "name": "中池見湿地",
+    "nameEn": "Nakaikemi Wetland",
+    "reading": "なかいけみしっち",
+    "aliases": [
+      "中池見湿原"
+    ],
+    "address": "福井県敦賀市",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "敦賀市"
+    },
+    "coords": {
+      "lat": 35.66,
+      "lng": 136.09
+    },
+    "category": "湿原",
+    "summary": "敦賀市樫曲にある約25haの湿地。2012年に越前加賀海岸国定公園に加えられ、同じ年にラムサール条約に登録されました。",
+    "description": "断層運動や地殻変動で水系がせき止められ、植物が泥炭になって積み重なった「袋状埋積谷」という地形にできた湿地です。2012年7月に湿地の周りを含む87haがラムサール条約に登録されました。山に囲まれた谷の中に湿地と田が広がり、水辺の草や生き物と里山の景色を撮れます。",
+    "highlights": [
+      "山に囲まれた谷の湿地",
+      "湿地の水辺の草",
+      "里山の景色"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "湿地の草が芽吹き、谷の山が明るい緑になります。"
+      },
+      {
+        "season": "summer",
+        "text": "水辺の草が茂り、湿地の生き物が多い季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "湿地の草が色づき、谷が落ち着いた色になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "谷に朝霧が残ることがあり、湿地の景色がやわらかく写ります。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は草の緑が深く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "湿地には入らず、決められた道から撮ります",
+      "生き物を撮るときは近づかず、望遠で距離を取ります"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B8%AD%E6%B1%A0%E8%A6%8B%E6%B9%BF%E5%9C%B0",
+          "title": "Wikipedia「中池見湿地」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11366343",
+          "title": "Wikidata「Q11366343」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_370ade4a5518",
+    "slug": "hagaji",
+    "name": "羽賀寺",
+    "nameEn": "Haga-ji Temple",
+    "reading": "はがじ",
+    "aliases": [
+      "鳳聚山羽賀寺"
+    ],
+    "address": "福井県小浜市",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "小浜市"
+    },
+    "coords": {
+      "lat": 35.52,
+      "lng": 135.76
+    },
+    "category": "寺社",
+    "summary": "小浜市羽賀にある高野山真言宗の寺院。室町中期の1447年に建てられた本堂は国の重要文化財です。",
+    "description": "縁起では霊亀2年に元正天皇の勅願で行基が創建したとされる古寺で、本尊は十一面観音です。今に残るのは本堂のみで、室町中期の文安4年（1447年）の建立と伝わり、1962年に国の重要文化財に指定されました。山あいの境内に建つ大きな本堂を、季節の木々とともに撮れます。",
+    "highlights": [
+      "室町中期に建てられた本堂",
+      "山あいの静かな境内",
+      "十一面観音を祀る古寺"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木々が芽吹き、本堂の古い木肌と新緑が並びます。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づき、本堂の周りに色が入ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪をかぶった本堂の屋根が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東からの光で本堂の正面に陰影が出ます。"
+      },
+      {
+        "time": "day",
+        "text": "曇りの日は本堂の木の色が落ち着いて写ります。"
+      }
+    ],
+    "compositionTips": [
+      "本堂は斜めから撮ると、屋根の大きさと奥行きが出ます",
+      "堂内の撮影は寺の決まりに従います"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%BE%BD%E8%B3%80%E5%AF%BA",
+          "title": "Wikipedia「羽賀寺」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11610377",
+          "title": "Wikidata「Q11610377」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_c7b549e68d1b",
+    "slug": "wakasa-jinguji",
+    "name": "若狭神宮寺",
+    "nameEn": "Wakasa Jingu-ji Temple",
+    "reading": "わかさじんぐうじ",
+    "aliases": [
+      "神宮寺 (小浜市)",
+      "霊応山根本神宮寺"
+    ],
+    "address": "福井県小浜市",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "小浜市"
+    },
+    "coords": {
+      "lat": 35.46,
+      "lng": 135.78
+    },
+    "category": "寺社",
+    "summary": "小浜市にある天台宗の寺院。東大寺二月堂への「お水送り」が行われる寺として知られます。",
+    "description": "山号は霊応山、本尊は薬師如来坐像です。2015年に日本遺産「海と都をつなぐ若狭の往来文化遺産群」の構成文化財になりました。本堂と仁王門、桃山時代に再建された表門、閼伽井戸などが並び、山を背にした古い伽藍を撮れます。お水送りの行事は毎年3月です。",
+    "highlights": [
+      "本堂と仁王門",
+      "お水送りの閼伽井戸",
+      "桃山時代に再建された表門"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "3月のお水送りの季節です。境内の木々も芽吹きます。"
+      },
+      {
+        "season": "summer",
+        "text": "山を背にした境内の緑が濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "参拝の人が少なく、本堂と境内を落ち着いて撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "お水送りの日は松明の行事が夜に行われます。"
+      }
+    ],
+    "compositionTips": [
+      "仁王門から本堂へ参道の線を通すと、伽藍の並びが伝わります",
+      "行事の日は撮影の場所の案内に従います"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%8B%A5%E7%8B%AD%E7%A5%9E%E5%AE%AE%E5%AF%BA",
+          "title": "Wikipedia「若狭神宮寺」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11616639",
+          "title": "Wikidata「Q11616639」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+  },
+  {
+    "spotId": "sp_3dcb79f66e18",
+    "slug": "hokojima",
+    "name": "鉾島",
+    "nameEn": "Hokojima Island",
+    "reading": "ほこしま",
+    "aliases": [
+      "越前海岸 鉾島"
+    ],
+    "address": "福井県福井市",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "福井市"
+    },
+    "coords": {
+      "lat": 36.1,
+      "lng": 136.04
+    },
+    "category": "島",
+    "summary": "福井市南菅生町の海岸にある、流紋岩の柱状節理でできた島。東尋坊や雄島の柱状節理を調べる上で大切な島です。",
+    "description": "黒雲母角閃石流紋岩の柱状節理でできた島で、マグマが周りの地層を貫いてできました。岩の柱が束になって海から立ち上がる姿は、越前海岸の荒々しい地形の見本のような景色です。海の色と岩の柱を、海岸から一緒に撮れます。",
+    "highlights": [
+      "海から立ち上がる柱状節理",
+      "流紋岩の岩肌",
+      "越前海岸の海"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海の色が明るくなり、岩の柱との対比が撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の青が濃く、岩の柱がくっきり写ります。"
+      },
+      {
+        "season": "winter",
+        "text": "日本海の荒波が岩に砕けます。近づきすぎないこと。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西日が岩の柱に当たり、柱の線が浮かびます。"
+      },
+      {
+        "time": "dusk",
+        "text": "日本海に沈む夕日と島のシルエットが撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "柱状節理は斜めの光で撮ると、柱の線がはっきりします",
+      "岩場は滑りやすく、波も急に高くなります。足元に気をつけます"
+    ],
+    "status": "published",
+    "draftedAt": "2026-10-30",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "updatedAt": "2026-10-30T09:28:14.555Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-30",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E9%89%BE%E5%B3%B6",
+          "title": "Wikipedia「鉾島」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q97173710",
+          "title": "Wikidata「Q97173710」（座標・所在地）"
+        }
+      ],
+      "imageChecked": false
+    }
+ 
+ 
+ 
+ 
   }
 ]
