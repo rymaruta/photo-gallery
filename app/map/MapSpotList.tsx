@@ -118,8 +118,8 @@ export default function MapSpotList({ spots, total = spots.length, categoryActiv
                                 </span>
                                 <span className="block text-white/70" style={{ fontSize: "12px", lineHeight: "18px" }}>
                                     {s.stage === "published"
-                                        ? (en ? "Official guide" : "公式撮影地ガイド")
-                                        : (en ? "Guide (draft)" : "撮影地ガイド（下書き）")}
+                                        ? (en ? "Photo spot" : "撮影スポット")
+                                        : (en ? "Photo spot (draft)" : "撮影スポット（下書き）")}
                                     {s.region ? ` ・ ${s.region}` : ""}
                                 </span>
                             </span>

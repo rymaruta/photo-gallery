@@ -1572,7 +1572,7 @@ function UploadPageInner() {
     const spotSummary = (target: SpotUploadTarget): string => {
         const waiting = items.filter((i) => i.status !== "done");
         if (waiting.length === 0) {
-            return isJa ? "このスポットの写真として投稿します" : "Your photos will be posted to this spot";
+            return isJa ? "この撮影スポットの写真として投稿します" : "Your photos will be posted to this spot";
         }
         if (asOnePost && waiting.length > 1 && waiting.length <= PHOTO_IMAGES_MAX) {
             return spotIdToSend(target, waiting[0])
@@ -1617,7 +1617,7 @@ function UploadPageInner() {
      * 欄の見た目（モックの実測）。**入力の字だけ 16px**——それ未満だと
      * iOS が焦点を当てた瞬間に画面を拡大する。
      */
-    const fieldCls = "w-full px-3 bg-surface-2 border border-line rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-accent transition-colors disabled:opacity-50";
+    const fieldCls = "w-full px-3 bg-surface-2 border border-line rounded-field text-white placeholder:text-white/40 focus:outline-none focus:border-accent transition-colors disabled:opacity-50";
     const fieldStyle: React.CSSProperties = { fontSize: "16px" };
     const labelStyle: React.CSSProperties = { fontSize: "13px" };
     const labelCls = "block font-semibold text-white/80 mb-2";
@@ -1842,7 +1842,7 @@ function UploadPageInner() {
                                             onClick={() => setSelectedId(it.id)}
                                             aria-current={it.id === selected.id}
                                             aria-label={isJa ? `${i + 1}枚目を選ぶ` : `Select photo ${i + 1}`}
-                                            className={`block overflow-hidden rounded-[10px] ring-2 transition-colors ${it.id === selected.id ? "ring-accent" : "ring-transparent hover:ring-white/30"}`}
+                                            className={`block overflow-hidden rounded-lg ring-2 transition-colors ${it.id === selected.id ? "ring-accent" : "ring-transparent hover:ring-white/30"}`}
                                             style={{ width: "64px", height: "80px", touchAction: "manipulation" }}
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1875,7 +1875,7 @@ function UploadPageInner() {
                                     同じ定数**（`PHOTO_IMAGES_MAX`）から出す */}
                                 <label
                                     htmlFor="files-input"
-                                    className="flex-shrink-0 flex flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-line text-white/70 cursor-pointer hover:border-accent focus-within:border-accent transition-colors"
+                                    className="flex-shrink-0 flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line text-white/70 cursor-pointer hover:border-accent focus-within:border-accent transition-colors"
                                     style={{ width: "64px", height: "80px", touchAction: "manipulation" }}
                                 >
                                     <PlusIcon className="w-5 h-5" />
