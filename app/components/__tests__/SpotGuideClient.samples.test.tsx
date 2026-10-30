@@ -62,7 +62,7 @@ describe("作例（Wikimedia Commons より）", () => {
         expect(screen.getByRole("heading", { name: "作例（Wikimedia Commons より）" })).toBeTruthy();
         expect(screen.getByTestId("spot-samples").textContent).toContain("撮影者はこのサイトの利用者ではありません");
         // 投稿の節は0枚のまま（作例を投稿の枚数に数えない）
-        expect(screen.getByRole("heading", { name: "この場所の写真（0）" })).toBeTruthy();
+        expect(screen.getByRole("heading", { name: "この撮影スポットの写真（0）" })).toBeTruthy();
     });
 
     it("🔴 1枚ごとに作者・ライセンス（文面へ）・出典（Commons のページへ）が写真のすぐ下に出る", () => {

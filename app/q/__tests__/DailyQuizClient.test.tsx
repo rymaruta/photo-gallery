@@ -75,7 +75,7 @@ describe("今日の一問", () => {
         const result = screen.getByTestId("quiz-result");
         expect(result.textContent).toContain("正解");
         expect(result.textContent).toContain("山形県 尾花沢市");
-        expect(screen.getByRole("link", { name: "ガイドを見る" }).getAttribute("href")).toBe("/spots/ginzan-onsen");
+        expect(screen.getByRole("link", { name: "撮影スポットを見る" }).getAttribute("href")).toBe("/spots/ginzan-onsen");
         expect(screen.getByTestId("save").textContent).toBe("spot:ginzan-onsen");
         expect(window.localStorage.getItem("journey-photo:quiz:2026-10-01")).toBe("sp_000000000002");
         // 答えは1回（4つとも押せない）

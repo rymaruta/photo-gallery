@@ -789,7 +789,8 @@ describe("公式撮影地ガイドのピン", () => {
         expect(within(sheet).getByText("撮影スポット（下書き）")).toBeTruthy();
         expect(within(sheet).queryByText("公式撮影スポット")).toBeNull();
         expect(screen.queryByText("公式撮影スポット")).toBeNull();
-        expect(screen.getByText("撮影地ガイド（下書き）", { exact: false })).toBeTruthy();
+        // 一覧の行も同じ名乗り（2026-10-30・束 0a で「撮影地ガイド（下書き）」から札とそろえた）
+        expect(screen.getAllByText("撮影スポット（下書き）", { exact: false }).length).toBeGreaterThanOrEqual(2);
     });
 
     /// 🔴 **地図 → ガイド**（コアの鎖の次の輪）

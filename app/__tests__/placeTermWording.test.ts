@@ -16,7 +16,7 @@ import { join, relative } from "node:path";
  * 画面ではなく検索結果に出る文で、「撮影地ガイド」は検索語として残す（「撮りどき」と同じ扱い・2026-10-22 owner）
  */
 const ROOT = process.cwd();
-const REMOVED = ["撮影地ガイド", "注目スポット", "この場所", "ガイドを見る", "このスポット", "スポットのガイド"];
+const REMOVED = ["撮影地ガイド", "撮影地のガイド", "注目スポット", "この場所", "ガイドを見る", "このスポット", "スポットのガイド"];
 const EXEMPT_FILES = new Set(["lib/data/spotPageMeta.ts"]);
 
 function walk(dir: string, out: string[] = []): string[] {
