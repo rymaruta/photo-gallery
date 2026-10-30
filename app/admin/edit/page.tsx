@@ -22,7 +22,7 @@ import { splitTags } from "../../../lib/utils/ownValues";
 // text-base（16px）にする。iOS Safari は 16px 未満の入力欄にフォーカスすると
 // ページを拡大し、blur しても戻さない。他のページでは inline style で
 // 16px を当てて回避しているが、ここは共通クラスなのでクラス側で揃える。
-const inputCls = "w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-base focus:outline-none focus:border-white/50";
+const inputCls = "w-full bg-white/10 border border-white/20 rounded-field px-3 py-2 text-base focus:outline-none focus:border-white/50";
 const labelCls = "block text-sm text-white/60 mb-1";
 const sectionCls = "border-t border-line pt-5";
 

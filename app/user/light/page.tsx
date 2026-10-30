@@ -173,7 +173,7 @@ export default function LightForecastPage() {
                                                 key={card.key}
                                                 data-testid="light-card"
                                                 data-best={card.isBest ? "true" : undefined}
-                                                className="rounded-[14px] bg-surface p-[14px]"
+                                                className="rounded-xl bg-surface p-[14px]"
                                                 style={{ border: card.isBest ? "1.5px solid var(--color-accent)" : "1px solid #222222" }}
                                             >
                                                 <button
@@ -183,7 +183,7 @@ export default function LightForecastPage() {
                                                     className="w-full flex items-center gap-3 text-left"
                                                     style={{ minHeight: "56px", touchAction: "manipulation" }}
                                                 >
-                                                    <span aria-hidden="true" className="w-14 h-14 rounded-[10px] flex-shrink-0" style={{ background: TONE_COLOR[card.tone] }} />
+                                                    <span aria-hidden="true" className="w-14 h-14 rounded-lg flex-shrink-0" style={{ background: TONE_COLOR[card.tone] }} />
                                                     <span className="flex-1 min-w-0 flex flex-col gap-[3px]">
                                                         {/* 縁の色だけで「いちばん」を伝えない */}
                                                         {card.isBest && <span className="sr-only">{en ? "Best this week: " : "今週いちばんの見込み："}</span>}

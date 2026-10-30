@@ -98,7 +98,7 @@ describe("行きたいボタン", () => {
         const { container } = render(<SaveSpotButton slug="パリ" name="パリ" locale="en" />);
         const btn = await screen.findByRole("button", { name: "Save to want-to-go" });
         expect(btn.className).toContain("rounded-full");
-        expect(btn.className).not.toContain("rounded-[12px]");
+        expect(btn.className).not.toContain("rounded-field");
         expect(btn.style.minHeight).toBe("44px");
         expect(btn.parentElement!.className).toContain("items-start");
         // しおり（heroicons の bookmark）の輪郭。ハートの path とは違う

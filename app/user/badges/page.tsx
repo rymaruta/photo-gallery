@@ -153,7 +153,7 @@ export default function BadgesPage() {
                             onClick={() => setSheetOpen(true)}
                             aria-haspopup="dialog"
                             aria-expanded={sheetOpen}
-                            className="w-full flex items-center gap-2.5 rounded-[14px] bg-[#0E0E0E] ring-1 ring-inset ring-[#3A3220] px-3 py-2 text-left hover:bg-white/[0.04] transition"
+                            className="w-full flex items-center gap-2.5 rounded-xl bg-[#0E0E0E] ring-1 ring-inset ring-[#3A3220] px-3 py-2 text-left hover:bg-white/[0.04] transition"
                             style={{ minHeight: 64, touchAction: "manipulation" }}
                             data-testid="name-side-open"
                         >

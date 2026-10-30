@@ -270,7 +270,7 @@ export default function SettingsPage() {
         );
     }
 
-    const inputClass = "w-full bg-surface-2 border border-line-strong rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
+    const inputClass = "w-full bg-surface-2 border border-line-strong rounded-field px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
     // **`/50` より薄くしない。** 黒地で `/40` は 3.66:1 で基準（4.5:1）に
     // 届かない——`/50` が届く最小の段階（`textContrast.test.ts` が見張る）

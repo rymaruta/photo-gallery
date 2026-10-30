@@ -83,7 +83,7 @@ function Row({ trip, userId, isJa }: { trip: Trip; userId: string; isJa: boolean
             className="flex items-center gap-[14px] py-2 border-b border-line focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             style={{ minHeight: "72px", touchAction: "manipulation" }}
         >
-            <span className="relative flex-shrink-0 overflow-hidden rounded-[10px] bg-surface" style={{ width: "72px", height: "56px" }}>
+            <span className="relative flex-shrink-0 overflow-hidden rounded-lg bg-surface" style={{ width: "72px", height: "56px" }}>
                 {cover && <Thumb photo={cover} alt="" sizes="72px" cellAspect={72 / 56} />}
             </span>
             <span className="min-w-0 flex-1 flex flex-col gap-0.5">
