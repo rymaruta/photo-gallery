@@ -156,7 +156,8 @@ function SectionHead(props: { id: string; eyebrow: string; title: string; href: 
 
 export default function DiscoverSections({ photos, locale, categoryDisplayMap }: Props) {
     const isJa = locale !== "en";
-    const more = isJa ? "すべて見る ›" : "See all ›";
+    // › は `MoreLink` が印で付ける（字に書くと二重になる・2026-10-30 束 0b C10）
+    const more = isJa ? "すべて見る" : "See all";
     const shown = SHOWN;
     /**
      * 溢れの逃がし方。⚠️ **`overflow-x-auto` と `flex-wrap` は共存できない**

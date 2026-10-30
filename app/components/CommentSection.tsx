@@ -228,7 +228,8 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                     href={loginHref}
                     prefetch={false}
                     data-testid="comment-login"
-                    className="flex items-center w-full rounded-full bg-surface-2 ring-1 ring-inset ring-line-strong px-4 text-text-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    // 入力欄と同じ形（角 12・白8%の縁・2026-10-30 束 0b C6）
+                    className="flex items-center w-full rounded-field bg-surface-2 ring-1 ring-inset ring-line px-[14px] text-text-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     style={{ minHeight: "44px", fontSize: "15px", touchAction: "manipulation" }}
                 >
                     {locale === "en" ? "Log in to comment" : "ログインしてコメント"}
