@@ -120,6 +120,11 @@ const JAPAN_UNKNOWN_KEY = "jp-other";
  * 2026-10-07 判断: 日本を県（47）で割ると、いまは1区分20件前後で要求が細かすぎる。
  * 地方（8）なら1区分 約130件・約110KB。1万件に増えて区分が 500KB を超えたら県で割る
  * （テストの上限 `SHARD_MAX_BYTES` が知らせる）
+ *
+ * 2026-10-30 owner 県ごとに100: 国内の目標が約4,700件になった。実測は1件 約1KB
+ * （2026-10-30・jp-chubu 197KB／約200件）なので、県が平均50件を超えるころ中部（9県）・
+ * 九州（8県）が 500KB に届く。そのときは日本の鍵を県（`jp-<県のスラッグ>`）に替える
+ * ——アプリは索引の `shards` に従って読むので、サーバーだけで割り直せる
  */
 export function shardKey(item: Pick<SpotFeedItem, "region">): string {
     const country = item.region?.country?.trim();
