@@ -18,7 +18,8 @@ import { DISPLAY_MINCHO_STACK } from "@/lib/utils/headingFont";
  * 640px 未満（当時の root 14px）で縮んでいたため。指で押す的としても、読む字としても
  * 小さすぎた。**px で書く。**
  */
-const CHIP_CLASS = `inline-flex items-center min-h-[32px] px-3 rounded-full ${CHIP_OFF} text-[12px] transition-colors`;
+// 2026-10-30 束 0b C5: 以前は 32・12 の小さいタグ。iOS のチップ（34・13・当たり 44）にそろえる
+const CHIP_CLASS = `${CHIP_HIT} inline-flex items-center rounded-full ${CHIP_OFF} transition-colors`;
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
@@ -74,7 +75,7 @@ import SpotRows, { type SpotRow } from "../../components/SpotRows";
 import InspiredByLine from "../../components/InspiredByLine";
 import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
-import { CHIP_OFF } from "@/app/components/chipStyles";
+import { CHIP_OFF, CHIP_SIZE, CHIP_HIT } from "@/app/components/chipStyles";
 import PhotoTripSection from "./PhotoTripSection";
 // **全画面は押したときに読む**（写真ページの最初の JS に載せない。検索の着地点で、
 // 押さずに去る人が大半）。静的書き出しでは描かないので ssr: false
@@ -1203,14 +1204,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     ——**いちばん小さいスマホでだけ、隣のタグを押してしまう**。
                     `gap-2` で行の間隔が24pxになり0件（箱の高さは +2px だけ）。 */}
                 {(categoryDisplayName && photo.category) || (photo.tags?.length ?? 0) > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-x-2 gap-y-2.5">
                         {categoryDisplayName && photo.category && (
                             // カテゴリの集約ページへ（内部リンク＝SEO・回遊）。**先読みしない**
                             <Link
                                 href={collectionPath("category", slugify(photo.category, "category"))}
                                 prefetch={false}
                                 className={CHIP_CLASS}
-                                style={{ touchAction: "manipulation" }}
+                                style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
                             >
                                 {categoryDisplayName}
                             </Link>
@@ -1224,7 +1225,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                 href={collectionPath("tag", slugify(tag, "tag"))}
                                 prefetch={false}
                                 className={CHIP_CLASS}
-                                style={{ touchAction: "manipulation" }}
+                                style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
                             >
                                 #{tag}
                             </Link>

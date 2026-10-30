@@ -1,5 +1,6 @@
 "use client";
 
+import { SEARCH_FIELD, SEARCH_FIELD_STYLE, SEARCH_ICON, SEARCH_ICON_STYLE } from "../../components/fieldStyles";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { isImeKey } from "../../../lib/utils/ime";
 import Link from "next/link";
@@ -75,7 +76,7 @@ export default function UserSearchPage() {
             </div>
 
             <div className="relative mb-5">
-                <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35 pointer-events-none" />
+                <MagnifyingGlassIcon aria-hidden="true" className={SEARCH_ICON} style={SEARCH_ICON_STYLE} />
                 <input
                     ref={inputRef}
                     type="search"
@@ -92,8 +93,9 @@ export default function UserSearchPage() {
                     enterKeyHint="search"
                     placeholder={isJa ? "名前・@ユーザー名" : "Name or @username"}
                     aria-label={isJa ? "ユーザーを検索" : "Search people"}
-                    className="search-own-clear w-full rounded-full bg-white/[0.07] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 outline-none transition"
-                    style={{ padding: "12px 40px 12px 40px", fontSize: "16px" }}
+                    // 共通の検索欄（2026-10-30 束 0b C6）
+                    className={SEARCH_FIELD}
+                    style={SEARCH_FIELD_STYLE}
                 />
                 {input && (
                     <button

@@ -14,7 +14,7 @@ import React from "react";
 import Link from "next/link";
 import type { TopicCard, TopicCredit, TopicLink } from "@/lib/data/spotTopics";
 import { useLocale } from "@/app/i18n/context";
-import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
+import { CHIP_OFF, CHIP_SIZE, CHIP_HIT, CHIP_ROW } from "./chipStyles";
 
 /**
  * 枠の文言（パンくず・見出し・関連の見出し）を表示の言語で出す（2026-10-11）。
@@ -26,12 +26,7 @@ export function Lang({ ja, en }: { ja: string; en: string }) {
     return <>{locale === "en" ? en : ja}</>;
 }
 
-/**
- * 押せるチップの当たり（2026-10-11）。見た目は 34px のまま、**上下 5px ずつ外へ当たりを広げて 44px**。
- * 並びの縦の隙間を 10px にして、となりの行の当たりと重ねない
- */
-export const CHIP_HIT = "relative before:absolute before:inset-x-0 before:-inset-y-[5px] before:content-['']";
-export const CHIP_ROW = "flex flex-wrap gap-x-1.5 gap-y-2.5 m-0 p-0";
+export { CHIP_HIT, CHIP_ROW };
 
 /** 切り口のチップの並び（`/spots` でも使う） */
 export function TopicChips({ links }: { links: TopicLink[] }) {
