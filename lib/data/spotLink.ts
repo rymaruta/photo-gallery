@@ -247,6 +247,7 @@ export function spotRefsById(): Record<string, SpotRef> {
  *
  *     1件あたり 1,809 バイト（`SpotIndexItem` に落としたあと）
  *     × 1,410件（各県30件）＝ **約2.4MB** が1枚のHTMLに乗る
+ *     （2026-10-30 owner の目標は県ごとに100件＝約4,700件。1枚なら約8.5MB）
  *
  * HTML は `no-cache, no-store` で配る（`scripts/deploy-static-site.js` の
  * `isHtmlOrTxt`）ので、これは**訪問のたびに落ちるバイト**になる。
