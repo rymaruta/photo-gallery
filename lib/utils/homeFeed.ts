@@ -11,8 +11,8 @@ import { comparePosted } from "./photoOrder";
  *
  * **推薦の仕組みは無い。** 選ばれた写真といいねの数だけで並べる。
  * ⚠️ 本番（2026-09-29: featured 0枚・いいね全部 0）では「投稿の新しい順」になる。
- * **Web の「新着」（`compareNewest`＝撮影日が先）とは違う並び**（iOS の新着は投稿日なので
- * iOS では同じになる）。
+ * ホームの「新着」も投稿日の新しい順なので、そのときは新着と同じ並びになる
+ * （2026-10-30 に新着を `compareNewest`＝撮影日が先 から `comparePosted` へ揃えた。iOS も同じ）。
  */
 export function recommendedOrder<T extends Photo>(photos: readonly T[]): T[] {
     const byPopular = (a: T, b: T) => ((b.likes ?? 0) - (a.likes ?? 0)) || comparePosted(a, b);
