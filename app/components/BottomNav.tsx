@@ -82,6 +82,28 @@ export function activeTab(pathname: string, who: { myId?: string | null; profile
     return null;
 }
 
+/**
+ * **タブの無いページでは、来た元のタブのまま光らせる**（2026-10-30 判断・束 0a・比較の板 C3）。
+ * iOS は写真・人・タグのページをタブの中に積むので、ホームから人のページへ来たらホームが光ったまま。
+ * Web は `activeTab` が null の所で何も光らず、どのタブの中に居るのかが消えていた。
+ *
+ * ただし**他人のページでは「マイページ」を光らせない**（2026-10-15 に本番で光っていた件・owner）。
+ * 自分のページ → フォロワー → 他人のページ、と来ても「マイページ」は消す。他人のページを
+ * 「自分のところ」と取り違えるほうが、どのタブの中かが消えるより困る。
+ * `lastTab` は直前に光っていたタブ（読み込んだ直後は null＝何も光らない）
+ */
+export function shownTab(
+    pathname: string,
+    who: { myId?: string | null; profileId?: string | null },
+    lastTab: TabKey | null,
+): TabKey | null {
+    const routeTab = activeTab(pathname, who);
+    if (routeTab) return routeTab;
+    const isPeoplePage = (pathname === "/users" || pathname.startsWith("/users/")) && pathname !== ROUTES.USER_SEARCH;
+    if (isPeoplePage && lastTab === "me") return null;
+    return lastTab;
+}
+
 function safeDecode(s: string): string | null {
     try { return decodeURIComponent(s); } catch { return null; }
 }
@@ -146,7 +168,12 @@ export default function BottomNav() {
         return () => window.removeEventListener("popstate", read);
     }, [pathname]);
 
-    const current = activeTab(pathname, { myId: isAuthenticated ? userId : null, profileId });
+    const who = { myId: isAuthenticated ? userId : null, profileId };
+    // 直前に光っていたタブ（`shownTab` の注記）。描画のときに合わせる（上の `seenPath` と同じ形）
+    const routeTab = activeTab(pathname, who);
+    const [lastTab, setLastTab] = React.useState<TabKey | null>(routeTab);
+    if (routeTab && routeTab !== lastTab) setLastTab(routeTab);
+    const current = shownTab(pathname, who, routeTab ?? lastTab);
     const me = isAuthenticated && userId ? ROUTES.USER_PROFILE(userId) : ROUTES.LOGIN;
 
     const items: Array<{
@@ -184,7 +211,7 @@ export default function BottomNav() {
                     style={{ height: "62px", padding: "4px" }}
                 >
                     {items.slice(0, 2).map((it) => (
-                        <Tab key={it.key} item={it} active={current === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
+                        <Tab key={it.key} item={it} active={current === it.key} here={routeTab === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
                     ))}
 
                     {/* 「投稿」は行き先ではなく2択のシートを開く（`PostSheet`）。
@@ -207,7 +234,7 @@ export default function BottomNav() {
                     </button>
 
                     {items.slice(2).map((it) => (
-                        <Tab key={it.key} item={it} active={current === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
+                        <Tab key={it.key} item={it} active={current === it.key} here={routeTab === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
                     ))}
                 </div>
             </nav>
@@ -220,9 +247,11 @@ export default function BottomNav() {
 /** 選んでいるタブの1マス（真鍮の字と絵・黒55%の丸い面）。試験が比を計算するので名前で出す */
 export const TAB_CELL_ON = "bg-black/55 text-accent";
 
-function Tab({ item, active, cell, labelStyle, iconStyle }: {
+function Tab({ item, active, here, cell, labelStyle, iconStyle }: {
     item: { key: TabKey; href: string; label: string; Outline: typeof HomeIcon; Solid: typeof HomeSolid };
     active: boolean;
+    /** このタブの行き先そのものに居る。来た元のタブとして光っているだけのときは false（`aria-current` を付けない） */
+    here: boolean;
     cell: string;
     labelStyle: React.CSSProperties;
     iconStyle: React.CSSProperties;
@@ -235,7 +264,7 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             // 静的書き出しなので先読みが引くのは行き先の HTML と `.txt` で、
             // どちらも `no-store` で配る＝画面に出入りするたび落とし直す
             prefetch={false}
-            aria-current={active ? "page" : undefined}
+            aria-current={here ? "page" : undefined}
             // **選んでいないタブは白72%**（デザインシステムの非選択 `#B8B8B8`）。
             // カプセルは写真が透けるので、白60%だと明るい写真の上で 2.6:1 まで
             // 落ちる（`.tabbar-capsule` の brightness と合わせて 4.5:1 を保つ）。
