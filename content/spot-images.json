@@ -5292,40 +5292,16 @@
   },
   "homma-museum": {
     "wikidata": "Q140364277",
-    "file": "File:Seien-kaku in the Honma Museum of Art 003.jpg",
-    "pageUrl": "https://commons.wikimedia.org/wiki/File:Seien-kaku_in_the_Honma_Museum_of_Art_003.jpg",
-    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Seien-kaku_in_the_Honma_Museum_of_Art_003.jpg/1280px-Seien-kaku_in_the_Honma_Museum_of_Art_003.jpg",
+    "file": "File:Kakubuen garden in the Honma Museum 202505.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Kakubuen_garden_in_the_Honma_Museum_202505.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Kakubuen_garden_in_the_Honma_Museum_202505.jpg/960px-Kakubuen_garden_in_the_Honma_Museum_202505.jpg",
     "author": "掬茶",
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-    "licenseCode": "cc-by-sa-4.0",
-    "method": "commons-sample",
-    "pickedBy": "visual-review",
-    "fetchedAt": "2026-10-30",
-    "reviewedBy": null,
-    "replaced": {
-      "wikidata": "Q140364277",
-      "file": "File:Kakubuen garden in the Honma Museum 202505.jpg",
-      "pageUrl": "https://commons.wikimedia.org/wiki/File:Kakubuen_garden_in_the_Honma_Museum_202505.jpg",
-      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Kakubuen_garden_in_the_Honma_Museum_202505.jpg/960px-Kakubuen_garden_in_the_Honma_Museum_202505.jpg",
-      "author": "掬茶",
-      "license": "CC BY-SA 4.0",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-      "distanceKm": 0.41,
-      "method": "wikidata-P18",
-      "fetchedAt": "2026-09-26",
-      "reviewedBy": null
-    },
-    "local": {
-      "src": "/images/spots/homma-museum.jpg",
-      "width": 960,
-      "height": 640
-    },
-    "large": {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Seien-kaku_in_the_Honma_Museum_of_Art_003.jpg/1280px-Seien-kaku_in_the_Honma_Museum_of_Art_003.jpg",
-      "width": 1280,
-      "height": 853
-    }
+    "distanceKm": 0.41,
+    "method": "wikidata-P18",
+    "fetchedAt": "2026-09-26",
+    "reviewedBy": null
   },
   "hondoji": {
     "wikidata": "Q11519907",

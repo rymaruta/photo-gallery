@@ -88738,51 +88738,6 @@
       }
     ]
   },
-  "sp_704bd729854b": {
-    "slug": "homma-museum",
-    "name": "本間美術館",
-    "samples": [
-      {
-        "file": "File:鳥海山／本間美術館（酒田市） - panoramio.jpg",
-        "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%B3%A5%E6%B5%B7%E5%B1%B1%EF%BC%8F%E6%9C%AC%E9%96%93%E7%BE%8E%E8%A1%93%E9%A4%A8%EF%BC%88%E9%85%92%E7%94%B0%E5%B8%82%EF%BC%89_-_panoramio.jpg",
-        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/%E9%B3%A5%E6%B5%B7%E5%B1%B1%EF%BC%8F%E6%9C%AC%E9%96%93%E7%BE%8E%E8%A1%93%E9%A4%A8%EF%BC%88%E9%85%92%E7%94%B0%E5%B8%82%EF%BC%89_-_panoramio.jpg/960px-%E9%B3%A5%E6%B5%B7%E5%B1%B1%EF%BC%8F%E6%9C%AC%E9%96%93%E7%BE%8E%E8%A1%93%E9%A4%A8%EF%BC%88%E9%85%92%E7%94%B0%E5%B8%82%EF%BC%89_-_panoramio.jpg",
-        "width": 960,
-        "height": 642,
-        "author": "shikabane taro",
-        "license": "CC BY 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
-        "dateTimeOriginal": "Taken on 20 July 2010",
-        "licenseCode": "cc-by-3.0",
-        "pickedBy": "auto"
-      },
-      {
-        "file": "File:Seien-kaku in the Honma Museum of Art 003.jpg",
-        "pageUrl": "https://commons.wikimedia.org/wiki/File:Seien-kaku_in_the_Honma_Museum_of_Art_003.jpg",
-        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Seien-kaku_in_the_Honma_Museum_of_Art_003.jpg/1280px-Seien-kaku_in_the_Honma_Museum_of_Art_003.jpg",
-        "width": 1280,
-        "height": 853,
-        "author": "掬茶",
-        "license": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-        "dateTimeOriginal": "2025-05-05 13:54:32",
-        "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "visual-review"
-      },
-      {
-        "file": "File:Seien-kaku in the Honma Museum of Art 002.jpg",
-        "pageUrl": "https://commons.wikimedia.org/wiki/File:Seien-kaku_in_the_Honma_Museum_of_Art_002.jpg",
-        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Seien-kaku_in_the_Honma_Museum_of_Art_002.jpg/1280px-Seien-kaku_in_the_Honma_Museum_of_Art_002.jpg",
-        "width": 1280,
-        "height": 960,
-        "author": "掬茶",
-        "license": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
-        "dateTimeOriginal": "2013-08-15 11:38:21",
-        "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
-      }
-    ]
-  },
   "sp_7086fc85a744": {
     "slug": "szechenyi-thermal-bath",
     "name": "セーチェーニ温泉",
