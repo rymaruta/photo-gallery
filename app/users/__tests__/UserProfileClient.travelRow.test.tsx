@@ -150,6 +150,7 @@ describe("数字の行の字の大きさ", () => {
         const followers = sizesOf("フォロワー");
         expect(followers, "同じ行なのに字の大きさが割れている").toEqual(posts);
         expect(posts.number, "数字が小さいまま（モックの実測は 20px）").toBe("20px");
-        expect(posts.label).toBe("13px");
+        // 名前は iOS の `ProfileStat` の 12（2026-10-30 束 0b C14・以前はモック実測の 13）
+        expect(posts.label).toBe("12px");
     });
 });

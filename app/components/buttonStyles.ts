@@ -29,3 +29,13 @@ export const INLINE_BTN_STYLE = { minHeight: "36px", minWidth: "44px", fontSize:
 export const FOLLOW_OFF = "bg-primary text-ink hover:brightness-110";
 /** フォロー中: 白12% の地・白の字・白18% の縁 */
 export const FOLLOW_ON = "bg-white/12 text-white ring-1 ring-inset ring-white/18 hover:bg-white/20";
+
+/**
+ * **写真の上の丸ボタン**（2026-10-30 束 0b C12・iOS の `jpGlass`・板 DesignSystem のガラス）。
+ * 44×44・黒55%＋ぼかし 18＋白10%の縁・白の印 20（線 1.6）。**写真の上なので白だけ**（真鍮は置かない）。
+ * 以前は人のページの戻る・共有が 36（黒40%）、旅の一冊の戻るが黒40%・縁なし、撮影スポットの送りが黒50%・縁なしと割れていた。
+ * 寸法はクラスの px（根の字に左右されない）。キーボードの枠は白（写真の上）
+ */
+export const GLASS_BTN = "inline-flex items-center justify-center w-[44px] h-[44px] rounded-full bg-black/55 backdrop-blur-[18px] ring-1 ring-inset ring-glass-line text-white hover:bg-black/70 active:scale-95 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white";
+/** ガラスの丸の中の印 */
+export const GLASS_ICON_STYLE = { width: 20, height: 20, strokeWidth: 1.6 } as const;

@@ -81,7 +81,7 @@ describe("写真ページ: この近くで撮られた写真", () => {
         const section = await screen.findByTestId("photo-nearby");
         expect(section.textContent).toContain("この近くで撮られた写真");
         expect(section.querySelector("a[data-photo-id='n1']")?.getAttribute("href")).toContain("n1");
-        expect(screen.getByRole("link", { name: "地図で見る ›" }).getAttribute("href")).toMatch(/^\/map#/);
+        expect(screen.getByRole("link", { name: "地図で見る" }).getAttribute("href")).toMatch(/^\/map#/);
     });
 
     it("近くに1枚も無ければ節ごと出さない", async () => {

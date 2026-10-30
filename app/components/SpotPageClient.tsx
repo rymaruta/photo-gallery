@@ -24,6 +24,7 @@ import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
 import type { SpotLink as GuideLink } from "@/lib/data/spotLink";
 import SpotLinkCard from "./SpotLinkCard";
+import { GLASS_BTN, GLASS_ICON_STYLE } from "./buttonStyles";
 
 /**
  * **ビューアは後ろへ回す**（レビューの指摘6）。
@@ -335,19 +336,19 @@ export default function SpotPageClient({
                                 type="button"
                                 onClick={() => setShown((i) => (i - 1 + photos.length) % photos.length)}
                                 aria-label={en ? "Previous photo" : "前の写真"}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white transition-colors"
-                                style={{ width: "44px", height: "44px", touchAction: "manipulation" }}
+                                className={`absolute left-2 top-1/2 -translate-y-1/2 ${GLASS_BTN}`}
+                                style={{ touchAction: "manipulation" }}
                             >
-                                <ChevronLeftIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} />
+                                <ChevronLeftIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setShown((i) => (i + 1) % photos.length)}
                                 aria-label={en ? "Next photo" : "次の写真"}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white transition-colors"
-                                style={{ width: "44px", height: "44px", touchAction: "manipulation" }}
+                                className={`absolute right-2 top-1/2 -translate-y-1/2 ${GLASS_BTN}`}
+                                style={{ touchAction: "manipulation" }}
                             >
-                                <ChevronRightIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} />
+                                <ChevronRightIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
                             </button>
                         </>
                     )}
