@@ -195,6 +195,11 @@ export type SpotAiCheck = {
     sources: { url: string; title: string }[];
     /** 写真（`content/spot-images.json`）も照らしたか（Wikidata の代表画像・座標のずれ無し） */
     imageChecked?: boolean;
+    /**
+     * **照合で見送った理由**（確認中のまま残した行だけ・2026-10-30）。
+     * 「記事が無い」「座標が出典と 5km 超ずれる」など。画面には出さない——次に照合し直すときの手がかり
+     */
+    heldReasons?: string[];
 };
 
 export type SpotSource = {
