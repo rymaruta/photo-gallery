@@ -240,8 +240,8 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         // 座標が無い行は距離を出さない（`NaNkm` を出さない）
         expect(rows[2].textContent).not.toMatch(/km/);
         for (const a of rows) {
-            // 行 56（共通の行・2026-10-30 束 0b C11）
-            expect(a.className.split(/\s+/)).toContain("min-h-[56px]");
+            // 名前と地域の二行の行 64（iOS `JPHeight.tallRow`・2026-10-30 束 0b C11）
+            expect(a.className.split(/\s+/)).toContain("min-h-[64px]");
             expect(a.querySelectorAll("svg")).toHaveLength(2);   // 印と矢印
         }
     });

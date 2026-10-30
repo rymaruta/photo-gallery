@@ -96,7 +96,7 @@ describe("C6 入力欄", () => {
 
 import { INLINE_BTN, INLINE_BTN_STYLE, FOLLOW_ON, FOLLOW_OFF } from "../buttonStyles";
 import { TILE, TILE_MIN_H, TILE_TEXT, TILE_OFF } from "../SaveSpotButton";
-import { CARD, ROW, ROW_TITLE, ROW_SUB } from "../rowStyles";
+import { CARD, ROW, ROW_TALL, ROW_TITLE, ROW_SUB } from "../rowStyles";
 import { STATE_ACTION_CLASS, STATE_RETRY_CLASS } from "../StateViews";
 
 describe("C7 ボタン（主 50・副 44）と行動の札", () => {
@@ -137,16 +137,19 @@ describe("C8 フォロー", () => {
 });
 
 describe("C11 札と行", () => {
-    it("札は surface・白8%の縁・角 16、行は 56・題 15 semibold・副 12 text-2", () => {
+    it("札は surface・白8%の縁・角 16、行は 1行 52／二行 64（iOS JPHeight）・題 15 semibold・副 12 text-2", () => {
         expect(CARD.split(/\s+/)).toEqual(expect.arrayContaining(["bg-surface", "ring-1", "ring-line", "rounded-2xl"]));
-        expect(ROW).toContain("min-h-[56px]");
+        expect(ROW.split(/\s+/)).toContain("min-h-[52px]");
+        expect(ROW.split(/\s+/).filter((c) => c.startsWith("min-h-"))).toHaveLength(1);
+        expect(ROW_TALL.split(/\s+/)).toContain("min-h-[64px]");
+        expect(ROW_TALL.split(/\s+/).filter((c) => c.startsWith("min-h-"))).toHaveLength(1);
         expect(ROW_TITLE).toContain("text-[15px]");
         expect(ROW_TITLE).toContain("font-semibold");
         expect(ROW_SUB).toContain("text-text-2");
         expect(ROW_SUB).toContain("text-[12px]");
     });
     it.each([
-        ["app/components/SpotRows.tsx", "className={ROW}"],
+        ["app/components/SpotRows.tsx", "className={ROW_TALL}"],
         ["app/components/HomeEntryRow.tsx", "${ROW_CARD}"],
         ["app/photo/[id]/PhotoTripSection.tsx", "${ROW_CARD}"],
     ])("%s は共通の行を使う", (f, needle) => {
@@ -214,11 +217,68 @@ describe("C14 数", () => {
 });
 
 describe("C16 印の線", () => {
-    it("Heroicons の線の印は 1.6（強さ 0 の :where で、呼ぶ側の指定は勝つ）", () => {
-        const css = read("app/globals.css");
-        expect(css).toMatch(/:where\(svg\[data-slot="icon"\]\[fill="none"\]\)\s*\{\s*stroke-width:\s*1\.6;/);
+    it("Heroicons の線の印は、既定の 1.5 のものだけ 1.6 に（属性で太くした印は選ばない）", () => {
+        const css = read("app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+        expect(css).toMatch(/:where\(svg\[data-slot="icon"\]\[fill="none"\]\[stroke-width="1\.5"\]\)\s*\{\s*stroke-width:\s*1\.6;/);
+        // 絞らない選び方に戻っていない（SVG の属性は :where にも負けて、太くした印が細る）
+        expect(css).not.toMatch(/:where\(svg\[data-slot="icon"\]\[fill="none"\]\)/);
+    });
+    it.each([
+        ["app/components/stories/StoriesBar.tsx", "<PlusIcon className=\"w-3.5 h-3.5\" strokeWidth={3} />"],
+        ["app/components/stories/HighlightsRow.tsx", "<PlusIcon className=\"w-7 h-7 text-white/90\" strokeWidth={2} />"],
+        ["app/components/stories/HighlightsRow.tsx", "<PencilIcon className=\"w-3 h-3\" strokeWidth={2.5} />"],
+        ["app/user/highlights/page.tsx", "<CheckIcon className=\"w-3.5 h-3.5\" strokeWidth={3} />"],
+        ["app/users/UserProfileClient.tsx", "strokeWidth={2.5} />"],
+        ["app/user/profile/page.tsx", "strokeWidth={"],
+    ])("%s の太くした印は属性で太さを持つ（1.5 ではない＝1.6 の規則に選ばれない）", (f, needle) => {
+        const src = read(f);
+        expect(src).toContain(needle);
+        const m = needle.match(/strokeWidth=\{([\d.]+)\}/);
+        if (m) expect(Number(m[1])).not.toBe(1.5);
     });
     it.each(["app/components/GalleryModal/ModalControls.tsx", "app/components/Thumb.tsx"])("%s の手で書いた印は 1.6", (f) => {
         expect(read(f)).not.toMatch(/strokeLinejoin="round" strokeWidth=\{2\} d=/);
+    });
+});
+
+
+import { PROFILE_FOLLOW_BTN, PROFILE_FOLLOW_STYLE, PROFILE_FOLLOW_ON, PROFILE_FOLLOW_OFF, FOLLOW_LIST_MIN_W } from "../buttonStyles";
+
+describe("束 0b の確かめの直し", () => {
+    it("C8 人のページのフォローは iOS の ProfileFollowButtonLabel（40・15 semibold・左右 22/18・フォロー中は透明＋白14%の線と ▾）", () => {
+        expect(PROFILE_FOLLOW_STYLE.minHeight).toBe("40px");
+        expect(PROFILE_FOLLOW_STYLE.fontSize).toBe("15px");
+        expect(PROFILE_FOLLOW_BTN).toContain("font-semibold");
+        expect(PROFILE_FOLLOW_BTN).toContain("before:-inset-y-[2px]");
+        expect(PROFILE_FOLLOW_OFF.split(/\s+/)).toEqual(expect.arrayContaining(["bg-primary", "text-ink", "px-[22px]"]));
+        expect(PROFILE_FOLLOW_ON.split(/\s+/)).toEqual(expect.arrayContaining(["bg-transparent", "ring-line-strong", "px-[18px]"]));
+        const src = read("app/components/FollowButton.tsx");
+        expect(src).toMatch(/variant === "profile"\s*\? `\$\{PROFILE_FOLLOW_BTN\}/);
+        expect(src).toContain("<ChevronDownIcon");
+    });
+    it("人を探すの一覧のフォローは幅の下限 96（押し替えで揺れない）", () => {
+        expect(FOLLOW_LIST_MIN_W).toBe("96px");
+        expect(read("app/users/search/page.tsx")).toMatch(/<FollowAction\s+variant="list"/);
+        expect(read("app/components/FollowButton.tsx")).toContain('variant === "list" ? { minWidth: FOLLOW_LIST_MIN_W }');
+    });
+    it("C5 gap-1.5 のチップでは ✓ と字の間を 4 に詰める", () => {
+        const css = read("app/globals.css");
+        const at = css.indexOf("@utility chip-check");
+        const rule = css.slice(at, css.indexOf("\n}\n", at));
+        expect(rule).toMatch(/&:where\(\.gap-1\\\.5\)::after\s*\{\s*margin-inline-end:\s*-2px;/);
+    });
+    it("コメントの欄は字 16（iPhone の Safari が拡大しない）", () => {
+        const src = read("app/components/CommentSection.tsx");
+        const at = src.indexOf("<textarea");
+        const tag = src.slice(at, src.indexOf("/>", at));
+        expect(tag).toContain("${FIELD}");
+        expect(tag).toMatch(/fontSize: "16px"/);
+    });
+    it("絞り込みの横に流すチップの並びは上下 5px の余白を持つ（当たり 44 が並びの中に収まる）", () => {
+        const src = read("app/components/FilterBar.tsx");
+        const m = src.match(/const WRAPPING_ROW = "([^"]*)"/);
+        expect(m).not.toBeNull();
+        const cls = m![1].split(/\s+/);
+        expect(cls).toEqual(expect.arrayContaining(["py-[5px]", "-my-[5px]", "overflow-x-auto"]));
     });
 });

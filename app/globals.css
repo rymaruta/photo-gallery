@@ -174,13 +174,19 @@
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
   }
+  /* 字との間を作る `gap-1.5`（6px）を持つチップでは、✓ と字の間が 6＋4＝10 になる。iOS は 4（`PillChip` の
+     `JPSpace.xxs`）なので、gap のぶん詰める（2026-10-30 束 0b の見直し） */
+  &:where(.gap-1\.5)::after {
+    margin-inline-end: -2px;
+  }
 }
 
 /* **印の線は 1.6**（2026-10-30 束 0b C16・iOS の SF Symbols regular を目で比べた値・板 Components C16）。
-   Heroicons の線の印（`data-slot="icon"`・既定の線 1.5）を一か所でそろえる。`:where()` で強さを 0 にするので、
-   呼ぶ側が style / class で線を決めた印（小さな札の中の ✓・＋など、iOS も太字の所）はそのまま勝つ。
-   手で書いた `<path strokeWidth>` の印は各所で 1.6 に直した */
-:where(svg[data-slot="icon"][fill="none"]) {
+   Heroicons の線の印（`data-slot="icon"`）のうち、**線を既定の 1.5 のまま持つものだけ**を選ぶ。
+   🔴 `[stroke-width="1.5"]` で絞ること——SVG の属性は CSS に負ける（`:where()` の強さ 0 にも負ける）ので、
+   絞らないと `strokeWidth={2.5}` などで太くした小さな札の中の ✓・＋（iOS も太字の所）まで 1.6 に細る。
+   style で決めた線は style が勝つ。手で書いた `<path strokeWidth>` の印は各所で 1.6 に直した */
+:where(svg[data-slot="icon"][fill="none"][stroke-width="1.5"]) {
   stroke-width: 1.6;
 }
 
