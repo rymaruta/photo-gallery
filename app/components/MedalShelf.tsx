@@ -59,7 +59,7 @@ export default function MedalShelf({ items, locale }: { items: ShelfItem[]; loca
                 return (
                     <li
                         key={b.key}
-                        className="flex flex-col items-center gap-1 px-1 py-2.5 rounded-[14px] bg-[#0B0B0B] ring-1 ring-inset ring-[#1F1F1F] text-center"
+                        className="flex flex-col items-center gap-1 px-1 py-2.5 rounded-xl bg-[#0B0B0B] ring-1 ring-inset ring-[#1F1F1F] text-center"
                         data-owned={b.owned ? "true" : "false"}
                         data-testid="medal-shelf-item"
                     >

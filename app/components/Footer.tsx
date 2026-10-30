@@ -60,7 +60,7 @@ export default function Footer() {
                             <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-link" />
                             Journey Photo
                         </p>
-                        <p className="mt-1.5 text-xs text-white/50">
+                        <p className="mt-1.5 text-white/50" style={{ fontSize: "12px", lineHeight: "16px" }}>
                             {locale === "en"
                                 ? "Moments that move someone's next journey."
                                 : "旅の一瞬を、誰かの次の旅へ。"}
@@ -78,11 +78,12 @@ export default function Footer() {
                                 key={href}
                                 href={href}
                                 prefetch={false}
-                                // **押す的は高さ24px**（WCAG 2.5.8・Lighthouse の target-size）。
-                                // 字の高さ14pxのままだと全ページで落ちていた。行の間隔は
-                                // 的の高さで取る（以前の gap-y-2 ＝ 行ピッチ21px → 24px）
-                                className="inline-flex items-center min-h-[24px] text-xs text-white/50 hover:text-white transition-colors"
-                                style={{ touchAction: "manipulation" }}
+                                // **押す的は高さ44px・字は 13px**（2026-10-30 判断・束 0a・比較の板 C15）。
+                                // iOS の押せるものの最小 44（`minTapTarget`）と、文字ボタンの段 footnote 13。
+                                // 以前は 24px（WCAG 2.5.8 の下限）で、字は `text-xs` が電話の幅で 10.5px に縮んでいた。
+                                // 行の間隔は的の高さで取る（行の隙間を足すと、的どうしの間が空きすぎる）
+                                className="inline-flex items-center min-h-[44px] text-white/50 hover:text-white transition-colors"
+                                style={{ fontSize: "13px", lineHeight: "18px", touchAction: "manipulation" }}
                             >
                                 {label}
                             </Link>
@@ -103,7 +104,7 @@ export default function Footer() {
                         {locale === "en" ? "Headings: " : "見出しの字: "}Shippori Mincho B1 © 2021 The Shippori Mincho Project Authors ·{" "}
                         {/* 全文は配布元の OFL.txt をそのまま置いたもの（`public/licenses/`） */}
                         <a href="/licenses/ShipporiMinchoB1-OFL.txt"
-                           className="inline-flex items-center min-h-[24px] text-accent underline underline-offset-2 hover:text-accent-strong">
+                           className="inline-flex items-center min-h-[44px] text-accent underline underline-offset-2 hover:text-accent-strong">
                             SIL Open Font License 1.1
                         </a>
                     </p>

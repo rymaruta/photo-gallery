@@ -30,9 +30,9 @@ import PostSheet from "./PostSheet";
  * アルバム／管理 で、投稿を持っていない）。カプセルは端末の幅ほど
  * （`max-w-[480px]`）で止めて中央に置くので、広い画面で間延びしない。
  *
- * **寸法と字は px で固定する。** このサイトは 640px 未満で root を 14px に
- * 落とすので、rem の指定（`w-6`・`text-xs`）は端末で 21px・10.5px に縮む
- * （`96eb86db` で踏んだ）。押せる面は 44px 以上（カプセルの内寸 54px）。
+ * **寸法と字は px で固定する。** 以前は 640px 未満で root を 14px に落としていて、
+ * rem の指定（`w-6`・`text-xs`）が端末で 21px・10.5px に縮んだ（`96eb86db`）。
+ * 根の字は 2026-10-30（束 0a）から 16px のままだが、タブは iOS の寸法を px で持つ。押せる面は 44px 以上（カプセルの内寸 54px）。
  *
  * **高さは `--bottom-bar-h` に出す**（`useBottomBarHeight`）。`MiniPlayer` が
  * それを読んで上に逃げる。**下の隙間と safe-area のぶんも含めた実寸**
@@ -61,15 +61,61 @@ type TabKey = "home" | "search" | "map" | "me";
  * `/users/<id>`（静的）と `/users?id=`（クエリ版）の2形があり、
  * プロフィール設定や下書きも「自分のところ」に見える。
  *
+ * **人のページは、自分のときだけ「マイページ」**（2026-10-15・本番で他人の
+ * ページを開くと「マイページ」が真鍮に光っていた）。iOS も他人のページは
+ * 開いたタブの中に積むだけで、マイページのタブは光らない。
+ * `myId`（ログイン中の自分）と見ている人（`/users/<id>` の `<id>`、
+ * クエリ版は `profileId`）が同じときだけ "me"。ログインしていなければどれでもない。
+ * `/users/search`（人をさがす）は「探す」。
+ *
  * 綴りではなく `ROUTES` の値と前置きで見る（直書きの `href` を増やさない）。
  */
-export function activeTab(pathname: string): TabKey | null {
+export function activeTab(pathname: string, who: { myId?: string | null; profileId?: string | null } = {}): TabKey | null {
     if (pathname === ROUTES.HOME) return "home";
-    if (pathname === ROUTES.SEARCH) return "search";
+    if (pathname === ROUTES.SEARCH || pathname === ROUTES.USER_SEARCH) return "search";
     if (pathname === ROUTES.MAP) return "map";
-    if (pathname === "/users" || pathname.startsWith("/users/")) return "me";
+    if (pathname === "/users" || pathname.startsWith("/users/")) {
+        const viewed = pathname === "/users" ? who.profileId : safeDecode(pathname.slice("/users/".length).replace(/\/$/, ""));
+        return who.myId && viewed && viewed === who.myId ? "me" : null;
+    }
     if (pathname.startsWith("/user/")) return "me";
     return null;
+}
+
+/**
+ * **タブの無いページでは、来た元のタブのまま光らせる**（2026-10-30 判断・束 0a・比較の板 C3）。
+ * iOS は写真・人・タグのページをタブの中に積むので、ホームから人のページへ来たらホームが光ったまま。
+ * Web は `activeTab` が null の所で何も光らず、どのタブの中に居るのかが消えていた。
+ *
+ * ただし**他人のページでは「マイページ」を光らせない**（2026-10-15 に本番で光っていた件・owner）。
+ * 自分のページ → フォロワー → 他人のページ、と来ても「マイページ」は消す。他人のページを
+ * 「自分のところ」と取り違えるほうが、どのタブの中かが消えるより困る。
+ * **消したことを状態に残す**（戻り値をそのまま次の `lastTab` にする）。表示だけで消すと、
+ * その人の写真へ進んだとき「マイページ」がまた光っていた（束 0a の確かめ）。
+ * **ログインしていなければ「マイページ」を持ち越さない**——タブの無い頁でログアウトすると、
+ * ログインへの入口に変わったタブが光ったまま残っていた。
+ *
+ * 直さない近い筋（2026-10-30 判断）: 履歴の「戻る」では、戻った先へ来たときのタブではなく
+ * **最後に通ったタブ**が光る（例: ホーム → 写真 → 探す → 戻るで写真に戻ると「探す」）。
+ * 頁ごとに来た元を覚えるには履歴の項目ごとの状態が要り、静的書き出しのこの作りでは割に合わない。
+ *
+ * `lastTab` は直前に光っていたタブ（読み込んだ直後は null＝何も光らない）。戻り値が光らせるタブで、
+ * 呼ぶ側はこれを次の `lastTab` として持つ
+ */
+export function nextTab(
+    pathname: string,
+    who: { myId?: string | null; profileId?: string | null },
+    lastTab: TabKey | null,
+): TabKey | null {
+    const routeTab = activeTab(pathname, who);
+    if (routeTab) return routeTab;
+    if (lastTab !== "me") return lastTab;
+    const isPeoplePage = (pathname === "/users" || pathname.startsWith("/users/")) && pathname !== ROUTES.USER_SEARCH;
+    return isPeoplePage || !who.myId ? null : "me";
+}
+
+function safeDecode(s: string): string | null {
+    try { return decodeURIComponent(s); } catch { return null; }
 }
 
 export default function BottomNav() {
@@ -120,7 +166,24 @@ export default function BottomNav() {
 
     const closePost = React.useCallback(() => setSheetOpen(false), []);
 
-    const current = activeTab(pathname);
+    // クエリ版（`/users?id=`）の見ている人。`useSearchParams` はルートレイアウトでは使わない
+    // （`HeaderNav` と同じ理由・静的書き出し全体に響く）。描画中に `location` を読むと
+    // 書き出しの HTML と食い違うので、載ったあとと履歴の移動で読む
+    const [profileId, setProfileId] = React.useState<string | null>(null);
+    React.useEffect(() => {
+        if (pathname !== "/users") { setProfileId(null); return; }
+        const read = () => setProfileId(new URLSearchParams(window.location.search).get("id"));
+        read();
+        window.addEventListener("popstate", read);
+        return () => window.removeEventListener("popstate", read);
+    }, [pathname]);
+
+    const who = { myId: isAuthenticated ? userId : null, profileId };
+    // 直前に光っていたタブ（`nextTab` の注記）。描画のときに合わせる（上の `seenPath` と同じ形）
+    const routeTab = activeTab(pathname, who);
+    const [lastTab, setLastTab] = React.useState<TabKey | null>(routeTab);
+    const current = nextTab(pathname, who, lastTab);
+    if (current !== lastTab) setLastTab(current);
     const me = isAuthenticated && userId ? ROUTES.USER_PROFILE(userId) : ROUTES.LOGIN;
 
     const items: Array<{
@@ -158,7 +221,7 @@ export default function BottomNav() {
                     style={{ height: "62px", padding: "4px" }}
                 >
                     {items.slice(0, 2).map((it) => (
-                        <Tab key={it.key} item={it} active={current === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
+                        <Tab key={it.key} item={it} active={current === it.key} here={routeTab === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
                     ))}
 
                     {/* 「投稿」は行き先ではなく2択のシートを開く（`PostSheet`）。
@@ -181,7 +244,7 @@ export default function BottomNav() {
                     </button>
 
                     {items.slice(2).map((it) => (
-                        <Tab key={it.key} item={it} active={current === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
+                        <Tab key={it.key} item={it} active={current === it.key} here={routeTab === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
                     ))}
                 </div>
             </nav>
@@ -194,9 +257,11 @@ export default function BottomNav() {
 /** 選んでいるタブの1マス（真鍮の字と絵・黒55%の丸い面）。試験が比を計算するので名前で出す */
 export const TAB_CELL_ON = "bg-black/55 text-accent";
 
-function Tab({ item, active, cell, labelStyle, iconStyle }: {
+function Tab({ item, active, here, cell, labelStyle, iconStyle }: {
     item: { key: TabKey; href: string; label: string; Outline: typeof HomeIcon; Solid: typeof HomeSolid };
     active: boolean;
+    /** このタブの行き先そのものに居る。来た元のタブとして光っているだけのときは false（`aria-current` を付けない） */
+    here: boolean;
     cell: string;
     labelStyle: React.CSSProperties;
     iconStyle: React.CSSProperties;
@@ -209,7 +274,7 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             // 静的書き出しなので先読みが引くのは行き先の HTML と `.txt` で、
             // どちらも `no-store` で配る＝画面に出入りするたび落とし直す
             prefetch={false}
-            aria-current={active ? "page" : undefined}
+            aria-current={here ? "page" : undefined}
             // **選んでいないタブは白72%**（デザインシステムの非選択 `#B8B8B8`）。
             // カプセルは写真が透けるので、白60%だと明るい写真の上で 2.6:1 まで
             // 落ちる（`.tabbar-capsule` の brightness と合わせて 4.5:1 を保つ）。

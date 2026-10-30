@@ -159,7 +159,7 @@ describe("スポットの頁 → 切り口の頁", () => {
         const topics = [{ href: "/spots/theme/temples-shrines/kyoto", label: "京都府の寺社の撮影スポット", count: 14 }];
         const { unmount } = render(<ToastProvider><SpotGuideClient spot={SPOT} photos={[]} nearby={[]} locationPath={null} topics={topics} /></ToastProvider>);
         const sec = within(screen.getByTestId("spot-topics"));
-        expect(sec.getByRole("heading").textContent).toBe("このスポットが載っている一覧");
+        expect(sec.getByRole("heading").textContent).toBe("この撮影スポットが載っている一覧");
         expect(sec.getByRole("link", { name: /京都府の寺社の撮影スポット/ }).getAttribute("href")).toBe("/spots/theme/temples-shrines/kyoto");
         unmount();
         render(<ToastProvider><SpotGuideClient spot={SPOT} photos={[]} nearby={[]} locationPath={null} /></ToastProvider>);

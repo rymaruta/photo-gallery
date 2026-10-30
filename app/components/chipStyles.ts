@@ -39,7 +39,7 @@ export const CHIP_ON = "bg-primary text-ink font-semibold ring-inset focus:outli
 
 /**
  * **押せるチップの寸法（v2 の板 `.chip`: 高さ 34・字 13・左右 14）。** iOS も同じ値。
- * **style で渡す**——640px 未満は root が 14px なので、rem の `h-*`・`text-sm` は縮む。
+ * **style で渡す**——以前は 640px 未満の root が 14px で、rem の `h-*`・`text-sm` が縮んでいた（2026-10-30 束 0a で外した）。
  * 件数の小さな字も 12px 以上（本文系の最小）。
  */
 export const CHIP_SIZE = { fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" } as const;

@@ -15,7 +15,7 @@ import { DISPLAY_MINCHO_STACK } from "@/lib/utils/headingFont";
  * **大小のチップが1行に混ざった**（直す前より悪い）。1か所に置いて両方から使う。
  *
  * 🔴 **直す前は高さ 17.5px・字 10.5px** だった——`py-0.5` と `text-xs` が
- * 640px 未満（root 14px）で縮むため。指で押す的としても、読む字としても
+ * 640px 未満（当時の root 14px）で縮んでいたため。指で押す的としても、読む字としても
  * 小さすぎた。**px で書く。**
  */
 const CHIP_CLASS = `inline-flex items-center min-h-[32px] px-3 rounded-full ${CHIP_OFF} text-[12px] transition-colors`;
@@ -766,7 +766,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-                    <h1 className="text-3xl font-bold mb-4">
+                    <h1 className="font-serif text-xl font-bold mb-4">
                         {locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
                     </h1>
                     <p className="text-white/60 mb-6">
@@ -789,7 +789,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-                    <h1 className="text-3xl font-bold mb-4">
+                    <h1 className="font-serif text-xl font-bold mb-4">
                         {locale === "en" ? "Photo Not Found" : "写真が見つかりません"}
                     </h1>
                     <p className="text-white/60 mb-6">
@@ -1194,7 +1194,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
 
                 {/* チップ: カテゴリ＋タグ（集約ページへの内部リンク）。
                     **チップの間隔は 1.5 まで詰めない。** チップは `py-0.5`＝高さ18px で、
-                    `gap-1.5`（root は 640px 未満で 14px なので 5.25px）だと
+                    `gap-1.5`（当時は root が 640px 未満で 14px だったので 5.25px）だと
                     **行の間隔が22px**になり、24px の円が上下の行で重なる
                     ＝WCAG 2.5.8 の「間隔の例外」にも当たらない。
                     実測（本物のビルドを Chromium で開いた）: タグ8枚の写真ページで
@@ -1368,7 +1368,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                         onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void searchPhotoSongs(); } }}
                                         placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                         autoFocus
-                                        className="flex-1 min-w-0 bg-surface-2 border border-line rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                        className="flex-1 min-w-0 bg-surface-2 border border-line rounded-field px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
                                     />
                                     <button
                                         onClick={() => void searchPhotoSongs()}
@@ -1464,7 +1464,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                 // またぐ長さで画面とサーバーの答えが割れる。
                                 // プロフィールの曲のリンク欄は既に 500 なので揃える
                                 maxLength={500}
-                                className="flex-1 min-w-0 bg-surface-2 border border-line rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                className="flex-1 min-w-0 bg-surface-2 border border-line rounded-field px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
                                 style={{ fontSize: "16px" }}
                             />
                             <button

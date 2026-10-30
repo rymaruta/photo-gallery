@@ -418,7 +418,7 @@ function Samples({ samples, isJa, spot }: { samples: SpotSample[]; isJa: boolean
             <p className="m-0 mb-3 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
                 {isJa
                     ? [
-                        free.length > 0 ? `この場所の近くで撮られ、${free.join("・")} で自由なライセンスのもと公開されている写真です。` : "",
+                        free.length > 0 ? `この撮影スポットの近くで撮られ、${free.join("・")} で自由なライセンスのもと公開されている写真です。` : "",
                         hosted.length > 0 ? `${hosted.join("・")}の写真は、提供元の利用規約に従って掲載しています。` : "",
                         "撮影者はこのサイトの利用者ではありません。",
                     ].join("")
@@ -574,7 +574,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
        iOS と同じく**写真がある場所は本文より先**（写真が主役）、0枚の場所は本文の後ろ */
     const photosSection = (
         <section className={photos.length > 0 ? "pt-6" : "pt-8"} aria-labelledby="spot-photos">
-            <Head id="spot-photos">{isJa ? `この場所の写真（${photos.length}）` : `Photos here (${photos.length})`}</Head>
+            <Head id="spot-photos">{isJa ? `この撮影スポットの写真（${photos.length}）` : `Photos here (${photos.length})`}</Head>
             {/* 投稿から戻ってきた（`?posted=1`）。**この一覧はビルド時の写真**なので、
                 いま上げた写真はサイトの更新が終わるまで並ばない——並んだとは言わない */}
             {justPosted && (
@@ -789,7 +789,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                         {/* ── 4. この場所の魅力 ───────────────── */}
                         {(spot.description || (spot.highlights ?? []).length > 0) && (
                             <section className="pt-6" aria-labelledby="spot-charm">
-                                <Head id="spot-charm">{isJa ? "この場所の魅力" : "What makes it special"}</Head>
+                                <Head id="spot-charm">{isJa ? "この撮影スポットの魅力" : "What makes it special"}</Head>
                                 {spot.description && (
                                     <p className="m-0 mb-3 text-white/85" style={{ fontSize: "15px", lineHeight: "26px" }}>
                                         {spot.description}
@@ -961,7 +961,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                 <Link href={mapHref} prefetch={false}
                                       className="block rounded-xl bg-surface ring-1 ring-line p-4 hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                                     <p className="m-0 text-white/85" style={{ fontSize: "13px", lineHeight: "20px" }}>
-                                        {isJa ? "撮影地マップでこの場所を開く" : "Open on the map"} <span aria-hidden="true">›</span>
+                                        {isJa ? "撮影地マップでこの撮影スポットを開く" : "Open on the map"} <span aria-hidden="true">›</span>
                                     </p>
                                     {/* **正確な GPS は出さない。** 台帳の座標は約1km に丸めてある */}
                                     <p className="m-0 mt-1 text-white/60" style={{ fontSize: "12px" }}>
@@ -1007,7 +1007,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                         {/* ── 11. このスポットが載っている一覧（国・テーマ・季節）── */}
                         {topics.length > 0 && (
                             <section className="mb-7" aria-labelledby="spot-topics" data-testid="spot-topics">
-                                <Head id="spot-topics">{isJa ? "このスポットが載っている一覧" : "Lists with this spot"}</Head>
+                                <Head id="spot-topics">{isJa ? "この撮影スポットが載っている一覧" : "Lists with this spot"}</Head>
                                 <ul className={CHIP_ROW} style={{ listStyle: "none" }}>
                                     {topics.map((t) => (
                                         <li key={t.href}>

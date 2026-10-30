@@ -33,16 +33,25 @@ describe("フッターの導線", () => {
     });
 });
 
-// 押す的は高さ24px（WCAG 2.5.8）。字の高さ14pxのままだと Lighthouse の target-size が
-// 全ページで落ちていた（2026-09-30 本番で実測）
-describe("フッターのリンクの押す的", () => {
-    it("全部のリンクが最低 24px の高さを持つ", () => {
+// 押す的は高さ44px・字は 13px（2026-10-30・束 0a・比較の板 C15。iOS の minTapTarget 44・footnote 13）。
+// 以前は 24px（WCAG 2.5.8 の下限）で、字は電話の幅で 10.5px に縮んでいた
+describe("フッターのリンクの押す的と字", () => {
+    it("全部のリンクが最低 44px の高さを持つ", () => {
         render(<Footer />);
         const links = screen.getAllByRole("link");
         expect(links.length).toBeGreaterThan(3);
-        for (const a of links) expect(a.className.split(/\s+/), a.textContent!).toEqual(expect.arrayContaining(["inline-flex", "min-h-[24px]"]));
+        for (const a of links) expect(a.className.split(/\s+/), a.textContent!).toEqual(expect.arrayContaining(["inline-flex", "min-h-[44px]"]));
         // 行の間隔は的の高さで取る（行の隙間を足すと、的どうしの間が空きすぎる・フッターが伸びる）
         const nav = links[0].parentElement!;
         expect(nav.className, "行の隙間を重ねて足している").not.toMatch(/(^|\s)gap-y-/);
+    });
+
+    it("ナビのリンクの字は px で 13（rem の段に頼らない）", () => {
+        render(<Footer />);
+        const nav = screen.getByRole("navigation");
+        for (const a of Array.from(nav.querySelectorAll("a"))) {
+            expect((a as HTMLElement).style.fontSize, a.textContent!).toBe("13px");
+            expect(a.className).not.toMatch(/(^|\s)text-(xs|sm)(\s|$)/);
+        }
     });
 });

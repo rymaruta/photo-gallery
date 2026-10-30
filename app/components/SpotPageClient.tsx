@@ -200,7 +200,7 @@ export default function SpotPageClient({
                 **全体ヘッダー（ロゴ・ハンバーガー）は layout のもの**なので、
                 この行はその下に置く（重ねない）。寸法は `PhotoPageClient` の
                 同じ行に揃えた——40px の的・22px の絵・px 直書き
-                （640px 未満で root が 14px に落ちるため。台帳 `96eb86db`）。
+                （以前は 640px 未満で root が 14px に落ちていた（2026-10-30 束 0a で外した）。台帳 `96eb86db`）。
 
                 **戻るは `router.back()` にしない。** `/location/*` は検索の
                 着地点なので、直接開かれた回の `back()` は**サイトの外**へ出る。
@@ -264,7 +264,7 @@ export default function SpotPageClient({
                 入っている共通部品）。**2つ目の実装を作らない。** */}
             {hero && (
                 <section
-                    aria-label={en ? "Featured photo" : "この場所の写真"}
+                    aria-label={en ? "Featured photo" : "この撮影地の写真"}
                     // **640px 以上は 640px で止めて中央に置く**（`SPOT_HERO_SIZES`
                     // に理由を書いた——`Thumb` の派生が 512w までなので、容器
                     // いっぱいに広げると PC で 2.2倍に引き伸ばすことになる）。
@@ -375,7 +375,7 @@ export default function SpotPageClient({
             {broader.length > 0 && (
                 <p className="mb-3 flex flex-wrap items-center gap-2 text-sm text-white/60">
                     <MapPinIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="sr-only">{en ? "Part of" : "この場所を含む撮影地"}</span>
+                    <span className="sr-only">{en ? "Part of" : "この撮影地を含む広い撮影地"}</span>
                     {broader.map((b) => (
                         <Link
                             key={b.path}
@@ -434,7 +434,7 @@ export default function SpotPageClient({
                     {en ? "Positions are rounded to about 1 km. " : "位置は約1km の粒度に丸めています。"}
                     {coords.approx && (en
                         ? "This one is approximate (derived from the place name, not GPS)."
-                        : "この場所の位置は、GPS ではなく地名から引いたおおよその位置です。")}
+                        : "この撮影地の位置は、GPS ではなく地名から引いたおおよその位置です。")}
                 </p>
             ) : (
                 // **「地図に出せる位置を持っていない」と言い切る。**
@@ -442,7 +442,7 @@ export default function SpotPageClient({
                 <p className="mb-5 text-sm text-white/60">
                     {en
                         ? "No map position for this spot yet. Photos taken with GPS, or given a place from the edit screen, put it on the map."
-                        : "この場所には、地図に出せる位置がまだありません。GPS 付きの写真を上げるか、編集画面で場所を選ぶと地図に載ります。"}
+                        : "この撮影地には、地図に出せる位置がまだありません。GPS 付きの写真を上げるか、編集画面で場所を選ぶと地図に載ります。"}
                     <Link href={mapHref} prefetch={false} className="ml-1 text-link hover:text-white underline underline-offset-4">
                         {en ? "Open the map" : "撮影地マップを開く"}
                     </Link>
@@ -460,7 +460,7 @@ export default function SpotPageClient({
             {guides.map((g, i) => (
                 <div key={g.slug} className="mb-4" data-testid="spot-guide-link">
                     <SpotLinkCard spot={g} locale={locale} headingId={`location-guide-${i}`}
-                                  heading={i > 0 ? null : (en ? "Photo spot guide for these photos" : "この撮影地の写真が紐付いている撮影地ガイド")} />
+                                  heading={i > 0 ? null : (en ? "Photo spot guide for these photos" : "この撮影地の写真が紐付いている撮影スポット")} />
                 </div>
             ))}
 
@@ -512,7 +512,7 @@ export default function SpotPageClient({
             )}
             {facts.tags.length > 0 && (
                 <Chips
-                    heading={en ? "Tags on these photos" : "この場所の写真に付いたタグ"}
+                    heading={en ? "Tags on these photos" : "この撮影地の写真に付いたタグ"}
                     items={facts.tags.map((t) => ({
                         key: t.slug, label: `#${t.label}`, count: t.count, path: collectionPath("tag", t.slug),
                     }))}
@@ -520,7 +520,7 @@ export default function SpotPageClient({
             )}
             {narrower.length > 0 && (
                 <Chips
-                    heading={en ? "Spots within" : "この場所の中の撮影地"}
+                    heading={en ? "Spots within" : "中にある撮影地"}
                     items={narrower.map((n) => ({ key: n.path, label: n.label, count: n.count, path: n.path }))}
                 />
             )}
@@ -535,7 +535,7 @@ export default function SpotPageClient({
                 押せばその場で拡大する（③）。 */}
             <section aria-labelledby="spot-photos-heading" className="mt-10 pt-5 border-t border-line">
                 <h2 id="spot-photos-heading" className="text-sm font-semibold text-white/70 mb-3">
-                    {en ? "Photos here" : "この場所の写真"}
+                    {en ? "Photos here" : "この撮影地の写真"}
                     <span className="ml-1 whitespace-nowrap text-white/50">
                         {en ? `（${photos.length}）` : `（${photos.length}枚）`}
                     </span>

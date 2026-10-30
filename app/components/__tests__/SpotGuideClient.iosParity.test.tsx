@@ -114,7 +114,7 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         const site = screen.getByRole("link", { name: /公式サイト/ });
         expect(row.contains(site), "公式サイトが行動の列に入っている").toBe(false);
         // 本文（この場所の魅力）の後ろ
-        expect(before(screen.getByRole("heading", { name: "この場所の魅力" }), site)).toBe(true);
+        expect(before(screen.getByRole("heading", { name: "この撮影スポットの魅力" }), site)).toBe(true);
     });
 
     it("未ログインの「行きたい」も格子の直接の子（ログインへのリンク）", () => {
@@ -184,14 +184,14 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
 
     it("写真がある場所は写真の節が本文より先（写真が主役）", () => {
         view(SPOT, [PHOTO]);
-        const photos = screen.getByRole("heading", { name: "この場所の写真（1）" });
-        expect(before(photos, screen.getByRole("heading", { name: "この場所の魅力" }))).toBe(true);
+        const photos = screen.getByRole("heading", { name: "この撮影スポットの写真（1）" });
+        expect(before(photos, screen.getByRole("heading", { name: "この撮影スポットの魅力" }))).toBe(true);
     });
 
     it("写真が0枚の場所は本文の後ろ（1画面目を空の節にしない）", () => {
         view();
-        const photos = screen.getByRole("heading", { name: "この場所の写真（0）" });
-        expect(before(screen.getByRole("heading", { name: "この場所の魅力" }), photos)).toBe(true);
+        const photos = screen.getByRole("heading", { name: "この撮影スポットの写真（0）" });
+        expect(before(screen.getByRole("heading", { name: "この撮影スポットの魅力" }), photos)).toBe(true);
         expect(screen.getByRole("link", { name: "ここで撮った写真を投稿する" })).toBeTruthy();
     });
 

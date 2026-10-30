@@ -126,7 +126,7 @@ describe("/user/edit: 未保存のまま戻る", () => {
         render(<EditPage />);
         await screen.findByDisplayValue("夕焼け");
 
-        fireEvent.click(screen.getByRole("button", { name: "この場所名で候補を出す" }));
+        fireEvent.click(screen.getByRole("button", { name: "撮影地の名前で候補を出す" }));
         fireEvent.click(await screen.findByRole("button", { name: "江ノ島, 藤沢市" }));
 
         // 値は1つも変わっていない。それでも保存すればサーバーの扱いは変わる

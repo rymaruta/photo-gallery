@@ -56,7 +56,7 @@ export default function SpotSearchResults({ query, locale }: { query: string; lo
                             <span className="min-w-0 flex-1">
                                 <span className="block truncate font-semibold text-white" style={{ fontSize: "15px", lineHeight: "22px" }}>{s.n}</span>
                                 <span className="block truncate text-white/70" style={{ fontSize: "12px", lineHeight: "18px" }}>
-                                    {en ? "Photo spot guide" : "撮影地ガイド"}{s.g ? ` ・ ${s.g}` : ""}
+                                    {en ? "Photo spot" : "撮影スポット"}{s.g ? ` ・ ${s.g}` : ""}
                                 </span>
                             </span>
                             <ChevronRightIcon aria-hidden="true" className="shrink-0 text-white/50" style={{ width: "18px", height: "18px" }} />

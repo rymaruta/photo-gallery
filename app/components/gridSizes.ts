@@ -35,26 +35,21 @@
  * つまり利用者がブラウザの既定フォントを大きくすると、**折り返す幅も余白も
  * 容器の上限も一緒に伸びる**。
  *
- * **`sizes` の中の rem は「ブラウザの既定」で解ける**（条件も長さも。実測:
- * ページが `html{font-size:14px}` を当てていても 16px で解かれた）。
- * これは Tailwind のメディアクエリと同じ土俵なので、**640px 以上は rem で
- * 書けば追随する**。
+ * **`sizes` の中の rem は「ブラウザの既定」で解ける**（条件も長さも）。
+ * これは Tailwind のメディアクエリと同じ土俵なので、**rem で書けば追随する**。
  *
- * **640px 未満だけは px。** このサイトは `app/globals.css` で
- * `@media (max-width:639px) { html,body { font-size:14px } }` と**自分で
- * root を固定している**（しかも境界は px）。だから余白は 14px・隙間は 3.5px で
- * 動かない——ここを rem で書くと既定16px で解かれてずれる。
+ * 以前は 640px 未満だけ px の行を先に置いていた——`app/globals.css` が電話の幅で
+ * `html{font-size:14px}` を当てていて、余白が 14px・隙間が 3.5px で固定されていたため
+ * （画面390px のセル 179.25px）。**2026-10-30（束 0a）にその規則を外した**ので、
+ * 640px 未満も root は 16px＝rem の行がそのまま当たる。px の行は消した。
  *
- *     実測（画面390px）  root=14px / 余白14px / 隙間3.5px / セル 179.25px
- *                        (390 - 28 - 3.5) / 2 = 179.25  ← 一致
- *     実測（画面1280px） root=16px / 余白32px / 隙間6px  / セル 235.5px
- *                        (1024 - 64 - 18) / 4 = 235.5    ← 一致
+ *     画面390px   余白16 / 隙間4  / セル (390 - 32 - 4) / 2 = 177
+ *     画面1280px  余白32 / 隙間6  / セル (1024 - 64 - 18) / 4 = 235.5
  *
  * 境界は Tailwind の手前で切る（`39.99rem`）。`640px` と書くと 640 ちょうどで
  * 食い違う（`sm:` は 640 **から**効くのに `max-width:640px` も 640 を含む）。
  */
 export const GRID_SIZES_5XL = [
-    "(max-width:639px) calc(50vw - 15.75px)",        // 2列 / root は 14px 固定（余白14・隙間3.5）
     "(max-width:39.99rem) calc(50vw - 1.125rem)",    // 2列 / root はブラウザ既定（余白1rem×2・隙間0.25rem）
     "(max-width:47.99rem) calc(33.33vw - 1.25rem)",  // 3列 / p-6（1.5rem×2）・隙間0.375rem×2
     "(max-width:63.99rem) calc(33.33vw - 1.583rem)", // 3列 / p-8（2rem×2）・隙間0.375rem×2
@@ -91,7 +86,6 @@ export const GRID_SIZES_5XL = [
  * ≥640px は全部 rem で書く（Tailwind のメディアクエリと同じ土俵）。
  */
 export const GRID_SIZES_SEARCH = [
-    "(max-width:639px) calc(50vw - 15.75px)",        // 2列 / root 14px 固定（余白14・隙間3.5）
     "(max-width:39.99rem) calc(50vw - 1.125rem)",    // 2列 / 余白1rem×2・隙間0.25rem
     "(max-width:47.99rem) calc(33.33vw - 1.25rem)",  // 3列 / p-6・隙間0.375rem×2
     "(max-width:63.99rem) calc(33.33vw - 1.583rem)", // 3列 / p-8・隙間0.375rem×2（柱はまだ無い）
@@ -125,7 +119,6 @@ export const GRID_COLUMNS_SEARCH = "grid-cols-2 sm:grid-cols-3";
  * `gridSizes.test.tsx` の「直す前の式は落ちる」と同じ型の間違い。
  */
 export const GRID_SIZES_HOME_6XL = [
-    "(max-width:639px) calc(50vw - 15.75px)",        // 2列 / root 14px 固定
     "(max-width:39.99rem) calc(50vw - 1.125rem)",    // 2列
     "(max-width:47.99rem) calc(33.33vw - 1.25rem)",  // 3列 / p-6
     "(max-width:63.99rem) calc(33.33vw - 1.583rem)", // 3列 / p-8
@@ -135,7 +128,6 @@ export const GRID_SIZES_HOME_6XL = [
 
 /** 集約ページ（`max-w-6xl` ＝ 72rem ＋ 左右の余白は `px-4` 固定） */
 export const GRID_SIZES_6XL = [
-    "(max-width:639px) calc(50vw - 15.75px)",
     "(max-width:39.99rem) calc(50vw - 1.125rem)",
     "(max-width:63.99rem) calc(33.33vw - 0.9167rem)", // 3列 / px-4（1rem×2）・隙間0.375rem×2
     "(max-width:71.99rem) calc(25vw - 0.78125rem)",   // 4列 / (vw - 2rem - 1.125rem) / 4
@@ -145,9 +137,9 @@ export const GRID_SIZES_6XL = [
 /**
  * ホームの写真の並び（`HomeMosaic`・iOS の板 01c）の2種類の箱。
  *
- * **531px までは画面の端から端まで**（本文の余白 `p-4` を `-mx-4` で打ち消す）。
- * 532〜639px は `max-w-xl`（root 14px なので 504px）＋左右 14px ＝ **532px で頭打ち**
- * （端まで届かない。root が 14px なので `max-w-xl` は 504px）。
+ * **607px までは画面の端から端まで**（本文の余白 `p-4` を `-mx-4` で打ち消す）。
+ * 608〜639px は `max-w-xl`（576px）＋左右 16px ＝ **608px で頭打ち**（端まで届かない）。
+ * 2026-10-30（束 0a）に電話の幅の root 14px を外したので、境界が 531/532 から 607/608 に動いた。
  * 640〜1023px は 36rem（576px）、1024px 以上は PC の2カラムの1本目＝40rem（640px）。
  *
  * ⚠️ **40rem（640px）より広げない。** `Thumb` の派生は **512w まで**なので、箱を
@@ -160,15 +152,15 @@ export const GRID_SIZES_6XL = [
  *   2枚の段   … 箱の半分から隙間の半分（2px）を引いた幅
  */
 export const MOSAIC_HERO_SIZES = [
-    "(max-width:531px) 100vw",
-    "(max-width:639px) 532px",
+    "(max-width:607px) 100vw",
+    "(max-width:639px) 608px",
     "(max-width:63.99rem) 36rem",
     "40rem",
 ].join(", ");
 
 export const MOSAIC_PAIR_SIZES = [
-    "(max-width:531px) calc(50vw - 2px)",
-    "(max-width:639px) 264px",
+    "(max-width:607px) calc(50vw - 2px)",
+    "(max-width:639px) 302px",
     "(max-width:63.99rem) calc(18rem - 2px)",
     "calc(20rem - 2px)",
 ].join(", ");
@@ -203,12 +195,10 @@ export const SPOT_HERO_SIZES = [
  * 「周辺のスポット」のカード（モック⑨）。容器は `max-w-6xl` ＋ `px-4`、
  * 2列（640px 未満）→ 3列（sm）→ 4列（lg）。隙間は `gap-3`。
  *
- * **640px 未満だけ px**（このサイトは root を 14px に固定している＝
- * `gap-3` は 10.5px・`px-4` は 14px）。それ以上は rem で書いて
- * Tailwind のメディアクエリに追随させる（`GRID_SIZES_*` と同じ理由）。
+ * 全部 rem で書いて Tailwind のメディアクエリに追随させる（`GRID_SIZES_*` と同じ理由。
+ * 640px 未満の px の行は root 14px を外したので消した・2026-10-30 束 0a）。
  */
 export const SPOT_NEARBY_SIZES = [
-    "(max-width:639px) calc(50vw - 19.25px)",        // 2列: (100vw - 14*2 - 10.5) / 2
     "(max-width:39.99rem) calc(50vw - 1.375rem)",    // 2列: (100vw - 1rem*2 - 0.75rem) / 2
     "(max-width:63.99rem) calc(33.33vw - 1.1667rem)",// 3列: (100vw - 2rem - 1.5rem) / 3
     "(max-width:71.99rem) calc(25vw - 1.0625rem)",   // 4列: (100vw - 2rem - 2.25rem) / 4
