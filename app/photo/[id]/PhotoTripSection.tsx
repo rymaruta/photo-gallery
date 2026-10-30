@@ -3,7 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import { ArrowTurnUpRightIcon, SunIcon, CameraIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "../../components/SaveSpotButton";
+import SaveSpotButton, { TILE, TILE_TEXT, TILE_ICON, TILE_MIN_H } from "../../components/SaveSpotButton";
+import { ROW_CARD, ROW_ICON_BOX, ROW_ICON, ROW_TITLE, ROW_CHEVRON } from "../../components/rowStyles";
 import type { SpotLink } from "@/lib/data/spotLink";
 import {
     nextGoldenHour, goldenLineParts, directionsUrl, inspiredUploadHref, type NextGolden,
@@ -76,12 +77,12 @@ export default function PhotoTripSection({
                         <a href={routeHref} target="_blank" rel="noopener noreferrer"
                            // **字も印も真鍮**（外へ出るリンク）。`TILE_OFF` は字が白なので使わない
                            // （同じ性質の utility を2つ並べると、どちらが勝つかが候補名の順で決まる）
-                           className={`${TILE} bg-surface hover:bg-surface-2 text-accent min-w-0`}
+                           className={`${TILE} bg-chip hover:bg-white/15 text-accent min-w-0`}
                            aria-label={routeName
                                ? (isJa ? `${routeName}への経路（Google マップ）` : `Directions to ${routeName} (Google Maps)`)
                                : (isJa ? "撮影地への経路（Google マップ）" : "Directions to where this was taken (Google Maps)")}
                            data-testid="photo-trip-directions"
-                           style={{ minHeight: 48, touchAction: "manipulation" }}>
+                           style={{ minHeight: TILE_MIN_H, touchAction: "manipulation" }}>
                             <ArrowTurnUpRightIcon className={TILE_ICON} aria-hidden />
                             <span className={TILE_TEXT}>{isJa ? "経路" : "Directions"}</span>
                         </a>
@@ -99,13 +100,14 @@ export default function PhotoTripSection({
             )}
 
             {inspiredPhotoId && (
+                // 札の行（2026-10-30 束 0b C11・iOS の「撮りに行く」は札の行）。印は真鍮（黒地の札の上の合図）
                 <Link href={inspiredUploadHref(inspiredPhotoId)} prefetch={false}
-                      className={`${TILE} ${TILE_OFF} w-full`}
+                      className={`${ROW_CARD} w-full`}
                       data-testid="photo-trip-inspired"
-                      style={{ minHeight: 48, touchAction: "manipulation" }}>
-                    <CameraIcon className={`${TILE_ICON} text-accent`} aria-hidden />
-                    <span className={TILE_TEXT}>{isJa ? "この写真を見て撮りに行く" : "Go shoot it yourself"}</span>
-                    <ChevronRightIcon className="w-4 h-4 flex-shrink-0 text-white/50" aria-hidden />
+                      style={{ touchAction: "manipulation" }}>
+                    <span className={`${ROW_ICON_BOX} !text-accent`}><CameraIcon className={ROW_ICON} aria-hidden /></span>
+                    <span className={`${ROW_TITLE} min-w-0 flex-1`}>{isJa ? "この写真を見て撮りに行く" : "Go shoot it yourself"}</span>
+                    <ChevronRightIcon className={ROW_CHEVRON} aria-hidden />
                 </Link>
             )}
         </section>

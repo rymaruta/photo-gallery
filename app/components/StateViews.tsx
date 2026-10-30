@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { BTN_FILL, BTN_LINE } from "./buttonStyles";
 
 /**
  * **空・失敗・読み込み中を1つの形に**（iOS の `ErrorBanner.swift`・板 Components 06「4つの状態」・2026-10-21）。
@@ -40,9 +41,15 @@ export type StateAction =
     | { label: string; href: string; onClick?: () => void }
     | { label: string; onClick: () => void; href?: undefined };
 
-/** 空の一手（真鍮の塗り＋墨・44px） */
+/**
+ * 空の一手（写真の無い画面の主ボタン＝真鍮の塗り＋墨・**高さ 50**・`BTN_FILL`）。
+ * 2026-10-30 束 0b C7・C17: 以前は 44 の独自の形。ボタンは主 50・副 44 の2種類だけ（iOS `JPHeight`）
+ */
 export const STATE_ACTION_CLASS =
-    "inline-flex items-center justify-center rounded-full bg-accent-fill text-ink font-semibold px-5 hover:brightness-110 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
+    `inline-flex items-center justify-center ${BTN_FILL} bg-accent-fill text-ink hover:brightness-110 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg`;
+/** 失敗の「もう一度」（副ボタン 44・白14%の線・`BTN_LINE`） */
+export const STATE_RETRY_CLASS =
+    `inline-flex items-center justify-center ${BTN_LINE} hover:bg-white/10 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`;
 
 export function EmptyState({ title, message, action, icon, headingLevel, className = "", testId = "state-empty" }: {
     title?: string;
@@ -61,12 +68,12 @@ export function EmptyState({ title, message, action, icon, headingLevel, classNa
             <StateMessage>{message}</StateMessage>
             {action && (action.href !== undefined ? (
                 <Link href={action.href} prefetch={false} onClick={action.onClick} className={`mt-1 ${STATE_ACTION_CLASS}`}
-                      style={{ minHeight: "44px", fontSize: "15px", touchAction: "manipulation" }}>
+                      style={{ touchAction: "manipulation" }}>
                     {action.label}
                 </Link>
             ) : (
                 <button type="button" onClick={action.onClick} className={`mt-1 ${STATE_ACTION_CLASS}`}
-                        style={{ minHeight: "44px", fontSize: "15px", touchAction: "manipulation" }}>
+                        style={{ touchAction: "manipulation" }}>
                     {action.label}
                 </button>
             ))}
@@ -74,8 +81,10 @@ export function EmptyState({ title, message, action, icon, headingLevel, classNa
     );
 }
 
-export function ErrorState({ title, message, onRetry, retryLabel, busy = false, locale = "ja", className = "", testId = "state-error" }: {
+export function ErrorState({ title, message, onRetry, retryLabel, busy = false, locale = "ja", className = "", testId = "state-error", headingLevel }: {
     title?: string;
+    /** 見出しの段（画面の題になるときは 1） */
+    headingLevel?: number;
     message: React.ReactNode;
     /** 無ければ「もう一度試す」を出さない（勝手に取り直す画面など） */
     onRetry?: () => void;
@@ -89,15 +98,15 @@ export function ErrorState({ title, message, onRetry, retryLabel, busy = false, 
     return (
         <div className={`${LAYOUT} ${className}`} data-testid={testId}>
             <ExclamationTriangleIcon aria-hidden="true" className="text-text-3" style={{ width: "28px", height: "28px" }} />
-            {title && <StateTitle text={title} />}
+            {title && <StateTitle text={title} level={headingLevel} />}
             <StateMessage>{message}</StateMessage>
             {onRetry && (
                 <button
                     type="button"
                     onClick={onRetry}
                     disabled={busy}
-                    className="mt-1 inline-flex items-center justify-center rounded-full ring-1 ring-line-strong text-white font-semibold px-5 hover:bg-white/10 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                    style={{ minHeight: "44px", fontSize: "15px", touchAction: "manipulation" }}
+                    className={`mt-1 ${STATE_RETRY_CLASS}`}
+                    style={{ touchAction: "manipulation" }}
                 >
                     {retryLabel ?? (locale === "en" ? "Try again" : "もう一度試す")}
                 </button>

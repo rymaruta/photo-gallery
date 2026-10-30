@@ -98,7 +98,7 @@ export default function SaveSpotButton({
                 href={loginWithNext(typeof window === "undefined" ? null : window.location.pathname)}
                 prefetch={false}
                 className={tile ? `${base} min-w-0 ${TILE_OFF}` : base}
-                style={{ touchAction: "manipulation", minHeight: tile ? 48 : 44 }}
+                style={{ touchAction: "manipulation", minHeight: tile ? TILE_MIN_H : 44 }}
             >
                 <IconOff className={iconClass} aria-hidden />
                 {tile ? <span className={TILE_TEXT}>{wantLabel}</span> : wantLabel}
@@ -133,7 +133,7 @@ export default function SaveSpotButton({
                 className={tile
                     ? `${base} min-w-0 ${saved ? TILE_ON : TILE_OFF} disabled:opacity-60`
                     : `${base} ${saved ? "bg-primary ring-primary text-ink hover:brightness-110" : "bg-white/10 ring-white/20 text-white hover:bg-white/20"} disabled:opacity-60`}
-                style={{ touchAction: "manipulation", minHeight: tile ? 48 : 44 }}
+                style={{ touchAction: "manipulation", minHeight: tile ? TILE_MIN_H : 44 }}
             >
                 {saved
                     ? <IconOn className={iconClass} aria-hidden />
@@ -180,20 +180,22 @@ const BTN =
     "ring-1 active:scale-95 transition";
 
 /**
- * スポットのページのタイル（iOS の `actionLabel`: 高さ48・角12・横に等分）。
- * 面は状態ごとに付ける（上の `BTN` と同じ理由）。**高さは px**（iOS の寸法をそのまま持つ）
+ * スポットのページの行動の札（iOS の `SpotDetailParts.actionLabel`: **高さ 64・角 14・印 18 を字の上に積む・
+ * 字 13 semibold・地は白 7%**）。2026-10-30 束 0b C7 で iOS の実装の値に直した（以前は 48・角 12・
+ * 390px 以上で横並び・字 14・地 #0E0E0F）。高さは `TILE_MIN_H`（呼ぶ側の style に渡す）。
+ * 面は状態ごとに付ける（上の `BTN` と同じ理由）
  */
 export const TILE =
-    // **390px 未満は印を字の上に積む**（3等分の列が約90px。横に並べると「地図で見る」が
-    // 「地図で見|る」と折れる）。字は折らない（`TILE_TEXT`）
-    "inline-flex flex-col min-[390px]:flex-row items-center justify-center gap-0.5 min-[390px]:gap-1.5 " +
-    "rounded-field px-1.5 font-semibold " +
+    "inline-flex flex-col items-center justify-center gap-1 " +
+    "rounded-xl px-1.5 font-semibold " +
     "focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent active:scale-95 transition";
-/** タイルの字（**px で書く**＝iOS の寸法をそのまま持つ。積むときは 12px） */
-export const TILE_TEXT = "whitespace-nowrap text-[12px] min-[390px]:text-[14px] leading-4";
+/** 行動の札の高さ（iOS `actionHeight` = `JPHeight.tallRow` 64） */
+export const TILE_MIN_H = 64;
+/** 札の字（13 semibold・折らない） */
+export const TILE_TEXT = "whitespace-nowrap text-[13px] leading-[18px]";
 /** タイルの印（縮ませない） */
 export const TILE_ICON = "w-[18px] h-[18px] flex-shrink-0";
-/** 押していない: 面（`surface`）に白い字 */
-export const TILE_OFF = "bg-surface text-white hover:bg-surface-2";
+/** 押していない: 白 7% の地（iOS `WebTheme.surface`）に白い字 */
+export const TILE_OFF = "bg-chip text-white hover:bg-white/15";
 /** 押した: 白地に墨の字（iOS の `filled`） */
 export const TILE_ON = "bg-primary text-ink hover:brightness-110";

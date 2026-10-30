@@ -21,7 +21,9 @@ describe("ErrorState", () => {
         expect(title.style.fontSize).toBe("20px");
         expect(screen.getByText("通信を確かめてください。").style.fontSize).toBe("15px");
         const retry = screen.getByRole("button", { name: "もう一度試す" });
-        expect(retry.style.minHeight).toBe("44px");
+        // 副ボタン 44（`BTN_LINE`・2026-10-30 束 0b C7）
+        expect(retry.className).toContain("min-h-[44px]");
+        expect(retry.className).toContain("ring-line-strong");
         fireEvent.click(retry);
         expect(onRetry).toHaveBeenCalledTimes(1);
     });
@@ -35,7 +37,7 @@ describe("ErrorState", () => {
 });
 
 describe("EmptyState", () => {
-    it("三角は出さない（0件は失敗ではない）。一手は真鍮の塗りに墨の字・44", () => {
+    it("三角は出さない（0件は失敗ではない）。一手は真鍮の塗りに墨の字・主ボタン 50", () => {
         const onClick = vi.fn();
         const { container } = render(<EmptyState message="まだありません。" action={{ label: "リセット", onClick }} />);
         expect(container.querySelector("svg")).toBeNull();
@@ -43,7 +45,8 @@ describe("EmptyState", () => {
         expect(btn.className).toContain("bg-accent-fill");
         expect(btn.className).toContain("text-ink");
         expect(btn.className).not.toContain("text-white");
-        expect(btn.style.minHeight).toBe("44px");
+        // 主ボタン 50（`BTN_FILL`・2026-10-30 束 0b C7）
+        expect(btn.className).toContain("min-h-[50px]");
         fireEvent.click(btn);
         expect(onClick).toHaveBeenCalled();
     });
