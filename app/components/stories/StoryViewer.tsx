@@ -1297,8 +1297,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 ヘッダーが下がり、曲チップがタップ領域に潜って押せなくなるため。 */}
             <div className="absolute top-0 inset-x-0 z-20 bg-gradient-to-b from-black/70 to-transparent pt-2 pb-8 px-2 pointer-events-none">
                 {/* 寸法はアーティファクトの板（StoryViewer.dc.html）に合わせる:
-                    高さ3px・角丸2px・間隔4px・左右10px。**px で書く**——640px 未満は
-                    root が 14px なので `gap-1` は 3.5px、`px-2` は 7px に縮む（実測）。
+                    高さ3px・角丸2px・間隔4px・左右10px。**px で書く**——以前は 640px 未満の
+                    root が 14px で `gap-1` は 3.5px、`px-2` は 7px に縮んでいた（実測・2026-10-30 束 0a で外した）。
                     外側が 7px なので、ここで +3px して 10px にする。
                     `role="group"` を付けるのは、**素の div の `aria-label` は読み上げに
                     渡らない**ため（板は div のままだが、それでは名前が届かない）。 */}

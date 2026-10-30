@@ -25,7 +25,7 @@ vi.mock("../../auth/context", () => ({
 const localeMock = vi.hoisted(() => ({ locale: "ja" as "ja" | "en" }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: localeMock.locale, labels: {} }) }));
 
-import BottomNav, { activeTab, shownTab, TAB_CELL_ON } from "../BottomNav";
+import BottomNav, { activeTab, nextTab, TAB_CELL_ON } from "../BottomNav";
 
 beforeEach(() => {
     nav.push.mockClear();
@@ -280,27 +280,32 @@ describe("どのタブを光らせるか（activeTab）", () => {
  * タブの無いページでは来た元のタブのまま（2026-10-30・束 0a・比較の板 C3）。
  * ただし他人のページで「マイページ」は光らせない（2026-10-15 に本番で光っていた件）
  */
-describe("来た元のタブ（shownTab）", () => {
+describe("来た元のタブ（nextTab）", () => {
     const me = { myId: "me-1" };
 
     it("ホームから人のページ・写真へ来たら、ホームのまま", () => {
-        expect(shownTab("/users/other", me, "home")).toBe("home");
-        expect(shownTab("/photo/abc", me, "search")).toBe("search");
+        expect(nextTab("/users/other", me, "home")).toBe("home");
+        expect(nextTab("/photo/abc", me, "search")).toBe("search");
     });
 
     it("マイページから他人のページへ来ても「マイページ」は光らせない（クエリ版も）", () => {
-        expect(shownTab("/users/other", me, "me")).toBeNull();
-        expect(shownTab("/users", { myId: "me-1", profileId: "other" }, "me")).toBeNull();
-        expect(shownTab("/users/other", {}, "me")).toBeNull();
+        expect(nextTab("/users/other", me, "me")).toBeNull();
+        expect(nextTab("/users", { myId: "me-1", profileId: "other" }, "me")).toBeNull();
+        expect(nextTab("/users/other", {}, "me")).toBeNull();
     });
 
     it("自分のページは「マイページ」・写真なら来た元の「マイページ」のまま", () => {
-        expect(shownTab("/users/me-1", me, "home")).toBe("me");
-        expect(shownTab("/photo/abc", me, "me")).toBe("me");
+        expect(nextTab("/users/me-1", me, "home")).toBe("me");
+        expect(nextTab("/photo/abc", me, "me")).toBe("me");
+    });
+
+    it("ログインしていなければ「マイページ」を持ち越さない（タブの無い頁でログアウト）", () => {
+        expect(nextTab("/photo/abc", {}, "me")).toBeNull();
+        expect(nextTab("/photo/abc", {}, "home")).toBe("home");
     });
 
     it("読み込んだ直後（来た元が無い）は何も光らない", () => {
-        expect(shownTab("/users/other", me, null)).toBeNull();
+        expect(nextTab("/users/other", me, null)).toBeNull();
     });
 
     function lit(): string[] {
@@ -329,6 +334,44 @@ describe("来た元のタブ（shownTab）", () => {
         const { rerender } = render(<BottomNav />);
         expect(lit()).toEqual(["マイページ"]);
         nav.pathname = "/users/other";
+        rerender(<BottomNav />);
+        expect(lit()).toEqual([]);
+    });
+
+    function go(path: string, rerender: (ui: React.ReactElement) => void) {
+        nav.pathname = path;
+        rerender(<BottomNav />);
+    }
+
+    it("描いた下の札: ホーム → 探す → 他人のページで「探す」が光る（最後に通ったタブ）", () => {
+        auth.isAuthenticated = true;
+        auth.userId = "me-1";
+        nav.pathname = ROUTES.HOME;
+        const { rerender } = render(<BottomNav />);
+        go(ROUTES.SEARCH, rerender);
+        go("/users/other", rerender);
+        expect(lit()).toEqual(["探す"]);
+    });
+
+    it("描いた下の札: 自分のページ → 他人のページ → その人の写真で「マイページ」が戻らない", () => {
+        auth.isAuthenticated = true;
+        auth.userId = "me-1";
+        nav.pathname = "/users/me-1";
+        const { rerender } = render(<BottomNav />);
+        go("/users/other", rerender);
+        go("/photo/abc", rerender);
+        expect(lit()).toEqual([]);
+    });
+
+    it("描いた下の札: 写真の頁でログアウトすると「マイページ」が消える", () => {
+        auth.isAuthenticated = true;
+        auth.userId = "me-1";
+        nav.pathname = "/users/me-1";
+        const { rerender } = render(<BottomNav />);
+        go("/photo/abc", rerender);
+        expect(lit()).toEqual(["マイページ"]);
+        auth.isAuthenticated = false;
+        auth.userId = null;
         rerender(<BottomNav />);
         expect(lit()).toEqual([]);
     });

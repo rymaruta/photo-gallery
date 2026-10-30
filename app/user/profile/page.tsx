@@ -991,7 +991,7 @@ export default function ProfileEditPage() {
                     <div>
                         <label className={labelClass} htmlFor="profile-instagram">Instagram</label>
                         <div className="flex items-center">
-                            <span className="text-white/50 text-sm px-3 py-3 bg-surface-2 border border-r-0 border-line-strong rounded-l-lg">@</span>
+                            <span className="text-white/50 text-sm px-3 py-3 bg-surface-2 border border-r-0 border-line-strong rounded-l-field">@</span>
                             <input
                                 id="profile-instagram"
                                 type="text"

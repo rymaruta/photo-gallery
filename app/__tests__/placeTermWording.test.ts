@@ -60,6 +60,9 @@ describe("場所の呼び名（画面の言葉）", () => {
     it("写真から導く頁（/location）は「撮影地」と呼ぶ", () => {
         const src = readFileSync(join(ROOT, "app/components/SpotPageClient.tsx"), "utf8");
         expect(src).toContain('"この撮影地の写真"');
+        // 撮影地の中の撮影地は「中にある撮影地」（「この撮影地の中にある撮影地」は重い・束 0a の確かめ）
+        expect(src).toContain('"中にある撮影地"');
+        expect(src).not.toContain("この撮影地の中にある撮影地");
         expect(readFileSync(join(ROOT, "app/map/MapPhotoSheet.tsx"), "utf8")).toContain('"撮影地を見る"');
     });
 

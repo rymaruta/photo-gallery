@@ -30,9 +30,9 @@ import PostSheet from "./PostSheet";
  * アルバム／管理 で、投稿を持っていない）。カプセルは端末の幅ほど
  * （`max-w-[480px]`）で止めて中央に置くので、広い画面で間延びしない。
  *
- * **寸法と字は px で固定する。** このサイトは 640px 未満で root を 14px に
- * 落とすので、rem の指定（`w-6`・`text-xs`）は端末で 21px・10.5px に縮む
- * （`96eb86db` で踏んだ）。押せる面は 44px 以上（カプセルの内寸 54px）。
+ * **寸法と字は px で固定する。** 以前は 640px 未満で root を 14px に落としていて、
+ * rem の指定（`w-6`・`text-xs`）が端末で 21px・10.5px に縮んだ（`96eb86db`）。
+ * 根の字は 2026-10-30（束 0a）から 16px のままだが、タブは iOS の寸法を px で持つ。押せる面は 44px 以上（カプセルの内寸 54px）。
  *
  * **高さは `--bottom-bar-h` に出す**（`useBottomBarHeight`）。`MiniPlayer` が
  * それを読んで上に逃げる。**下の隙間と safe-area のぶんも含めた実寸**
@@ -90,18 +90,28 @@ export function activeTab(pathname: string, who: { myId?: string | null; profile
  * ただし**他人のページでは「マイページ」を光らせない**（2026-10-15 に本番で光っていた件・owner）。
  * 自分のページ → フォロワー → 他人のページ、と来ても「マイページ」は消す。他人のページを
  * 「自分のところ」と取り違えるほうが、どのタブの中かが消えるより困る。
- * `lastTab` は直前に光っていたタブ（読み込んだ直後は null＝何も光らない）
+ * **消したことを状態に残す**（戻り値をそのまま次の `lastTab` にする）。表示だけで消すと、
+ * その人の写真へ進んだとき「マイページ」がまた光っていた（束 0a の確かめ）。
+ * **ログインしていなければ「マイページ」を持ち越さない**——タブの無い頁でログアウトすると、
+ * ログインへの入口に変わったタブが光ったまま残っていた。
+ *
+ * 直さない近い筋（2026-10-30 判断）: 履歴の「戻る」では、戻った先へ来たときのタブではなく
+ * **最後に通ったタブ**が光る（例: ホーム → 写真 → 探す → 戻るで写真に戻ると「探す」）。
+ * 頁ごとに来た元を覚えるには履歴の項目ごとの状態が要り、静的書き出しのこの作りでは割に合わない。
+ *
+ * `lastTab` は直前に光っていたタブ（読み込んだ直後は null＝何も光らない）。戻り値が光らせるタブで、
+ * 呼ぶ側はこれを次の `lastTab` として持つ
  */
-export function shownTab(
+export function nextTab(
     pathname: string,
     who: { myId?: string | null; profileId?: string | null },
     lastTab: TabKey | null,
 ): TabKey | null {
     const routeTab = activeTab(pathname, who);
     if (routeTab) return routeTab;
+    if (lastTab !== "me") return lastTab;
     const isPeoplePage = (pathname === "/users" || pathname.startsWith("/users/")) && pathname !== ROUTES.USER_SEARCH;
-    if (isPeoplePage && lastTab === "me") return null;
-    return lastTab;
+    return isPeoplePage || !who.myId ? null : "me";
 }
 
 function safeDecode(s: string): string | null {
@@ -169,11 +179,11 @@ export default function BottomNav() {
     }, [pathname]);
 
     const who = { myId: isAuthenticated ? userId : null, profileId };
-    // 直前に光っていたタブ（`shownTab` の注記）。描画のときに合わせる（上の `seenPath` と同じ形）
+    // 直前に光っていたタブ（`nextTab` の注記）。描画のときに合わせる（上の `seenPath` と同じ形）
     const routeTab = activeTab(pathname, who);
     const [lastTab, setLastTab] = React.useState<TabKey | null>(routeTab);
-    if (routeTab && routeTab !== lastTab) setLastTab(routeTab);
-    const current = shownTab(pathname, who, routeTab ?? lastTab);
+    const current = nextTab(pathname, who, lastTab);
+    if (current !== lastTab) setLastTab(current);
     const me = isAuthenticated && userId ? ROUTES.USER_PROFILE(userId) : ROUTES.LOGIN;
 
     const items: Array<{

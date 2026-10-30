@@ -200,7 +200,7 @@ export default function SpotPageClient({
                 **全体ヘッダー（ロゴ・ハンバーガー）は layout のもの**なので、
                 この行はその下に置く（重ねない）。寸法は `PhotoPageClient` の
                 同じ行に揃えた——40px の的・22px の絵・px 直書き
-                （640px 未満で root が 14px に落ちるため。台帳 `96eb86db`）。
+                （以前は 640px 未満で root が 14px に落ちていた（2026-10-30 束 0a で外した）。台帳 `96eb86db`）。
 
                 **戻るは `router.back()` にしない。** `/location/*` は検索の
                 着地点なので、直接開かれた回の `back()` は**サイトの外**へ出る。
@@ -520,7 +520,7 @@ export default function SpotPageClient({
             )}
             {narrower.length > 0 && (
                 <Chips
-                    heading={en ? "Spots within" : "この撮影地の中にある撮影地"}
+                    heading={en ? "Spots within" : "中にある撮影地"}
                     items={narrower.map((n) => ({ key: n.path, label: n.label, count: n.count, path: n.path }))}
                 />
             )}
