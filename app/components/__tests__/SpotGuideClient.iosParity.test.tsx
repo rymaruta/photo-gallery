@@ -102,10 +102,10 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         const shareBtn = screen.getByRole("button", { name: "シェア" });
         const row = map.parentElement!;
         expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["grid", "grid-cols-3"]));
-        // 3つとも格子の直接の子（外箱で包まない）・高さ48
+        // 3つとも格子の直接の子（外箱で包まない）・高さ 64（iOS `actionHeight`・2026-10-30 束 0b C7）
         for (const el of [wish, map, shareBtn]) {
             expect(el.parentElement, el.textContent!).toBe(row);
-            expect(el.style.minHeight, el.textContent!).toBe("48px");
+            expect(el.style.minHeight, el.textContent!).toBe("64px");
             // 印は縮ませない（狭い列で幅0まで潰れた）
             expect(el.querySelector("svg")!.getAttribute("class"), el.textContent!).toContain("flex-shrink-0");
         }
@@ -123,7 +123,7 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
             view();
             const wish = screen.getByRole("link", { name: "行きたい" });
             expect(wish.parentElement).toBe(screen.getByRole("link", { name: "地図で見る" }).parentElement);
-            expect(wish.style.minHeight).toBe("48px");
+            expect(wish.style.minHeight).toBe("64px");
         } finally {
             auth.isAuthenticated = true;
         }
@@ -232,7 +232,7 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         );
         const list = screen.getByRole("heading", { name: "香川県の撮影スポット" }).nextElementSibling!;
         expect(list.tagName).toBe("UL");
-        expect(list.className.split(/\s+/)).toEqual(expect.arrayContaining(["bg-surface", "rounded-2xl"]));
+        expect(list.className.split(/\s+/)).toEqual(expect.arrayContaining(["bg-surface", "rounded-2xl", "ring-line"]));
         const rows = Array.from(list.querySelectorAll("a"));
         expect(rows.map((a) => a.getAttribute("href"))).toEqual(["/spots/a", "/spots/b", "/spots/c"]);
         expect(rows[0].textContent).toContain("約12km");
@@ -240,7 +240,8 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         // 座標が無い行は距離を出さない（`NaNkm` を出さない）
         expect(rows[2].textContent).not.toMatch(/km/);
         for (const a of rows) {
-            expect(a.style.minHeight).toBe("54px");
+            // 行 56（共通の行・2026-10-30 束 0b C11）
+            expect(a.className.split(/\s+/)).toContain("min-h-[56px]");
             expect(a.querySelectorAll("svg")).toHaveLength(2);   // 印と矢印
         }
     });

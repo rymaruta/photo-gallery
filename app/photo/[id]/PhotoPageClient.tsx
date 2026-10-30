@@ -77,6 +77,7 @@ import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
 import { CHIP_OFF, CHIP_SIZE, CHIP_HIT } from "@/app/components/chipStyles";
 import PhotoTripSection from "./PhotoTripSection";
+import { LoadingState, ErrorState } from "@/app/components/StateViews";
 // **全画面は押したときに読む**（写真ページの最初の JS に載せない。検索の着地点で、
 // 押さずに去る人が大半）。静的書き出しでは描かないので ssr: false
 const PhotoViewer = dynamic(() => import("./PhotoViewer"), { ssr: false });
@@ -290,9 +291,8 @@ function PhotoImage({
             {/* 回転は「まだ」と分かってから。分からないうちに黒で覆うと、
                 届いている写真まで隠す */}
             {phase === "pending" && !blurDataURL && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
-                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
+                // 2026-10-30 束 0b C17: 回る輪ではなく iOS の骨組みの灰（surface-4 #1C1C1E）。光は流さない
+                <div aria-hidden="true" className="absolute inset-0 bg-surface-4 z-10" data-testid="photo-skeleton" />
             )}
             <div className="relative w-full" style={{ minHeight: reserve, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック。
@@ -754,9 +754,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     if (loading) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
+                {/* 2026-10-30 束 0b C17: 回る輪ではなく iOS と同じ灰の骨組み（`StateViews`） */}
+                <LoadingState kind="rows" locale={locale === "en" ? "en" : "ja"} className="min-h-[60vh]" />
             </main>
         );
     }
@@ -767,23 +766,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     if (!photo && fetchFailed) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
-                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-                    <h1 className="font-serif text-xl font-bold mb-4">
-                        {locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
-                    </h1>
-                    <p className="text-white/60 mb-6">
-                        {locale === "en"
-                            ? "A temporary network problem may be the cause."
-                            : "一時的な通信の問題かもしれません。"}
-                    </p>
-                    <button
-                        onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-ink text-sm font-semibold hover:brightness-110 active:scale-95 transition"
-                        style={{ touchAction: "manipulation", minHeight: "44px" }}
-                    >
-                        {locale === "en" ? "Retry" : "もう一度読み込む"}
-                    </button>
-                </div>
+                {/* 2026-10-30 束 0b C17: 共通の失敗の形（灰の三角・明朝 20・本文 15・副ボタン 44 の「もう一度」） */}
+                <ErrorState
+                    className="min-h-[60vh]"
+                    headingLevel={1}
+                    title={locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
+                    message={locale === "en" ? "A temporary network problem may be the cause." : "一時的な通信の問題かもしれません。"}
+                    onRetry={() => { setLoading(true); setReloadKey((k) => k + 1); }}
+                    retryLabel={locale === "en" ? "Retry" : "もう一度読み込む"}
+                    locale={locale === "en" ? "en" : "ja"}
+                />
             </main>
         );
     }

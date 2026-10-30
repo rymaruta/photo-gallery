@@ -93,3 +93,77 @@ describe("C6 入力欄", () => {
         expect(src).not.toMatch(/search-own-clear w-full rounded-full/);
     });
 });
+
+import { INLINE_BTN, INLINE_BTN_STYLE, FOLLOW_ON, FOLLOW_OFF } from "../buttonStyles";
+import { TILE, TILE_MIN_H, TILE_TEXT, TILE_OFF } from "../SaveSpotButton";
+import { CARD, ROW, ROW_TITLE, ROW_SUB } from "../rowStyles";
+import { STATE_ACTION_CLASS, STATE_RETRY_CLASS } from "../StateViews";
+
+describe("C7 ボタン（主 50・副 44）と行動の札", () => {
+    it("空の一手は主ボタン 50（真鍮の塗り＋墨）、失敗の「もう一度」は副ボタン 44（白14%の線）", () => {
+        expect(STATE_ACTION_CLASS).toContain("min-h-[50px]");
+        expect(STATE_ACTION_CLASS).toContain("bg-accent-fill");
+        expect(STATE_RETRY_CLASS).toContain("min-h-[44px]");
+        expect(STATE_RETRY_CLASS).toContain("ring-line-strong");
+    });
+    it("撮影スポットの行動の札は iOS の actionLabel（64・角 14・印を字の上・13 semibold・白7%）", () => {
+        expect(TILE_MIN_H).toBe(64);
+        expect(TILE).toContain("flex-col");
+        expect(TILE).not.toMatch(/min-\[390px\]:flex-row/);
+        expect(TILE).toContain("rounded-xl");
+        expect(TILE_TEXT).toContain("text-[13px]");
+        expect(TILE_OFF).toContain("bg-chip");
+    });
+});
+
+describe("C8 フォロー", () => {
+    it("見た目 36・13 semibold・当たり 44（上下 4）・未フォローは白＋墨、フォロー中は白12%＋白18%の縁", () => {
+        expect(INLINE_BTN_STYLE.minHeight).toBe("36px");
+        expect(INLINE_BTN_STYLE.fontSize).toBe("13px");
+        expect(INLINE_BTN).toContain("before:-inset-y-[4px]");
+        expect(FOLLOW_OFF).toContain("bg-primary");
+        expect(FOLLOW_OFF).toContain("text-ink");
+        expect(FOLLOW_ON.split(/\s+/)).toEqual(expect.arrayContaining(["bg-white/12", "ring-white/18", "text-white"]));
+    });
+    it("場面ごとの形（真鍮の線・44 の白・32 の錠剤）に戻っていない", () => {
+        const src = read("app/components/FollowButton.tsx");
+        const at = src.indexOf("export function FollowAction");
+        const body = src.slice(at);
+        expect(body).toContain("${INLINE_BTN}");
+        expect(body).not.toContain("ring-accent text-accent");
+        expect(body).not.toContain('minHeight: "32px"');
+        expect(body).not.toContain("UserPlusIcon");
+    });
+});
+
+describe("C11 札と行", () => {
+    it("札は surface・白8%の縁・角 16、行は 56・題 15 semibold・副 12 text-2", () => {
+        expect(CARD.split(/\s+/)).toEqual(expect.arrayContaining(["bg-surface", "ring-1", "ring-line", "rounded-2xl"]));
+        expect(ROW).toContain("min-h-[56px]");
+        expect(ROW_TITLE).toContain("text-[15px]");
+        expect(ROW_TITLE).toContain("font-semibold");
+        expect(ROW_SUB).toContain("text-text-2");
+        expect(ROW_SUB).toContain("text-[12px]");
+    });
+    it.each([
+        ["app/components/SpotRows.tsx", "className={ROW}"],
+        ["app/components/HomeEntryRow.tsx", "${ROW_CARD}"],
+        ["app/photo/[id]/PhotoTripSection.tsx", "${ROW_CARD}"],
+    ])("%s は共通の行を使う", (f, needle) => {
+        expect(read(f)).toContain(needle);
+    });
+});
+
+describe("C17 読み込み中・失敗", () => {
+    it("写真の詳細・人のページ・旅の一冊の読み込み中は回る輪ではなく灰の骨組み", () => {
+        for (const f of ["app/users/page.tsx", "app/users/trip/page.tsx"]) {
+            const src = read(f);
+            expect(src, f).toContain("<LoadingState");
+            expect(src, f).not.toContain("animate-spin");
+        }
+        const photo = read("app/photo/[id]/PhotoPageClient.tsx");
+        expect(photo).toContain('<LoadingState kind="rows"');
+        expect(photo).toContain("<ErrorState");
+        expect(photo).not.toContain("w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin");
+    });
+});

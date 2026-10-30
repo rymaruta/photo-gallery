@@ -4,7 +4,8 @@
 // 他人のプロフィールにはフォローボタン。
 
 import React, { useRef, useState } from "react";
-import { UserPlusIcon, CheckIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronRightIcon } from "@heroicons/react/24/outline";
+import { INLINE_BTN, INLINE_BTN_STYLE, FOLLOW_ON, FOLLOW_OFF } from "./buttonStyles";
 import { useFollow } from "../../lib/hooks/useFollow";
 import { useToast } from "../../lib/hooks/useToast";
 import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "./statCellStyle";
@@ -19,11 +20,11 @@ type Props = {
      * どの場面のボタンか。**大きさと文言だけが違う**（押したときの処理・
      * 楽観更新・エラーの返し分けは `useFollow` の1本で共有する）。
      *
-     * - `profile` … プロフィールのアクション行。行幅いっぱい・44px
-     * - `outline` … 写真ページ（最終版モック 03）。青の枠線・塗らない・伸びない・36px
-     * - `followBack` … 通知一覧の「フォローバック」（モック 05 の注釈③）。
-     *   行の中に収まる小さい錠剤。**文言も変える**——通知の文脈では
+     * - `profile` … プロフィールのアクション行。「フォローする」
+     * - `outline` … 写真ページ。短い「フォロー」（名前は以前の形の名残。形はもう線ではない）
+     * - `followBack` … 通知一覧の「フォローバック」（モック 05 の注釈③）。**文言も変える**——通知の文脈では
      *   「フォロー」ではなく、相手のフォローに返す操作だから
+     * 形はどれも同じ（2026-10-30 束 0b C8・`buttonStyles.ts` の `INLINE_BTN`）
      *
      * **2つ目のフォローボタンを作らないための prop。** 見た目のために
      * 別コンポーネントを立てると、`useFollow` を2か所から呼ぶことになり、
@@ -222,33 +223,18 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
             disabled={pending || !resolved}
             aria-pressed={isFollowing}
             aria-label={ariaLabel}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
-                compact
-                    ? "flex-shrink-0"
-                    : variant === "outline"
-                        ? "flex-shrink-0 px-4 py-2 text-sm"
-                        : "flex-1 px-4 py-2.5 text-sm"
-            } ${
-                isFollowing
-                    ? "bg-black/30 backdrop-blur-md ring-1 ring-white/15 text-white/85 hover:bg-black/40"
-                    : variant === "outline"
-                        ? "bg-transparent ring-1 ring-accent text-accent hover:bg-accent/10"
-                        : "bg-primary text-ink hover:brightness-110"
-            }`}
-            // **px で書く**（以前は 640px 未満で root が 14px に落ちて rem 系が縮んでいた（2026-10-30 束 0a で外した））。
-            // 小さい側はモックの画素から——フォローバックの錠剤は実測 28 画像px
-            // ＝ 29 CSS px だが、**押せる面は 32px まで上げる**。行の中の操作なので
-            // 44px は取れないが、29px は指に小さい（他の行内ボタンと同じ判断）。
-            // 写真ページ（`outline`）は 36px（モック 03 の実測）。
-            style={compact
-                ? { touchAction: "manipulation", minHeight: "32px", fontSize: "13px", paddingLeft: "12px", paddingRight: "12px" }
-                : { touchAction: "manipulation", minHeight: variant === "outline" ? "36px" : "44px" }}
+            // 2026-10-30 束 0b C8: どの場面も1つの形（iOS の `FollowPill`・見た目 36・当たり 44・13 semibold）。
+            // 以前は場面ごとに 真鍮の線（写真）・白塗り 44（人）・32（お知らせ）と割れていた。違うのは文言だけ
+            className={`${INLINE_BTN} flex-shrink-0 ${isFollowing ? FOLLOW_ON : FOLLOW_OFF}`}
+            style={{ ...INLINE_BTN_STYLE, touchAction: "manipulation" }}
         >
             {isFollowing
-                ? <><CheckIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />{locale === "en" ? "Following" : "フォロー中"}</>
-                : <><UserPlusIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />{compact
+                ? (locale === "en" ? "Following" : "フォロー中")
+                : compact
                     ? (locale === "en" ? "Follow back" : "フォローバック")
-                    : (locale === "en" ? "Follow" : "フォロー")}</>}
+                    : variant === "outline"
+                        ? (locale === "en" ? "Follow" : "フォロー")
+                        : (locale === "en" ? "Follow" : "フォローする")}
         </button>
     );
 }
