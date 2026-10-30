@@ -22,7 +22,7 @@ export default function HomeEntryRow({ href, eyebrow, text, testId }: {
             href={href}
             prefetch={false}
             data-testid={testId}
-            // 2026-10-30 束 0b C11: 共通の札の行（56・白8%の縁・角 16・字 15）。以前は 44・縁なし・字 14
+            // 2026-10-30 束 0b C11: 共通の札の行（1行の行 52・白8%の縁・角 16・字 15）。以前は 44・縁なし・字 14
             className={`mb-3 ${ROW_CARD}`}
             style={{ touchAction: "manipulation" }}
         >

@@ -164,6 +164,7 @@ export default function UserSearchPage() {
                         {/* プロフィールを開かずにここでフォローできる */}
                         <div className="flex-shrink-0">
                             <FollowAction
+                                variant="list"
                                 targetUserId={u.userId}
                                 isOwner={!!userId && userId === u.userId}
                                 isAuthenticated={isAuthenticated}

@@ -4,8 +4,8 @@
 // 他人のプロフィールにはフォローボタン。
 
 import React, { useRef, useState } from "react";
-import { ChevronRightIcon } from "@heroicons/react/24/outline";
-import { INLINE_BTN, INLINE_BTN_STYLE, FOLLOW_ON, FOLLOW_OFF } from "./buttonStyles";
+import { ChevronRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { INLINE_BTN, INLINE_BTN_STYLE, FOLLOW_ON, FOLLOW_OFF, FOLLOW_LIST_MIN_W, PROFILE_FOLLOW_BTN, PROFILE_FOLLOW_STYLE, PROFILE_FOLLOW_OFF, PROFILE_FOLLOW_ON } from "./buttonStyles";
 import { useFollow } from "../../lib/hooks/useFollow";
 import { useToast } from "../../lib/hooks/useToast";
 import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_NUMBER_CLASS, STAT_LABEL_CLASS, STAT_CELL_CLASS } from "./statCellStyle";
@@ -24,14 +24,16 @@ type Props = {
      * - `outline` … 写真ページ。短い「フォロー」（名前は以前の形の名残。形はもう線ではない）
      * - `followBack` … 通知一覧の「フォローバック」（モック 05 の注釈③）。**文言も変える**——通知の文脈では
      *   「フォロー」ではなく、相手のフォローに返す操作だから
-     * 形はどれも同じ（2026-10-30 束 0b C8・`buttonStyles.ts` の `INLINE_BTN`）
+     * - `list` … 人を探すの一覧の行。「フォローする」・幅の下限 96（押し替えで揺れない）
+     * 形は2つ（2026-10-30 束 0b C8）: `profile` は人のページの大きい札（iOS `ProfileFollowButtonLabel`・40・15）、
+     * ほかは行の中の小ボタン（iOS `FollowPill`・36・13・`INLINE_BTN`）
      *
      * **2つ目のフォローボタンを作らないための prop。** 見た目のために
      * 別コンポーネントを立てると、`useFollow` を2か所から呼ぶことになり、
      * 「押しても数が動かない」「エラー文言が片方だけ古い」が必ず出る
      * （このリポジトリが何度も踏んでいる「同じものを二度作る」の形）。
      */
-    variant?: "profile" | "outline" | "followBack";
+    variant?: "profile" | "outline" | "followBack" | "list";
     /**
      * 読み上げ用の名前。**一覧に並べるときは必ず渡す。**
      * 文言だけだと「フォローバック、ボタン」が人数ぶん続いて、
@@ -222,13 +224,19 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
             disabled={pending || !resolved}
             aria-pressed={isFollowing}
             aria-label={ariaLabel}
-            // 2026-10-30 束 0b C8: どの場面も1つの形（iOS の `FollowPill`・見た目 36・当たり 44・13 semibold）。
-            // 以前は場面ごとに 真鍮の線（写真）・白塗り 44（人）・32（お知らせ）と割れていた。違うのは文言だけ
-            className={`${INLINE_BTN} flex-shrink-0 ${isFollowing ? FOLLOW_ON : FOLLOW_OFF}`}
-            style={{ ...INLINE_BTN_STYLE, touchAction: "manipulation" }}
+            // 2026-10-30 束 0b C8: 人のページは iOS の `ProfileFollowButtonLabel`（40・15・フォロー中は線と ▾）、
+            // 写真の詳細・お知らせ・一覧は `FollowPill`（36・13）。以前は場面ごとに 真鍮の線（写真）・白塗り 44（人）・32（お知らせ）と割れていた
+            className={variant === "profile"
+                ? `${PROFILE_FOLLOW_BTN} flex-shrink-0 ${isFollowing ? PROFILE_FOLLOW_ON : PROFILE_FOLLOW_OFF}`
+                : `${INLINE_BTN} flex-shrink-0 ${isFollowing ? FOLLOW_ON : FOLLOW_OFF}`}
+            style={variant === "profile"
+                ? { ...PROFILE_FOLLOW_STYLE, touchAction: "manipulation" }
+                : { ...INLINE_BTN_STYLE, ...(variant === "list" ? { minWidth: FOLLOW_LIST_MIN_W } : {}), touchAction: "manipulation" }}
         >
             {isFollowing
-                ? (locale === "en" ? "Following" : "フォロー中")
+                ? (variant === "profile"
+                    ? <>{locale === "en" ? "Following" : "フォロー中"}<ChevronDownIcon aria-hidden="true" style={{ width: 12, height: 12, strokeWidth: 2.5 }} /></>
+                    : (locale === "en" ? "Following" : "フォロー中"))
                 : compact
                     ? (locale === "en" ? "Follow back" : "フォローバック")
                     : variant === "outline"
