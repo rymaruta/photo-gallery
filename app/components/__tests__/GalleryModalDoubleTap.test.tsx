@@ -108,4 +108,30 @@ describe("ダブルタップいいね", () => {
         expect(mutations, "2回叩きでいいねを外した").toEqual([]);
         expect(screen.getByRole("button", { name: "いいねを取り消す" })).toBeTruthy();
     });
+    // 2026-10-30: 負荷の高い検査で上の試験がまれに落ちた。いいね済みが画面に出た**その瞬間**
+    // （描いたあとの effect がまだ走っていない間）に2回叩くと、`likedRef` の古い「未いいね」を
+    // 見て取り消しを送っていた。画面が変わった直後（MutationObserver の中）に叩いて、その間を必ず作る
+    it("いいね済みが画面に出た直後に2回叩いても、いいねを外さない", async () => {
+        mockUserFetch.mockReset().mockImplementation((path: string) =>
+            Promise.resolve(String(path).startsWith("/user/likes/")
+                ? { ok: true, json: async () => ({ liked: true }) }
+                : { ok: true, json: async () => ({ likes: 2 }) }));
+        const { container } = render(view(0));
+        let tapped = false;
+        const observer = new MutationObserver(() => {
+            if (tapped || !screen.queryByRole("button", { name: "いいねを取り消す" })) return;
+            tapped = true;
+            const area = tapArea();
+            fireEvent.click(area, { clientX: 100, clientY: 200 });
+            fireEvent.click(area, { clientX: 102, clientY: 201 });
+        });
+        observer.observe(container.ownerDocument.body, { subtree: true, childList: true, attributes: true, characterData: true });
+        await waitFor(() => expect(tapped).toBe(true));
+        observer.disconnect();
+
+        await new Promise((r) => setTimeout(r, 30));
+        const mutations = mockUserFetch.mock.calls.filter((c) => String(c[0]).includes("/like")
+            && ["POST", "DELETE"].includes(String((c[1] as { method?: string } | undefined)?.method)));
+        expect(mutations, "いいね済みが出た直後の2回叩きでいいねを外した").toEqual([]);
+    });
 });

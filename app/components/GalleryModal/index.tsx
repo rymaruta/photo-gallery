@@ -131,7 +131,11 @@ export default function GalleryModal({
         if (isDoubleTap(lastTapRef.current, tap)) {
             lastTapRef.current = NO_TAP;
             // いいね済みなら解除しない（ダブルタップは演出のみ）
-            if (doubleTapAction({ isZoomed: false, alreadyLiked: likedRef.current }) === "like") {
+            // 2026-10-30 判断: `likedRef` ではなく描いたときの `liked` を見る。`likedRef` は
+            // 描いたあとの effect で追いつくので、サーバーの答え（いいね済み）が画面に出た直後に
+            // 2回叩くと、古い「未いいね」を見て toggle（＝取り消し）を呼んでいた（負荷の高い試験で
+            // DELETE が飛んだ）。写真ページ（`PhotoViewer`）と同じく、そのときの値で決める
+            if (doubleTapAction({ isZoomed: false, alreadyLiked: liked }) === "like") {
                 void toggleLike().then(notifyIfLikeFailed);
             }
             hapticTap();
