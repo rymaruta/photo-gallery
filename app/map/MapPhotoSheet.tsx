@@ -153,7 +153,7 @@ export default function MapPhotoSheet({
         <div
             role="dialog"
             aria-modal="false"
-            aria-label={en ? "Photo at this location" : "この場所の写真"}
+            aria-label={en ? "Photo at this location" : "この撮影地の写真"}
             className="map-sheet fixed left-0 right-0 z-[45] px-2 pointer-events-none lg:px-0"
             style={{
                 // 画面下から。バーがあるページではそのぶん上へ（バーの実寸は
@@ -306,7 +306,7 @@ export default function MapPhotoSheet({
                             style={{ flex: "1.25 1 0%", height: "44px", fontSize: "14px", touchAction: "manipulation" }}
                             data-testid="map-sheet-location-link"
                         >
-                            {en ? "Photos here" : "この場所の写真を見る"}
+                            {en ? "See place" : "撮影地を見る"}
                         </Link>
                     )}
                 </div>

@@ -115,7 +115,7 @@ export default function MapSpotSheet({
                         style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}
                         data-testid="map-spot-guide-link"
                     >
-                        {en ? "See the guide" : "撮影ガイドを見る"}
+                        {en ? "See photo spot" : "撮影スポットを見る"}
                     </Link>
                     {/* 保存の鍵の形は `lib/utils/savedSpotKey.ts` が1か所で持つ
                         （ここで組み立てない）。`kind="spot"` を渡すだけ */}
