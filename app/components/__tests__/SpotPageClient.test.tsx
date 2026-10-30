@@ -222,7 +222,7 @@ describe("撮影スポット詳細", () => {
         // リンクとリンクの間に区切り記号を置かない
         expect(region.textContent).not.toContain("/");
         // 代わりに、この並びが何なのかを読み上げに伝える
-        expect(region.textContent).toContain("この場所を含む撮影地");
+        expect(region.textContent).toContain("この撮影地を含む広い撮影地");
     });
 });
 

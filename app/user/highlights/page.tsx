@@ -36,7 +36,7 @@ import { RING_SEEN } from "../../components/stories/ring";
  *   選択を読む）。消すのもここ（マイページの輪から鉛筆で来る）
  */
 
-const inputCls = "w-full bg-surface-2 border border-line-strong rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
+const inputCls = "w-full bg-surface-2 border border-line-strong rounded-field px-3.5 py-2.5 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 
 function HighlightEditor({ editingId }: { editingId: string | null }) {
     const { isAuthenticated, loading, userId } = useAuth();

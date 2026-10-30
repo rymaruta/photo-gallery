@@ -32,7 +32,7 @@ describe("チップは高さ 34・字 13（v2 の .chip）", () => {
 });
 
 describe("塗りの主ボタンは高さ 50、線の副ボタンは高さ 44（v2 の .bw / .bb / .bo）", () => {
-    it("定数の値（px で持つ——640px 未満は root が 14px で rem が縮む）", () => {
+    it("定数の値（px で持つ——rem の段に頼らない）", () => {
         const f = BTN_FILL.split(/\s+/);
         expect(f).toEqual(expect.arrayContaining(["min-h-[50px]", "text-[16px]", "font-semibold", "rounded-full"]));
         const l = BTN_LINE.split(/\s+/);

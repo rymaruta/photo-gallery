@@ -60,10 +60,10 @@ export default function SpotAreaIndexClient({ areas, total, draftCount, children
                     言い過ぎなので外した（確かめ方は各ページの出典の行と、索引の description が書く） */}
                 {draftCount >= total
                     ? (isJa
-                        ? `撮影地ガイドの下書きです（${total}件・運営未確認）。地域を選ぶと、その中のスポットが出ます。`
+                        ? `撮影スポットの下書きです（${total}件・運営未確認）。地域を選ぶと、その中のスポットが出ます。`
                         : `Draft guides, not checked by us yet (${total}). Pick an area to see the spots in it.`)
                     : (isJa
-                        ? `撮影地のガイドです（${total}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。地域を選ぶと、その中のスポットが出ます。`
+                        ? `撮影スポットの案内です（${total}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。地域を選ぶと、その中のスポットが出ます。`
                         : `Photo spot guides (${total}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Pick an area to see the spots in it.`)}
             </p>
             )}

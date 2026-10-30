@@ -635,7 +635,7 @@ export default function ProfileEditPage() {
         ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`)
         : null;
     const currentCoverUrl = profile?.userId ? profileCoverUrl(profile.userId) : "";
-    const inputClass = "w-full bg-surface-2 border border-line-strong rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
+    const inputClass = "w-full bg-surface-2 border border-line-strong rounded-field px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
 
     const songPreview = parseMusicEmbed(songUrl, mmssToSec(songStartText), mmssToSec(songEndText));
@@ -759,7 +759,7 @@ export default function ProfileEditPage() {
                                                         : `${sortName(coverSort)}の ${i + 1} 枚目をカバーにする`}
                                                     disabled={coverUploading}
                                                     onClick={() => void pickCoverFromPost(p)}
-                                                    className={`relative aspect-square w-full overflow-hidden rounded-[10px] bg-surface disabled:opacity-60 ${on ? "ring-2 ring-accent ring-offset-2 ring-offset-black" : ""}`}
+                                                    className={`relative aspect-square w-full overflow-hidden rounded-lg bg-surface disabled:opacity-60 ${on ? "ring-2 ring-accent ring-offset-2 ring-offset-black" : ""}`}
                                                     style={{ minHeight: "44px", touchAction: "manipulation" }}
                                                 >
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -777,7 +777,7 @@ export default function ProfileEditPage() {
                                     </p>
                                 </>
                             ) : (
-                                <div className="rounded-[14px] bg-surface p-3.5 flex flex-col gap-2.5">
+                                <div className="rounded-xl bg-surface p-3.5 flex flex-col gap-2.5">
                                     <p className="text-[13px] leading-relaxed text-white/70">
                                         {locale === "en"
                                             ? "Once you post photos, your most liked and most recent ones will show up here."
@@ -991,7 +991,7 @@ export default function ProfileEditPage() {
                     <div>
                         <label className={labelClass} htmlFor="profile-instagram">Instagram</label>
                         <div className="flex items-center">
-                            <span className="text-white/50 text-sm px-3 py-3 bg-surface-2 border border-r-0 border-line-strong rounded-l-lg">@</span>
+                            <span className="text-white/50 text-sm px-3 py-3 bg-surface-2 border border-r-0 border-line-strong rounded-l-field">@</span>
                             <input
                                 id="profile-instagram"
                                 type="text"
