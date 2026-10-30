@@ -235,7 +235,7 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
                         ? "bg-transparent ring-1 ring-accent text-accent hover:bg-accent/10"
                         : "bg-primary text-ink hover:brightness-110"
             }`}
-            // **px で書く**（640px 未満で root が 14px に落ちるので rem 系は縮む）。
+            // **px で書く**（以前は 640px 未満で root が 14px に落ちて rem 系が縮んでいた（2026-10-30 束 0a で外した））。
             // 小さい側はモックの画素から——フォローバックの錠剤は実測 28 画像px
             // ＝ 29 CSS px だが、**押せる面は 32px まで上げる**。行の中の操作なので
             // 44px は取れないが、29px は指に小さい（他の行内ボタンと同じ判断）。

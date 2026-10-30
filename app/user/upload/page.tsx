@@ -2204,7 +2204,7 @@ function UploadPageInner() {
                             <label htmlFor="post-location" className={labelCls} style={labelStyle}>
                                 {isJa ? "位置情報" : "Location"}
                             </label>
-                            <div className="flex items-center gap-2 rounded-xl bg-surface-2 border border-line px-3 focus-within:border-accent transition-colors" style={{ minHeight: "44px" }}>
+                            <div className="flex items-center gap-2 rounded-field bg-surface-2 border border-line px-3 focus-within:border-accent transition-colors" style={{ minHeight: "44px" }}>
                                 <MapPinIcon className="w-5 h-5 text-accent flex-shrink-0" />
                                 <input
                                     id="post-location"

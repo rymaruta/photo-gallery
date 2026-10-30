@@ -620,8 +620,8 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
          列の下に 1px の細い線。
          🔴 **高さ 28px はタップ領域の基準（44px）に届いていなかった。**
          見た目の話の前に、指で押す的が小さすぎた。
-         **px で書く**——640px 未満は root が 14px なので `gap-6` も
-         `text-sm` も縮む（`gap-6` は 21px にしかならない）。 */}
+         **px で書く**——以前は 640px 未満の root が 14px で `gap-6` も
+         `text-sm` も縮んでいた（`gap-6` は 21px・2026-10-30 束 0a で外した）。 */}
       {surface === "home" && (
         <div role="tablist" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
              className="flex items-stretch gap-[24px] mb-3 border-b border-line">

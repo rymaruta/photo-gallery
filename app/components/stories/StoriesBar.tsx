@@ -49,7 +49,7 @@ import SongSearchError from "../SongSearchError";
  *
  * 押せるものは `<button role="switch">`（このリポジトリが
  * `FilterBar` や投稿画面のチップで使っている形）。**寸法は px で書く**
- * ——640px 未満で root が 14px に落ちるので、`rem` だと摘まむところが縮む
+ * ——以前は 640px 未満で root が 14px に落ちて、`rem` だと摘まむところが縮んだ（2026-10-30 束 0a で外した）
  * （CLAUDE.md）。44×24px の軌道に 20px の玉で、指で押せる高さを保つ。
  */
 function SettingSwitch({ label, checked, onChange, disabled }: {
@@ -1495,7 +1495,7 @@ export default function StoriesBar() {
                             **写真の差し替えは持っていない**ので前の2つは出さない。
                             動画には撮影地が無いので位置情報も出さない
                             （`toUploadSafeVideo` が GPS を落とし、サーバーも受けない）。
-                            ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                            ⚠️ 大きさは px（以前は 640px 未満で root が 14px だった（2026-10-30 束 0a で外した）） */}
                         <div
                             role="tablist"
                             aria-label={locale === "en" ? "Story tools" : "編集ツール"}
@@ -1559,9 +1559,9 @@ export default function StoriesBar() {
                         {/* 文字の見せ方。**打ってから出す**——文字が無いうちは
                             動かすものも飾るものも無い（押しても効かない欄を置かない）。
 
-                            ⚠️ 大きさは px で書く。640px 未満は root が 14px なので、
-                            rem の指定は端末で縮む（`w-11` は 38.5px になる）。
-                            間隔も `gap-2`（24px 以上）——`gap-1.5` だと root 14px で
+                            ⚠️ 大きさは px で書く。以前は 640px 未満の root が 14px で、
+                            rem の指定が端末で縮んだ（`w-11` は 38.5px・2026-10-30 束 0a で外した）。
+                            間隔も `gap-2`（24px 以上）——`gap-1.5` だと（当時の root 14px で）
                             5.25px になり、隣の的と重なる（`5960be33` で実測） */}
                         {/* **スタンプ。** 押すと写真の上に置かれる。
                             **文字が1つも無くても出す**——スタンプだけの投稿は
@@ -1569,7 +1569,7 @@ export default function StoriesBar() {
 
                             上限は文字と合わせて数える（`STORY_TEXTS_MAX`）
                             ——多いほど読めなくなるのは絵柄も同じ。
-                            ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                            ⚠️ 大きさは px（以前は 640px 未満で root が 14px だった（2026-10-30 束 0a で外した）） */}
                         <div className="space-y-1">
                             <p id="story-stamp-label" className="text-[12px] text-white/70 px-1">
                                 {texts.length >= STORY_TEXTS_MAX
@@ -1698,7 +1698,7 @@ export default function StoriesBar() {
                                     字体・色・下地は出さない（カードの見た目は1種類）。
                                     上限は保存側と同じ定数（超えた分は保存で切られる
                                     ——ここで止めておけば「打てたのに消える」が無い）。
-                                    ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                                    ⚠️ 大きさは px（以前は 640px 未満で root が 14px だった（2026-10-30 束 0a で外した）） */}
                                 {currentVote && (
                                 <div className="space-y-2" role="group" aria-label={locale === "en" ? "Poll" : "投票"}>
                                     <input

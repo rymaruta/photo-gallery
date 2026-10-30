@@ -55,7 +55,7 @@ import { spotSavedKey } from "../../lib/utils/savedSpotKey";
  *
  * ## 大きさは px で書く
  *
- * 640px 未満で root が 14px になるので、`w-11` は 38.5px に縮む
+ * 以前は 640px 未満で root が 14px になり、`w-11` が 38.5px に縮んでいた（2026-10-30 束 0a で外した）
  * （台帳 `96eb86db`）。指で押す的は 44px を保つ。
  */
 export default function SaveSpotButton({
@@ -181,7 +181,7 @@ const BTN =
 
 /**
  * スポットのページのタイル（iOS の `actionLabel`: 高さ48・角12・横に等分）。
- * 面は状態ごとに付ける（上の `BTN` と同じ理由）。**高さは px**（root 14px で縮まない）
+ * 面は状態ごとに付ける（上の `BTN` と同じ理由）。**高さは px**（iOS の寸法をそのまま持つ）
  */
 export const TILE =
     // **390px 未満は印を字の上に積む**（3等分の列が約90px。横に並べると「地図で見る」が
@@ -189,7 +189,7 @@ export const TILE =
     "inline-flex flex-col min-[390px]:flex-row items-center justify-center gap-0.5 min-[390px]:gap-1.5 " +
     "rounded-field px-1.5 font-semibold " +
     "focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent active:scale-95 transition";
-/** タイルの字（**px で書く**＝root 14px で縮まない。積むときは 12px） */
+/** タイルの字（**px で書く**＝iOS の寸法をそのまま持つ。積むときは 12px） */
 export const TILE_TEXT = "whitespace-nowrap text-[12px] min-[390px]:text-[14px] leading-4";
 /** タイルの印（縮ませない） */
 export const TILE_ICON = "w-[18px] h-[18px] flex-shrink-0";

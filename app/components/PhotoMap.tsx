@@ -645,8 +645,8 @@ export default function PhotoMap({
         }));
     }, [onSearchArea, areaActive]);
 
-    // 操作ボタンの共通の見た目。**px で書く**（640px 未満で root が 14px に
-    // 落ちるので `w-11` は 38.5px に縮む＝指の的 44px を割る）
+    // 操作ボタンの共通の見た目。**px で書く**（以前は 640px 未満で root が 14px に
+    // 落ちて `w-11` が 38.5px に縮み、指の的 44px を割っていた（2026-10-30 束 0a で外した））
     const ctrl = "flex items-center justify-center rounded-full bg-surface-2/90 backdrop-blur-sm text-white ring-1 ring-white/15 shadow-lg shadow-black/40 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50";
     const ctrlSize = { width: "44px", height: "44px", touchAction: "manipulation" } as const;
 
