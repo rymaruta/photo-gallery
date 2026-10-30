@@ -107,22 +107,22 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
-    it("ログイン中もヘッダーは 探す・お知らせ・メニュー の3つだけ（アバターを出さない）", () => {
+    it("ログイン中もヘッダーは お知らせ・メニュー の2つだけ（アバター・探すの虫眼鏡を出さない・束 0b C2）", () => {
         // ラベルで引くと、別のラベルで戻ったアバターが素通りする。**並びごと**見る
         setRole("general");
         render(<HeaderNav />);
         const nav = screen.getByRole("navigation", { name: "ヘッダー" });
         // `<a>`（Link）で戻ったアバターも数えるよう、リンクとボタンの両方を見る
         const controls = Array.from(nav.querySelectorAll("a, button"));
-        expect(controls.map((b) => b.getAttribute("aria-label"))).toEqual(["ユーザーを探す", "通知", "メニューを開く"]);
+        expect(controls.map((b) => b.getAttribute("aria-label"))).toEqual(["通知", "メニューを開く"]);
     });
 
-    it("ヘッダーの押せるものは3つとも箱を持たない丸い面（iOS v2: 44px 固定・アイコン17px・線1.6）", () => {
+    it("ヘッダーの押せるものはどれも箱を持たない丸い面（iOS v2: 44px 固定・アイコン17px・線1.6）", () => {
         setRole("general");
         render(<HeaderNav />);
         const nav = screen.getByRole("navigation", { name: "ヘッダー" });
         const buttons = Array.from(nav.querySelectorAll("a, button")) as HTMLElement[];
-        expect(buttons).toHaveLength(3);
+        expect(buttons).toHaveLength(2);
         for (const b of buttons) {
             const cls = b.className.split(/\s+/);
             expect(cls, b.getAttribute("aria-label") ?? "").toContain("rounded-full");
@@ -140,35 +140,34 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         }
     });
 
-    it("お知らせとメニューは1つのガラスの丸い札に入り、探すは札の外（iOS v2）", () => {
+    it("お知らせとメニューは地の付いた札に入れない・ヘッダーの下に線を引かない（iOS のバー・束 0b C2）", async () => {
         setRole("general");
         render(<HeaderNav />);
         const nav = screen.getByRole("navigation", { name: "ヘッダー" });
-        const glass = nav.querySelectorAll("[data-header-glass]");
-        expect(glass).toHaveLength(1);
-        expect((glass[0] as HTMLElement).className.split(/\s+/)).toEqual(expect.arrayContaining(["header-glass", "rounded-full"]));
-        const inside = Array.from(glass[0].querySelectorAll("a, button")).map((b) => b.getAttribute("aria-label"));
-        expect(inside).toEqual(["通知", "メニューを開く"]);
-        expect(glass[0].contains(screen.getByLabelText("ユーザーを探す"))).toBe(false);
-    });
-
-    it("ガラスの札は globals.css で色を持ち、backdrop-filter を持たない（中の fixed・ぼかしを壊さない）", async () => {
+        expect(nav.querySelectorAll("[data-header-glass], .header-glass")).toHaveLength(0);
         const { readFileSync } = await import("node:fs");
         const { resolve } = await import("node:path");
         const css = readFileSync(resolve(__dirname, "../../globals.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-        const at = css.indexOf(".header-glass {");
-        expect(at).toBeGreaterThan(-1);
-        const rule = css.slice(at, css.indexOf("}", at));
-        expect(rule).toMatch(/background:\s*rgb\(34 34 36 \/ 0\.62\)/);
-        expect(rule).not.toMatch(/backdrop-filter/);
+        expect(css).not.toContain(".header-glass");
+        const layout = readFileSync(resolve(__dirname, "../../layout.tsx"), "utf8");
+        const header = layout.slice(layout.indexOf("<header"), layout.indexOf(">", layout.indexOf("<header")));
+        expect(header).toContain("sticky top-0");
+        expect(header).not.toMatch(/border-b/);
     });
 
-    it("未ログインではヘッダーは 探す・メニュー の2つだけ（アバター・ベルを出さない）", () => {
+    it("「ユーザーを探す」の行き先はメニューに残す（ヘッダーから外しても行き先を消さない）", async () => {
+        setRole("anonymous");
+        render(<HeaderNav />);
+        await openMenu();
+        expect(screen.getByRole("button", { name: "ユーザーを探す" })).toBeInTheDocument();
+    });
+
+    it("未ログインではヘッダーは メニュー の1つだけ（アバター・ベル・探すを出さない）", () => {
         setRole("anonymous");
         render(<HeaderNav />);
         const nav = screen.getByRole("navigation", { name: "ヘッダー" });
         const controls = Array.from(nav.querySelectorAll("a, button"));
-        expect(controls.map((b) => b.getAttribute("aria-label"))).toEqual(["ユーザーを探す", "メニューを開く"]);
+        expect(controls.map((b) => b.getAttribute("aria-label"))).toEqual(["メニューを開く"]);
     });
 });
 

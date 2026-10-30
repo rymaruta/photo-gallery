@@ -51,7 +51,7 @@ import EarlyMemberMark from "../components/EarlyMemberMark";
 import { ProMark, NameBadge, MedalsButton } from "../components/ProfileNameMarks";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "../../lib/data/badges";
 import { readAudience } from "../../lib/utils/audience";
-import { TAB_ON, TAB_OFF } from "../components/tabStyles";
+import { TAB_ON, TAB_OFF, TAB_BASE } from "../components/tabStyles";
 import { useSignedImageRefetch } from "../../lib/hooks/useSignedImageRefetch";
 
 type SongEntry = {
@@ -1801,8 +1801,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 // 選んでいるタブは真鍮＋太字＋2px の下線（`tabStyles.ts`・iOS v2・ホームのタブと同じ定数）。
                                 // 並びと寸法は v2 の板の下線の札（字だけ・高さ 44・15px）。以前はアイコン付きで
                                 // その人のテーマ色の線を上辺に引いていた（白字のまま・`text-xs`）
-                                className={`flex items-center whitespace-nowrap transition-colors ${active ? TAB_ON : TAB_OFF}`}
-                                style={{ height: "44px", fontSize: "15px", touchAction: "manipulation" }}
+                                className={`${TAB_BASE} ${active ? TAB_ON : TAB_OFF}`}
+                                style={{ height: "44px", touchAction: "manipulation" }}
                             >
                                 {label}
                             </button>
@@ -1819,8 +1819,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         prefetch={false}
                         data-profile-link={href}
                         // 選んでいないタブと同じ見た目（`TAB_OFF`）——札の並びの中で色が割れないように
-                        className={`flex items-center whitespace-nowrap transition-colors ${TAB_OFF}`}
-                        style={{ height: "44px", fontSize: "15px", touchAction: "manipulation" }}
+                        className={`${TAB_BASE} ${TAB_OFF}`}
+                        style={{ height: "44px", touchAction: "manipulation" }}
                     >
                         {label}
                     </Link>

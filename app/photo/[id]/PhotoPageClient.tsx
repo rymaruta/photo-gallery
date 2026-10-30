@@ -28,6 +28,7 @@ import { usePhotoSave } from "../../../lib/hooks/usePhotoSave";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
 import { formatPhotoStamp } from "../../../lib/utils/photoDate";
 import { FollowAction } from "../../components/FollowButton";
+import { TAB_ON, TAB_OFF, TAB_BASE, TAB_ROW } from "../../components/tabStyles";
 import UserAvatar from "../../components/UserAvatar";
 import MoreMenu from "../../components/MoreMenu";
 import type { Photo } from "@/lib/data/photos";
@@ -1589,7 +1590,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 ヘッダーの裏に入る） */}
             <div ref={tabsRef} className="mt-5 px-4 lg:px-0" style={{ scrollMarginTop: "var(--header-h)" }}>
                 <div role="tablist" aria-label={locale === "en" ? "Comments and related photos" : "コメントと関連写真"}
-                     className="flex border-b border-line">
+                     // 名前の幅で左から・間 24（2026-10-30 束 0b C4・iOS の札と同じ）。以前は 2 等分の札で下線も半分の幅
+                     className={TAB_ROW}>
                     {([
                         { key: "comments" as const, label: locale === "en" ? `Comments (${commentCount})` : `コメント (${commentCount})` },
                         { key: "related" as const, label: locale === "en" ? "Related" : "関連写真" },
@@ -1602,8 +1604,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                             aria-selected={activeTab === tab.key}
                             aria-controls={`photo-panel-${tab.key}`}
                             onClick={() => setActiveTab(tab.key)}
-                            className={`flex-1 pb-2.5 pt-2 text-center font-semibold border-b-2 -mb-px transition-colors ${activeTab === tab.key ? "text-accent border-accent" : "text-white/60 border-transparent hover:text-white"}`}
-                            style={{ fontSize: "14px", lineHeight: "20px", touchAction: "manipulation", minHeight: "44px" }}
+                            className={`${TAB_BASE} ${activeTab === tab.key ? TAB_ON : TAB_OFF}`}
+                            style={{ touchAction: "manipulation" }}
                         >
                             {tab.label}
                         </button>
