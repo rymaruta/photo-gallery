@@ -476,6 +476,49 @@ describe("useGallery", () => {
         });
     });
 
+    // **ホームの「新着」は投稿日の新しい順**（2026-10-30・owner の質問
+    // 「iOS から投稿したら Web 側に反映されないの？」）。撮影日が先の並びだと、
+    // 古い写真を今日投稿すると下に沈んでいた（本番の最新投稿が48枚中38位）。
+    // iOS の新着・api-user の `GET /feed`・タイムラインと同じ規則にそろえる。
+    // 撮影日の並びを使う他の面（「さがす」の新しい順・古い順）は変えない。
+    describe("ホームの新着は投稿日の新しい順", () => {
+        const posted: Photo[] = [
+            // 2019年に撮って、今日投稿した写真
+            { ...mockPhotos[0], id: "old-shot-new-post", date: "2019-05-01", createdAt: "2026-10-30T09:00:00Z" },
+            { ...mockPhotos[1], id: "mid", date: "2026-10-20", createdAt: "2026-10-21T00:00:00Z" },
+            { ...mockPhotos[2], id: "recent-shot", date: "2026-10-29", createdAt: "2026-10-29T12:00:00Z" },
+            // `createdAt` の無い古い行は `date` に落ちる
+            { ...mockPhotos[0], id: "legacy", date: "2026-10-01" },
+        ];
+        const ids = (opts?: Parameters<typeof useGallery>[2]) =>
+            renderHook(() => useGallery(posted, "me", opts)).result.current.filteredPhotos.map((p) => p.id);
+
+        it("撮影日が古くても、いちばん新しく投稿した写真が先頭に来る", () => {
+            expect(ids({ postedOrderOnNew: true }), "撮影日で並べていて、今日の投稿が沈んでいる")
+                .toEqual(["old-shot-new-post", "recent-shot", "mid", "legacy"]);
+        });
+
+        it("「さがす」（既定）の新しい順は撮影日のまま", () => {
+            window.history.replaceState({}, "", "/search?sort=new");
+            expect(ids()).toEqual(["recent-shot", "mid", "legacy", "old-shot-new-post"]);
+            expect(ids({ recommendOnFeatured: false, postedOrderOnNew: false }))
+                .toEqual(["recent-shot", "mid", "legacy", "old-shot-new-post"]);
+        });
+
+        it("ホームでも、古い順は撮影日のまま", () => {
+            window.history.replaceState({}, "", "/?sort=old");
+            expect(ids({ postedOrderOnNew: true })).toEqual(["old-shot-new-post", "legacy", "mid", "recent-shot"]);
+        });
+
+        it("ホームのおすすめ（いいねが同じ）は今までどおり投稿の新しい順", () => {
+            window.history.replaceState({}, "", "/?scope=featured");
+            const flat = posted.map((p) => ({ ...p, likes: 0 }));
+            const order = renderHook(() => useGallery(flat, "me", { postedOrderOnNew: true }))
+                .result.current.filteredPhotos.map((p) => p.id);
+            expect(order).toEqual(["old-shot-new-post", "recent-shot", "mid", "legacy"]);
+        });
+    });
+
     // **並びが閲覧者のタイムゾーンで変わっていた。** ここで `new Date()` を
     // 通していた頃、ゾーン無しの `2024-11-01T07:30:00`（EXIF 由来の撮影日）は
     // ローカル時刻、日付だけの `2024-11-01` は UTC と解釈され、JST と UTC で
