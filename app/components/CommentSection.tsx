@@ -3,6 +3,7 @@
 // 写真ページのコメント欄。公開閲覧、認証ユーザーが投稿でき、
 // 投稿者本人または写真オーナーが削除できる。
 
+import { FIELD } from "./fieldStyles";
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChatBubbleOvalLeftIcon, TrashIcon } from "@heroicons/react/24/outline";
@@ -201,7 +202,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                         rows={1}
                         maxLength={500}
                         aria-label={locale === "en" ? "Comment" : "コメント"}
-                        className="flex-1 min-w-0 bg-surface-2 border border-line-strong rounded-[22px] px-4 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
+                        className={`flex-1 min-w-0 px-[14px] py-[9px] resize-none ${FIELD}`}
                         style={{ fontSize: "16px", minHeight: "44px", maxHeight: "120px", lineHeight: "26px" }}
                     />
                     <button

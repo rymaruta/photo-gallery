@@ -14,6 +14,7 @@
  * 送るのは差分だけで、1人ずつ（サーバーが1人ずつしか受けない）。
  */
 
+import { FIELD, FIELD_STYLE } from "../../components/fieldStyles";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import { StarIcon as StarOutline } from "@heroicons/react/24/outline";
@@ -251,7 +252,8 @@ export default function CloseFriends({ locale, userId }: Props) {
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder={isJa ? "名前で探す" : "Search by name"}
-                            className="w-full rounded-field bg-surface-2 ring-1 ring-outline px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-accent"
+                            className={`w-full ${FIELD}`}
+                            style={FIELD_STYLE}
                         />
                     </label>
                     {shown.length === 0

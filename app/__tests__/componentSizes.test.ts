@@ -14,7 +14,7 @@ const count = (s: string, needle: string) => s.split(needle).length - 1;
 
 describe("チップは高さ 34・字 13（v2 の .chip）", () => {
     it("CHIP_SIZE の値", () => {
-        expect(CHIP_SIZE).toEqual({ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" });
+        expect(CHIP_SIZE).toEqual({ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px", minWidth: "44px" });
     });
 
     it.each([

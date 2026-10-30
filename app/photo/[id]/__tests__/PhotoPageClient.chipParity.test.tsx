@@ -70,13 +70,14 @@ describe("チップの見た目", () => {
         }
     });
 
-    it("板の寸法（高さ32px・字12px）を持っている", async () => {
+    it("共通のチップの寸法（見た目 34・字 13・当たり 44）を持っている（2026-10-30 束 0b C5・iOS PillChip）", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
         await screen.findByText("テスト写真");
-        const cls = screen.getByText("#風景").closest("a")!.className;
-        // `py-0.5`（高さ17.5px）や `text-xs`（10.5px）に戻ったら落ちる
-        expect(cls, "高さが板の32pxでない").toContain("min-h-[32px]");
-        expect(cls, "字が板の12pxでない").toContain("text-[12px]");
+        const a = screen.getByText("#風景").closest("a")!;
+        const cls = a.className;
+        expect(a.style.minHeight, "高さが 34px でない").toBe("34px");
+        expect(a.style.fontSize, "字が 13px でない").toBe("13px");
+        expect(cls, "当たりの広げ（CHIP_HIT）が無い").toContain("before:-inset-y-[5px]");
         expect(cls, "640px 未満で縮む綴りに戻っている").not.toMatch(/\btext-xs\b|\bpy-0\.5\b/);
     });
 });

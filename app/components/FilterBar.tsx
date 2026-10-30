@@ -1,5 +1,6 @@
 "use client";
 
+import { SEARCH_FIELD, SEARCH_FIELD_STYLE, SEARCH_ICON, SEARCH_ICON_STYLE } from "./fieldStyles";
 import React, {
     useCallback,
     useEffect,
@@ -15,7 +16,7 @@ import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { getLabels } from "../i18n/labels";
 import type { FilterValues } from "../../lib/types/gallery";
 import { tagKey } from "../../lib/utils/collections";
-import { CHIP_ON, CHIP_OFF, CHIP_SIZE } from "./chipStyles";
+import { CHIP_ON, CHIP_OFF, CHIP_SIZE, CHIP_HIT } from "./chipStyles";
 
 type TagInfo = { label: string; desc?: string };
 
@@ -47,7 +48,8 @@ type Props = {
  * **props にしなかったのは水和のため**——`matchMedia` で選ぶと、PC の
  * 初回描画が一度スマホの形で出てから組み替わる。
  */
-const WRAPPING_ROW = "-mx-1 px-1 overflow-x-auto no-scrollbar lg:mx-0 lg:px-0 lg:overflow-visible lg:flex-wrap";
+// 上下 5px の余白は、チップの当たり（`CHIP_HIT`・上下へ 5px ずつ）を横に流す並びの中に収めるため（2026-10-30 束 0b C5）
+const WRAPPING_ROW = "-mx-1 px-1 py-[5px] -my-[5px] overflow-x-auto no-scrollbar lg:mx-0 lg:px-0 lg:overflow-visible lg:flex-wrap lg:gap-y-2.5";
 
 function FilterBarInner({
     categories,
@@ -269,7 +271,7 @@ function FilterBarInner({
                         onClick={() => onChange({ category: c })}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
-                        className={`inline-flex items-center justify-center text-[13px] transition-colors ${active ? CHIP_ON : CHIP_OFF}`}
+                        className={`${CHIP_HIT} inline-flex items-center justify-center text-[13px] transition-colors ${active ? CHIP_ON : CHIP_OFF}`}
                         style={{
                             ...STYLE.controlBtn,
                             touchAction: "manipulation",
@@ -290,7 +292,7 @@ function FilterBarInner({
                 onClick={() => onChange({ category: "all" })}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
-                className={`inline-flex items-center justify-center text-[13px] transition-colors ${values.category === "all" ? CHIP_ON : CHIP_OFF}`}
+                className={`${CHIP_HIT} inline-flex items-center justify-center text-[13px] transition-colors ${values.category === "all" ? CHIP_ON : CHIP_OFF}`}
                 style={{
                     ...STYLE.controlBtn,
                     touchAction: "manipulation",
@@ -322,7 +324,7 @@ function FilterBarInner({
                         role="switch"
                         aria-checked={active}
                         aria-label={ariaLabel}
-                        className={`inline-flex items-center gap-1.5 text-[13px] transition-colors ${active ? CHIP_ON : CHIP_OFF}`}
+                        className={`${CHIP_HIT} inline-flex items-center gap-1.5 text-[13px] transition-colors ${active ? CHIP_ON : CHIP_OFF}`}
                         style={{
                             ...STYLE.chipBase,
                             touchAction: "manipulation",
@@ -361,9 +363,7 @@ function FilterBarInner({
                             {labels.search.placeholder}
                         </label>
                         {/* 検索アイコン（デバウンス中は点滅） */}
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-                            <MagnifyingGlassIcon className={`w-4 h-4 ${localQuery !== (values.query || "") ? "text-white/70 animate-pulse" : "text-white/35"}`} />
-                        </div>
+                        <MagnifyingGlassIcon aria-hidden="true" className={`${SEARCH_ICON} z-10 ${localQuery !== (values.query || "") ? "!text-white/70 animate-pulse" : ""}`} style={SEARCH_ICON_STYLE} />
                         <input
                             id="filter-query"
                             type="search"
@@ -379,8 +379,9 @@ function FilterBarInner({
                             }}
                             enterKeyHint="search"
                             placeholder={labels.search.placeholder}
-                            className="search-own-clear w-full rounded-full bg-white/[0.06] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 transition-all duration-200 outline-none"
-                            style={{ padding: "8px 38px 8px 38px", fontSize: 13, minHeight: 36 }}
+                            // 2026-10-30 束 0b C6: 共通の検索欄（44・角 12・白8%の縁）。以前は 36・丸い端・縁なし
+                            className={SEARCH_FIELD}
+                            style={SEARCH_FIELD_STYLE}
                         />
                         {/* クリアボタン（入力時のみ表示） */}
                         {localQuery && (

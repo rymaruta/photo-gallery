@@ -44,7 +44,9 @@ const CHIP_ROWS = [
     // `/user/upload` と同じ理由で**間隔はむしろ広がった**——32px のチップと
     // `gap-2`（8px）で**行の間隔は40px**なので、24px の円は上下の行で重ならない。
     // 綴りは `CHIP_CLASS` 1つ（カテゴリとタグが割れないように寄せてある）。
-    ["app/photo/[id]/PhotoPageClient.tsx", "写真ページのタグ（公開・検索の着地点）", /min-h-\[32px\] px-3 rounded-full/],
+    // 2026-10-30 束 0b C5: 共通のチップ（見た目 34・当たり 44＝`CHIP_HIT`）に。行は縦 10（gap-y-2.5）で、
+    // 当たりの上下 5 が隣の行と重ならない
+    ["app/photo/[id]/PhotoPageClient.tsx", "写真ページのタグ（公開・検索の着地点）", /\$\{CHIP_HIT\} inline-flex items-center rounded-full \$\{CHIP_OFF\}/],
     ["app/user/edit/page.tsx", "編集画面のカテゴリとタグ", /px-2 py-0\.5 rounded-full/],
     // ⚠️ **チップ専用の行で見る。** 最初 `/minHeight: "32px"/` だけにしていたが、
     // ヘッダーの「下書き保存」のピルも同じ値を持つので、**チップを18pxに
