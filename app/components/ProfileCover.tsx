@@ -117,7 +117,7 @@ export function CoverFrame({ href, locale }: { href: string; locale: string }) {
             prefetch={false}
             data-testid="cover-frame"
             aria-label={en ? "Choose a cover. Your photo goes here" : "カバーを選ぶ。ここにあなたの1枚"}
-            className="absolute inset-x-3 top-3 flex flex-col items-center gap-2 rounded-[14px] border border-accent/80 pt-[30px] text-accent"
+            className="absolute inset-x-3 top-3 flex flex-col items-center gap-2 rounded-xl border border-accent/80 pt-[30px] text-accent"
             style={{ height: `${COVER_HEIGHT_PX - 30}px` }}
         >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

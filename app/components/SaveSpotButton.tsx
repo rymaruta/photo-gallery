@@ -187,7 +187,7 @@ export const TILE =
     // **390px 未満は印を字の上に積む**（3等分の列が約90px。横に並べると「地図で見る」が
     // 「地図で見|る」と折れる）。字は折らない（`TILE_TEXT`）
     "inline-flex flex-col min-[390px]:flex-row items-center justify-center gap-0.5 min-[390px]:gap-1.5 " +
-    "rounded-[12px] px-1.5 font-semibold " +
+    "rounded-field px-1.5 font-semibold " +
     "focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent active:scale-95 transition";
 /** タイルの字（**px で書く**＝root 14px で縮まない。積むときは 12px） */
 export const TILE_TEXT = "whitespace-nowrap text-[12px] min-[390px]:text-[14px] leading-4";

@@ -238,13 +238,11 @@ describe("ストーリーの手書き（webfont の配線）", () => {
  */
 describe("眉ラベル", () => {
     // スマホ幅の `h1/h2/h3 { font-size }` はレイヤーの外なので、`h2` に付けた `eyebrow`（@layer utilities）の
-    // 11px を上書きし、眉が 15.75px に膨らんでいた（2026-10-21・人のページ・旅の一冊）
-    it("スマホ幅の見出しの字の大きさが、見出しの要素に付けた眉ラベルを膨らませない", () => {
-        const css = read("app/globals.css");
-        const mobile = /@media \(max-width: 639px\)\s*\{([\s\S]*?)\n\}/.exec(css);
-        expect(mobile, "スマホ幅の見出しの規則が無い").not.toBeNull();
-        expect(mobile![1]).toMatch(/h2 \{ font-size/);
-        expect(mobile![1]).toMatch(/h1\.eyebrow,\s*h2\.eyebrow,\s*h3\.eyebrow\s*\{\s*font-size:\s*11px;\s*\}/);
+    // 11px を上書きし、眉が 15.75px に膨らんでいた（2026-10-21・人のページ・旅の一冊）。
+    // 2026-10-30（束 0a）にその見出しの規則ごと外した——**レイヤーの外で見出しの要素に字の大きさを書かない**
+    it("レイヤーの外に見出しの要素の字の大きさが無い（見出しに付けた眉ラベルを膨らませない）", () => {
+        const css = read("app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+        expect(css).not.toMatch(/(^|[\s,}])h[1-6]\s*(,[^{]*)?\{[^}]*font-size/);
     });
 
     it("`globals.css` が `eyebrow` を v2 の値（600・11・字間 0.14em・大文字・数字の字）で定義している", () => {

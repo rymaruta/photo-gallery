@@ -109,7 +109,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
         { off: true, ja: "外す", en: "Hide" },
     ];
     const segmentClass = (on: boolean) =>
-        `flex-1 inline-flex items-center justify-center gap-1.5 rounded-[10px] px-2 text-[12px] ring-1 ring-inset transition cursor-pointer has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${
+        `flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-2 text-[12px] ring-1 ring-inset transition cursor-pointer has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${
             on ? "ring-accent bg-[#17140E] text-white" : "ring-transparent text-white/75 hover:text-white"
         }`;
 
@@ -123,7 +123,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
             data-testid="name-side-sheet"
         >
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={saving ? undefined : onClose} aria-hidden="true" />
-            <div className="relative z-10 w-full sm:max-w-md max-h-[92vh] flex flex-col rounded-t-[22px] sm:rounded-[22px] bg-surface ring-1 ring-line story-media-in">
+            <div className="relative z-10 w-full sm:max-w-md max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-surface ring-1 ring-line story-media-in">
                 <div className="flex items-center justify-between pl-5 pr-2 pt-3">
                     <h2 id="name-side-title" className="text-xl font-bold text-white">{en ? "Next to your name" : "名前の横"}</h2>
                     <button

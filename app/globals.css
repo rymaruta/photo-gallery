@@ -58,6 +58,54 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   --font-mono: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   --font-wordmark: ui-serif, "New York", Georgia, serif;
+
+  /* **字の段（2026-10-30・束 0a・iOS の `JPTypeScale`／板 DesignSystem 02 と同じ値）。**
+     以前は電話の幅で `html { font-size: 14px }` にしていて、rem で書いた字が全部 0.875 倍
+     （本文 14・小 12.25・注 10.5＝最小 12 を下回る）になっていた。根の字は 16 のまま触らず、
+     Tailwind の段の名前を iOS の役に置き換える。**px で持つ**（根の字に左右されない）。
+       text-xs   12 caption   … 注記・@名・日時（本文系の最小。眉ラベルの 11 は `eyebrow`）
+       text-sm   13 footnote  … 副文・文字ボタン
+       text-base 15 body      … 本文・説明（.subheadline。入力欄はタッチ端末で 16 のまま・下の規則）
+       text-lg   17 headline  … ナビ・シートの題
+       text-xl   20 stateTitle… 空・失敗の見出し・設定などの画面の題
+       text-2xl  22 title2    … 札の題・節の見出し
+       text-3xl  26 title1    … 画面の題・人の名前
+       text-4xl  32 display   … 大見出し
+     値は `typeScale.test.ts` が iOS の段と突き合わせる */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 15px;
+  --text-base--line-height: 22px;
+  --text-lg: 17px;
+  --text-lg--line-height: 24px;
+  --text-xl: 20px;
+  --text-xl--line-height: 26px;
+  --text-2xl: 22px;
+  --text-2xl--line-height: 28px;
+  --text-3xl: 26px;
+  --text-3xl--line-height: 32px;
+  --text-4xl: 32px;
+  --text-4xl--line-height: 38px;
+
+  /* **角の丸み（2026-10-30・束 0a・iOS の `JPRadius`）。** 以前は rem の角が電話の幅で
+     0.875 倍になり 10.5・7・5.25 の端数が出ていた。段の名前を iOS の役に置き換える（px）:
+       rounded-md / xs 6  … 小さい写真
+       rounded-lg      10 … 行の写真（場所の札の 56 の写真）（iOS s）
+       rounded-field   12 … 入力欄・地図のピンの札
+       rounded-xl      14 … 写真の札・案内の帯・写真の格子の外枠（iOS m）
+       rounded-2xl     16 … 札（iOS l）
+       rounded-3xl     24 … シートの上（iOS xl）
+     ボタン・チップは `rounded-full`。`rounded-sm` 4 は小さな印だけ */
+  --radius-xs: 6px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-field: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
 }
 
 /* **見出しの明朝は `@theme inline` に置く**（2026-10-15・検証サイトで明朝が1か所も当たっていなかった）。
@@ -350,23 +398,11 @@ body {
   .heart-burst { animation-duration: 300ms; }
 }
 
-/* モバイル: ベースフォントサイズを少し下げる */
-@media (max-width: 639px) {
-  html,
-  body {
-    font-size: 14px;
-  }
-
-  h1 { font-size: 1.25rem; }
-  h2 { font-size: 1.125rem; }
-  h3 { font-size: 1rem; }
-
-  /* **見出しの要素に付けた眉ラベルは 11 のまま**（2026-10-21 判断）。上の `h2` はレイヤーの外の規則なので、
-     `@layer utilities` の `eyebrow` の 11px に詳細度と関係なく勝ち、人のページの「訪れた場所」「旅の一冊」と
-     旅の一冊の「たどった場所」（どれも `<h2 class="eyebrow">`）がスマホで 15.75px の真鍮の見出しに膨らんでいた。
-     要素＋クラスで上の行より強く書いて戻す（`fontStack.test.ts` の「眉ラベル」が縛る） */
-  h1.eyebrow, h2.eyebrow, h3.eyebrow { font-size: 11px; }
-}
+/* **電話の幅で根の字を 14px にしていた規則は外した**（2026-10-30・束 0a・比較の板 C1）。
+   rem で書いた字・余白・角が全部 0.875 倍になり、注記が 10.5px（最小 12 を下回る）になっていた。
+   いっしょにあった `h1`〜`h3` の大きさの規則（レイヤーの外で、Tailwind の字の段に詳細度と関係なく勝つ）も外し、
+   見出しの大きさは各見出しのクラスか style が決める（上の `@theme` の字の段）。
+   眉ラベルを守る `h2.eyebrow` の上書きも、勝つ相手が無くなったので要らない（`typeScale.test.ts` が縛る） */
 
 /* 撮影地マップ（/map）の束（複数枚が重なった升）。数字だけを丸で出す */
 /* 地図の下地。タイルが来ていない間（読み込み中・機内モード）に見える色。

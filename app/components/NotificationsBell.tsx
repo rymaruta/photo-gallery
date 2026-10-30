@@ -917,7 +917,7 @@ export default function NotificationsBell() {
                                         なる。写真の通知は消えない限り出し続けてよい */}
                                     {n.type !== "follow" && n.type !== "storyreply" && n.photoSrc && byUser && (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className={`${M.thumb} rounded-[10px] object-cover bg-white/10 flex-shrink-0`} />
+                                        <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className={`${M.thumb} rounded-lg object-cover bg-white/10 flex-shrink-0`} />
                                     )}
                                 </>
                             );
@@ -957,7 +957,7 @@ export default function NotificationsBell() {
                                         </Link>
                                     ) : n.photoSrc ? (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className={`${M.avatar} rounded-[10px] object-cover bg-white/10 flex-shrink-0`} />
+                                        <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className={`${M.avatar} rounded-lg object-cover bg-white/10 flex-shrink-0`} />
                                     ) : (
                                         // **空の `src` を出さない。** 右端のサムネ（上）には
                                         // `n.photoSrc &&` のガードがあるのに、ここだけ無かった。
