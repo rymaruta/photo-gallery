@@ -4,7 +4,7 @@ import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
 import { slugify, normalizeForSearch, tagKey, categoryDisplayName } from "../utils/collections";
 import { dedupeCameraName } from "../utils/cameraName";
-import { compareNewest, compareOldest } from "../utils/photoOrder";
+import { compareNewest, compareOldest, comparePosted } from "../utils/photoOrder";
 // **履歴の作法は共通部品**（`__NA` を持ち越さないと戻るたびに再読み込みになる）。
 // 撮影スポット詳細のビューアも同じものが要るので、ここから出した
 import { withNextHistoryState } from "../utils/historyState";
@@ -161,7 +161,18 @@ export default function useGallery(
      * **ホームだけ**が使う。「さがす」に `?scope=featured` が残ると、並べ替え（古い順など）を
      * 選んでも効かず、外す手段も無かった（タブはホームにしか無い）
      */
-    { recommendOnFeatured = true }: { recommendOnFeatured?: boolean } = {},
+    /**
+     * `postedOrderOnNew` … ホームの「新着」タブ（`scope=all`・`sort=new`）を
+     * **投稿日の新しい順**（`comparePosted`）で並べるか（既定 false）。**ホームだけ**が使う。
+     *
+     * 2026-10-30・owner の質問「iOS から投稿したら Web 側に反映されないの？」。
+     * 反映はされていたが、新着が撮影日（`date`）優先の `compareNewest` で並んでいて、
+     * 古い写真を今日投稿すると下に沈んでいた（本番の最新投稿が48枚中38位）。
+     * iOS の新着・api-user の `GET /feed`・Web のタイムラインはどれも投稿日順なので、
+     * ホームの新着もそれに揃える。「さがす」の「新しい順」・集約ページ・写真ページの
+     * 前後は「いつ撮ったか」が主役のまま（撮影日順）なので変えない。
+     */
+    { recommendOnFeatured = true, postedOrderOnNew = false }: { recommendOnFeatured?: boolean; postedOrderOnNew?: boolean } = {},
 ) {
     // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
     const PHOTOS = useMemo(
@@ -372,7 +383,8 @@ export default function useGallery(
 
         // 並べ替えは共通の比較関数（集約ページ・写真ページの前後と同じ規則）
         if (filters.sort === "new") {
-            arr.sort(compareNewest);
+            // ホームの「新着」タブだけは投稿日の新しい順（上の `postedOrderOnNew` の注記）
+            arr.sort(postedOrderOnNew && filters.scope === "all" ? comparePosted : compareNewest);
         } else if (filters.sort === "old") {
             arr.sort(compareOldest);
         } else if (filters.sort === "popular") {
@@ -383,7 +395,7 @@ export default function useGallery(
         if (filters.scope === "featured" && recommendOnFeatured) arr = recommendedOrder(arr);
 
         return arr;
-    }, [filters, PHOTOS, ownUserId, recommendOnFeatured]);
+    }, [filters, PHOTOS, ownUserId, recommendOnFeatured, postedOrderOnNew]);
 
     // filteredPhotos を ref で追跡 → コールバックを安定させる
     const filteredPhotosRef = useRef(filteredPhotos);
