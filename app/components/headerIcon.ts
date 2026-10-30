@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 /**
- * ヘッダーの丸い押し面（探す・お知らせ・メニュー）。**3つとも箱を持たない**
+ * ヘッダーの丸い押し面（お知らせ・メニュー。2026-10-30 束 0b で探すの虫眼鏡と、2つを包むガラスの札を外した）。**どれも箱を持たない**
  * （iOS: 44px の面・アイコン17px・線1.6。v1 は 22px・1.7）。以前メニューだけ `bg-surface` の四角い
  * 箱を持ち（その前は直書きの灰色寄りの黒で、owner に「なんでこれだけ色違うの？」
  * と言われた）、ベルだけ `rounded-md` だった。押したときの丸い面（白10%）だけ残す。
@@ -22,10 +22,3 @@ export const HEADER_ICON_BTN_STYLE: CSSProperties = {
  * 押せる面は 44px のまま（見た目だけ小さくする）。
  */
 export const HEADER_ICON_STYLE: CSSProperties = { width: 17, height: 17, strokeWidth: 1.6 };
-
-/**
- * **お知らせとメニューを入れるガラスの丸い札**（iOS 26 のバーの右の項目と同じ形・板 `.glass`）。
- * 色と縁は `globals.css` の `.header-glass`。高さは中の押し面（44px）で決まる。
- * 未ログインのときはメニュー1つだけが入る（お知らせはログイン中だけ）。
- */
-export const HEADER_GLASS = "header-glass inline-flex items-center rounded-full";
