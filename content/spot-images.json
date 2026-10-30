@@ -64352,5 +64352,522 @@
       "width": 1280,
       "height": 853
     }
+  },
+  "okawara-kogen": {
+    "wikidata": "",
+    "file": "File:大川原高原 - panoramio.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%A4%A7%E5%B7%9D%E5%8E%9F%E9%AB%98%E5%8E%9F_-_panoramio.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/%E5%A4%A7%E5%B7%9D%E5%8E%9F%E9%AB%98%E5%8E%9F_-_panoramio.jpg/1280px-%E5%A4%A7%E5%B7%9D%E5%8E%9F%E9%AB%98%E5%8E%9F_-_panoramio.jpg",
+    "author": "akiakane",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "licenseCode": "cc-by-3.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/okawara-kogen.jpg",
+      "width": 960,
+      "height": 566
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/%E5%A4%A7%E5%B7%9D%E5%8E%9F%E9%AB%98%E5%8E%9F_-_panoramio.jpg/1280px-%E5%A4%A7%E5%B7%9D%E5%8E%9F%E9%AB%98%E5%8E%9F_-_panoramio.jpg",
+      "width": 1280,
+      "height": 754
+    }
+  },
+  "ryozenji-naruto": {
+    "wikidata": "",
+    "file": "File:140712 Ryozenji Naruto Tokushima pref Japan03s3.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:140712_Ryozenji_Naruto_Tokushima_pref_Japan03s3.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/140712_Ryozenji_Naruto_Tokushima_pref_Japan03s3.jpg/1280px-140712_Ryozenji_Naruto_Tokushima_pref_Japan03s3.jpg",
+    "author": "663highland",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
+    "licenseCode": "cc-by-2.5",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/ryozenji-naruto.jpg",
+      "width": 960,
+      "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/140712_Ryozenji_Naruto_Tokushima_pref_Japan03s3.jpg/1280px-140712_Ryozenji_Naruto_Tokushima_pref_Japan03s3.jpg",
+      "width": 1280,
+      "height": 853
+    }
+  },
+  "kamoda-misaki": {
+    "wikidata": "",
+    "file": "File:Kamodamisaki Lighthouse.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Kamodamisaki_Lighthouse.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Kamodamisaki_Lighthouse.jpg/1280px-Kamodamisaki_Lighthouse.jpg",
+    "author": "切干大根",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "licenseCode": "cc-by-sa-4.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kamoda-misaki.jpg",
+      "width": 960,
+      "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Kamodamisaki_Lighthouse.jpg/1280px-Kamodamisaki_Lighthouse.jpg",
+      "width": 1280,
+      "height": 853
+    }
+  },
+  "mt-moriyoshi": {
+    "wikidata": "",
+    "file": "File:Nikkokisuge of Moriyoshizan 2018-8.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Nikkokisuge_of_Moriyoshizan_2018-8.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Nikkokisuge_of_Moriyoshizan_2018-8.jpg/1280px-Nikkokisuge_of_Moriyoshizan_2018-8.jpg",
+    "author": "Marho",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "licenseCode": "cc-by-sa-4.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/mt-moriyoshi.jpg",
+      "width": 960,
+      "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Nikkokisuge_of_Moriyoshizan_2018-8.jpg/1280px-Nikkokisuge_of_Moriyoshizan_2018-8.jpg",
+      "width": 1280,
+      "height": 960
+    }
+  },
+  "yasu-falls": {
+    "wikidata": "",
+    "file": "File:Yasu Falls 2020.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Yasu_Falls_2020.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Yasu_Falls_2020.jpg/1280px-Yasu_Falls_2020.jpg",
+    "author": "Wc018",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "licenseCode": "cc-by-sa-4.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/yasu-falls.jpg",
+      "width": 960,
+      "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Yasu_Falls_2020.jpg/1280px-Yasu_Falls_2020.jpg",
+      "width": 1280,
+      "height": 853
+    }
+  },
+  "mt-taihei-akita": {
+    "wikidata": "",
+    "file": "File:Mount Taihei seen from Kubota Castle.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Taihei_seen_from_Kubota_Castle.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Mount_Taihei_seen_from_Kubota_Castle.jpg/1280px-Mount_Taihei_seen_from_Kubota_Castle.jpg",
+    "author": "掬茶",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "licenseCode": "cc-by-sa-4.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/mt-taihei-akita.jpg",
+      "width": 960,
+      "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Mount_Taihei_seen_from_Kubota_Castle.jpg/1280px-Mount_Taihei_seen_from_Kubota_Castle.jpg",
+      "width": 1280,
+      "height": 853
+    }
+  },
+  "tachibana-ohana": {
+    "wikidata": "",
+    "file": "File:Yanagawa Ohana 200223a.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Yanagawa_Ohana_200223a.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Yanagawa_Ohana_200223a.jpg/1280px-Yanagawa_Ohana_200223a.jpg",
+    "author": "江戸村のとくぞう",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "licenseCode": "cc-by-sa-4.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tachibana-ohana.jpg",
+      "width": 960,
+      "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Yanagawa_Ohana_200223a.jpg/1280px-Yanagawa_Ohana_200223a.jpg",
+      "width": 1280,
+      "height": 960
+    }
+  },
+  "hakozakigu": {
+    "wikidata": "",
+    "file": "File:Hakozakigu01.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Hakozakigu01.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Hakozakigu01.jpg/960px-Hakozakigu01.jpg",
+    "author": "Pontafon",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "licenseCode": "cc-by-sa-3.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hakozakigu.jpg",
+      "width": 960,
+      "height": 640
+    }
+  },
+  "kora-taisha": {
+    "wikidata": "",
+    "file": "File:Kurume kourataisha.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Kurume_kourataisha.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Kurume_kourataisha.jpg/960px-Kurume_kourataisha.jpg",
+    "author": "ja:利用者:みんと",
+    "license": "Public domain (PD-self)",
+    "licenseCode": "PD-self",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kora-taisha.jpg",
+      "width": 960,
+      "height": 720
+    }
+  },
+  "kashiigu": {
+    "wikidata": "",
+    "file": "File:Kashii gu0901.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Kashii_gu0901.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Kashii_gu0901.jpg/1280px-Kashii_gu0901.jpg",
+    "author": "ぱちょぴ（投稿者）撮影",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "licenseCode": "cc-by-sa-3.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kashiigu.jpg",
+      "width": 960,
+      "height": 641
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Kashii_gu0901.jpg/1280px-Kashii_gu0901.jpg",
+      "width": 1280,
+      "height": 854
+    }
+  },
+  "doryu-falls": {
+    "wikidata": "",
+    "file": "File:Doryu Falls (01).jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Doryu_Falls_(01).jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Doryu_Falls_%2801%29.jpg/1280px-Doryu_Falls_%2801%29.jpg",
+    "author": "kiwa dokokano",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "licenseCode": "cc-by-sa-3.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/doryu-falls.jpg",
+      "width": 960,
+      "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Doryu_Falls_%2801%29.jpg/1280px-Doryu_Falls_%2801%29.jpg",
+      "width": 1280,
+      "height": 960
+    }
+  },
+  "kai-zenkoji": {
+    "wikidata": "",
+    "file": "File:Kai-Zenkoji-temple Kofu-city Yamanashi Japan.JPG",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Kai-Zenkoji-temple_Kofu-city_Yamanashi_Japan.JPG",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Kai-Zenkoji-temple_Kofu-city_Yamanashi_Japan.JPG/1280px-Kai-Zenkoji-temple_Kofu-city_Yamanashi_Japan.JPG",
+    "author": "さかおり",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "licenseCode": "cc-by-sa-3.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kai-zenkoji.jpg",
+      "width": 960,
+      "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Kai-Zenkoji-temple_Kofu-city_Yamanashi_Japan.JPG/1280px-Kai-Zenkoji-temple_Kofu-city_Yamanashi_Japan.JPG",
+      "width": 1280,
+      "height": 960
+    }
+  },
+  "narusawa-ice-cave": {
+    "wikidata": "",
+    "file": "File:Icicle in Narusawa Ice Cave.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Icicle_in_Narusawa_Ice_Cave.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Icicle_in_Narusawa_Ice_Cave.jpg/1280px-Icicle_in_Narusawa_Ice_Cave.jpg",
+    "author": "Osumi Akari",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "licenseCode": "cc-by-sa-4.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/narusawa-ice-cave.jpg",
+      "width": 960,
+      "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Icicle_in_Narusawa_Ice_Cave.jpg/1280px-Icicle_in_Narusawa_Ice_Cave.jpg",
+      "width": 1280,
+      "height": 853
+    }
+  },
+  "dogo-park": {
+    "wikidata": "",
+    "file": "File:Dogo Park 20240513 (1).jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Dogo_Park_20240513_(1).jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Dogo_Park_20240513_%281%29.jpg/1280px-Dogo_Park_20240513_%281%29.jpg",
+    "author": "CT-May",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "licenseCode": "cc0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/dogo-park.jpg",
+      "width": 960,
+      "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Dogo_Park_20240513_%281%29.jpg/1280px-Dogo_Park_20240513_%281%29.jpg",
+      "width": 1280,
+      "height": 960
+    }
+  },
+  "chikyu-misaki": {
+    "wikidata": "",
+    "file": "File:地球岬 - panoramio (3).jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%9C%B0%E7%90%83%E5%B2%AC_-_panoramio_(3).jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/%E5%9C%B0%E7%90%83%E5%B2%AC_-_panoramio_%283%29.jpg/1280px-%E5%9C%B0%E7%90%83%E5%B2%AC_-_panoramio_%283%29.jpg",
+    "author": "くろふね",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "licenseCode": "cc-by-3.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/chikyu-misaki.jpg",
+      "width": 960,
+      "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/%E5%9C%B0%E7%90%83%E5%B2%AC_-_panoramio_%283%29.jpg/1280px-%E5%9C%B0%E7%90%83%E5%B2%AC_-_panoramio_%283%29.jpg",
+      "width": 1280,
+      "height": 853
+    }
+  },
+  "oshinkoshin-falls": {
+    "wikidata": "",
+    "file": "File:オシンコシンの滝 (Osinkosin Fall) - panoramio.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:%E3%82%AA%E3%82%B7%E3%83%B3%E3%82%B3%E3%82%B7%E3%83%B3%E3%81%AE%E6%BB%9D_(Osinkosin_Fall)_-_panoramio.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/%E3%82%AA%E3%82%B7%E3%83%B3%E3%82%B3%E3%82%B7%E3%83%B3%E3%81%AE%E6%BB%9D_%28Osinkosin_Fall%29_-_panoramio.jpg/1280px-%E3%82%AA%E3%82%B7%E3%83%B3%E3%82%B3%E3%82%B7%E3%83%B3%E3%81%AE%E6%BB%9D_%28Osinkosin_Fall%29_-_panoramio.jpg",
+    "author": "Benford Choi",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "licenseCode": "cc-by-sa-3.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/oshinkoshin-falls.jpg",
+      "width": 960,
+      "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/%E3%82%AA%E3%82%B7%E3%83%B3%E3%82%B3%E3%82%B7%E3%83%B3%E3%81%AE%E6%BB%9D_%28Osinkosin_Fall%29_-_panoramio.jpg/1280px-%E3%82%AA%E3%82%B7%E3%83%B3%E3%82%B3%E3%82%B7%E3%83%B3%E3%81%AE%E6%BB%9D_%28Osinkosin_Fall%29_-_panoramio.jpg",
+      "width": 1280,
+      "height": 960
+    }
+  },
+  "notsuke-peninsula": {
+    "wikidata": "",
+    "file": "File:野付半島 - panoramio (2).jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%87%8E%E4%BB%98%E5%8D%8A%E5%B3%B6_-_panoramio_(2).jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/%E9%87%8E%E4%BB%98%E5%8D%8A%E5%B3%B6_-_panoramio_%282%29.jpg/1280px-%E9%87%8E%E4%BB%98%E5%8D%8A%E5%B3%B6_-_panoramio_%282%29.jpg",
+    "author": "yuukokukirei",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "licenseCode": "cc-by-3.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/notsuke-peninsula.jpg",
+      "width": 960,
+      "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/%E9%87%8E%E4%BB%98%E5%8D%8A%E5%B3%B6_-_panoramio_%282%29.jpg/1280px-%E9%87%8E%E4%BB%98%E5%8D%8A%E5%B3%B6_-_panoramio_%282%29.jpg",
+      "width": 1280,
+      "height": 960
+    }
+  },
+  "cape-erimo": {
+    "wikidata": "",
+    "file": "File:2013-09-08 Cape Erimo.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:2013-09-08_Cape_Erimo.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/2013-09-08_Cape_Erimo.jpg/1280px-2013-09-08_Cape_Erimo.jpg",
+    "author": "A_CUVE",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "licenseCode": "cc-by-sa-2.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/cape-erimo.jpg",
+      "width": 960,
+      "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/2013-09-08_Cape_Erimo.jpg/1280px-2013-09-08_Cape_Erimo.jpg",
+      "width": 1280,
+      "height": 853
+    }
+  },
+  "shikinaen": {
+    "wikidata": "",
+    "file": "File:Naha Shikinaen17n4272.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Naha_Shikinaen17n4272.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Naha_Shikinaen17n4272.jpg/1280px-Naha_Shikinaen17n4272.jpg",
+    "author": "663highland",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
+    "licenseCode": "cc-by-2.5",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shikinaen.jpg",
+      "width": 960,
+      "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Naha_Shikinaen17n4272.jpg/1280px-Naha_Shikinaen17n4272.jpg",
+      "width": 1280,
+      "height": 853
+    }
+  },
+  "tamaudun": {
+    "wikidata": "",
+    "file": "File:Tamaudun01s3s4592.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Tamaudun01s3s4592.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Tamaudun01s3s4592.jpg/1280px-Tamaudun01s3s4592.jpg",
+    "author": "663highland",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
+    "licenseCode": "cc-by-2.5",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tamaudun.jpg",
+      "width": 960,
+      "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Tamaudun01s3s4592.jpg/1280px-Tamaudun01s3s4592.jpg",
+      "width": 1280,
+      "height": 852
+    }
+  },
+  "ikemajima": {
+    "wikidata": "",
+    "file": "File:Ikema Bridge in Miyakojima.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Ikema_Bridge_in_Miyakojima.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Ikema_Bridge_in_Miyakojima.jpg/1280px-Ikema_Bridge_in_Miyakojima.jpg",
+    "author": "ブルーノ・プラス",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "licenseCode": "cc-by-sa-4.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/ikemajima.jpg",
+      "width": 960,
+      "height": 540
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Ikema_Bridge_in_Miyakojima.jpg/1280px-Ikema_Bridge_in_Miyakojima.jpg",
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "tokashikijima": {
+    "wikidata": "",
+    "file": "File:Tokashiku Beach on Tokashiki Island Okinawa 2018.png",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Tokashiku_Beach_on_Tokashiki_Island_Okinawa_2018.png",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Tokashiku_Beach_on_Tokashiki_Island_Okinawa_2018.png/1280px-Tokashiku_Beach_on_Tokashiki_Island_Okinawa_2018.png",
+    "author": "L. K.",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "licenseCode": "cc-by-2.0",
+    "method": "commons-sample",
+    "pickedBy": "visual-review",
+    "fetchedAt": "2026-10-30",
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tokashikijima.jpg",
+      "width": 960,
+      "height": 641
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Tokashiku_Beach_on_Tokashiki_Island_Okinawa_2018.png/1280px-Tokashiku_Beach_on_Tokashiki_Island_Okinawa_2018.png",
+      "width": 1280,
+      "height": 854
+    }
   }
 }
