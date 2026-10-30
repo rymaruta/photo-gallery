@@ -154,7 +154,11 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
     close,
     next,
     prev,
-  } = useGallery(photos, ownUserId, { recommendOnFeatured: surface === "home" });
+  } = useGallery(photos, ownUserId, {
+    recommendOnFeatured: surface === "home",
+    // ホームの新着は投稿日の新しい順（iOS の新着・api-user の /feed と同じ・2026-10-30）
+    postedOrderOnNew: surface === "home",
+  });
 
   /**
    * **ログイン中の既定は「自分」**（owner:「デフォルトは自分のみがいい」）。
@@ -679,7 +683,7 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
            （owner の指示の確認事項「タブを切り替えても見出し位置が不自然に移動しないか」）。
            ⚠️ 柱を付けない理由（広い段）は、選ばれた写真が0枚の本番では成り立っていない
            ——付けるかどうかは owner の判断（`docs/ios-alignment-2026-09-27.md` §3 のホームのカードの行）
-           並び: いいねが全部 0 なら「投稿の新しい順」。**新着（撮影日が先）とは違う並び**になる */
+           並び: いいねが全部 0 なら「投稿の新しい順」。新着も投稿の新しい順（2026-10-30 から） */
         <HomePanel scope="featured">
           {hasFeatured && !narrowedNow && (
             <FeaturedSections
@@ -708,7 +712,8 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
       ) : surface === "home" ? (
         /* **新着は iOS と同じ写真の並び**（`HomeMosaic`・大きく1枚 → 2枚 → 2枚・2026-09-29）。
            以前は縦1列の札（題・説明・タグ・4つの操作）だった。題・説明・タグ・保存・共有は
-           写真ページにある。サムネを並べる格子は「さがす」の持ち場のまま */
+           写真ページにある。サムネを並べる格子は「さがす」の持ち場のまま。
+           並びは**投稿日の新しい順**（`useGallery` の `postedOrderOnNew`・2026-10-30） */
         <HomePanel scope="all"><HomeColumns rail={discoverRail}>
           {filteredPhotos.length === 0 ? (
             <EmptyState className="py-16" message={locale === "en" ? "No photos yet." : "まだ写真がありません。"} testId="gallery-empty" />
