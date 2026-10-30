@@ -77,7 +77,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                         ? `撮影スポットの下書きです（${spots.length}件・運営未確認）。写真の投稿がまだ無い場所も載っています。`
                         : `Draft guides, not checked by us yet (${spots.length}). Places with no photos yet are listed too.`)
                     : (isJa
-                        ? `撮影地のガイドです（${spots.length}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。写真の投稿がまだ無い場所も載っています。`
+                        ? `撮影スポットの案内です（${spots.length}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。写真の投稿がまだ無い場所も載っています。`
                         : `Photo spot guides (${spots.length}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Places with no photos yet are listed too.`)}
             </p>
             )}
