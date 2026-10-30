@@ -21,7 +21,7 @@ import { ROUTES } from "../../lib/routes";
  * `sr-only` の一覧が持っていた役割（地図を操作できない人の唯一の経路）を
  * そのまま引き継ぐ。押すと選ぶだけ、にすると読み上げの人が写真に辿り着けない。
  *
- * **寸法は px。** 640px 未満で root が 14px に落ちるため。
+ * **寸法は px。** 以前は 640px 未満で root が 14px に落ちていた（2026-10-30 束 0a で外した）。
  */
 export default function MapPhotoList({ photos, locale, emptyHint }: {
     photos: readonly MapPhoto[];

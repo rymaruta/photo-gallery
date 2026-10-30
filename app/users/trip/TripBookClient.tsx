@@ -253,7 +253,7 @@ function Route({ stops, distance, isJa }: { stops: RouteStop[]; distance: number
     return (
         <section aria-labelledby="trip-route-heading" className="mt-8 flex flex-col gap-2.5">
             <h2 id="trip-route-heading" className="m-0 eyebrow eyebrow-line text-accent">{isJa ? "たどった場所" : "WHERE THEY WENT"}</h2>
-            <div className="rounded-[14px] px-3.5 pt-2 pb-4" style={{ background: "#0B0C0E" }} data-testid="trip-book-route">
+            <div className="rounded-xl px-3.5 pt-2 pb-4" style={{ background: "#0B0C0E" }} data-testid="trip-book-route">
                 <p className="m-0 text-text-3 tabular-nums" style={{ fontSize: "12px", letterSpacing: "0.12em" }} aria-hidden="true">
                     ROUTE · {distanceText(distance)}{distance === null ? "" : " km"}
                 </p>

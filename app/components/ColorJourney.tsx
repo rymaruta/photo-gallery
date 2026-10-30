@@ -52,7 +52,7 @@ type Props = {
     onOpenPhoto?: (photoId: string) => boolean;
 };
 
-/** 寸法は **px で書く**——640px 未満で root が 14px に落ちるので rem は縮む */
+/** 寸法は **px で書く**——以前は 640px 未満で root が 14px に落ちて rem が縮んでいた（2026-10-30 束 0a で外した） */
 const STYLE = {
     section: { marginTop: 4, marginBottom: 16 } as React.CSSProperties,
     heading: { fontSize: 15, fontWeight: 700, letterSpacing: "0.02em", margin: 0 } as React.CSSProperties,

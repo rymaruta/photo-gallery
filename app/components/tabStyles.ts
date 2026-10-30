@@ -13,7 +13,7 @@
  * 下のタブバーは写真が透けるガラスなので、そちらの比は `BottomNav.test.tsx` が測る。
  *
  * 下線は `box-shadow` の内側で描く（`inset 0 -2px 0`）。`border-b-2` だと選ぶたびに
- * 字の位置が 2px 動く。**px で書く**——640px 未満は root が 14px なので `h-0.5` は 1.75px になる。
+ * 字の位置が 2px 動く。**px で書く**——以前は 640px 未満の root が 14px で `h-0.5` が 1.75px になっていた（2026-10-30 束 0a で外した）。
  */
 export const TAB_ON = "text-accent font-semibold shadow-[inset_0_-2px_0_var(--color-accent)]";
 /** 選んでいないタブ（白60%＝黒の上で 7.0:1・v2 の text-3 とほぼ同じ） */

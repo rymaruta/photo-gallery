@@ -283,7 +283,7 @@ export default function DailyQuizClient() {
                             className="inline-flex items-center min-h-[44px] px-5 rounded-full bg-accent-fill text-ink font-semibold"
                             style={{ fontSize: "15px" }}
                         >
-                            {en ? "See the guide" : "ガイドを見る"}
+                            {en ? "See photo spot" : "撮影スポットを見る"}
                         </Link>
                         <SaveSpotButton slug={answer.slug} name={answer.name} locale={en ? "en" : "ja"} kind="spot" />
                         <button

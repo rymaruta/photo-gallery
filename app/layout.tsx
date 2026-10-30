@@ -268,8 +268,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 }}
               >
                 {/* **左右の余白は `px-4 sm:px-6 md:px-8`**（以前は `px-6 md:px-8`）。iOS の画面の
-                    余白は 16px だが、640px 未満は root が 14px なので `px-4` は 14px。
-                    **スマホ幅（640px 未満）では、どの画面の本文とも左端が揃う**（本文も 14px）。
+                    余白は 16px で、`px-4` も 16px（以前は 640px 未満の root が 14px で 14px だった（2026-10-30 束 0a で外した））。
+                    **スマホ幅（640px 未満）では、どの画面の本文とも左端が揃う**（本文も `px-4`）。
                     ⚠️ 640px 以上は画面ごとに本文の形が違い（`px-4` だけ・`max-w-2xl` で中央寄せ・
                     `lg:max-w-6xl` など）、ヘッダーと揃わない画面がある。揃えるなら本文側の作業 */}
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-4 sm:px-6 md:px-8">

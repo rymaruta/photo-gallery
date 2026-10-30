@@ -64,7 +64,7 @@ describe("地図に出す位置を選ぶ", () => {
         // **打鍵では投げない**（Nominatim は打鍵ごとの検索を規約で禁じている）
         expect(mockUserFetch.mock.calls.some((c) => String(c[0]).startsWith("/geocode/search"))).toBe(false);
 
-        await user.click(screen.getByRole("button", { name: "この場所名で候補を出す" }));
+        await user.click(screen.getByRole("button", { name: "撮影地の名前で候補を出す" }));
         await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => String(c[0]).includes("/geocode/search"))).toBe(true));
         expect(decodeURIComponent(String(mockUserFetch.mock.calls.find((c) => String(c[0]).includes("/geocode/search"))![0]))).toContain("q=福岡");
 
@@ -82,7 +82,7 @@ describe("地図に出す位置を選ぶ", () => {
         render(<EditPage />);
         const loc = await screen.findByDisplayValue("福岡");
         await user.clear(loc);
-        expect(screen.getByRole("button", { name: "この場所名で候補を出す" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "撮影地の名前で候補を出す" })).toBeDisabled();
     });
 
     it("見つからなければ、次にやることを伝える", async () => {
@@ -94,7 +94,7 @@ describe("地図に出す位置を選ぶ", () => {
         const user = userEvent.setup();
         render(<EditPage />);
         await screen.findByDisplayValue("海");
-        await user.click(screen.getByRole("button", { name: "この場所名で候補を出す" }));
+        await user.click(screen.getByRole("button", { name: "撮影地の名前で候補を出す" }));
         await waitFor(() => expect(showToast).toHaveBeenCalled());
         expect(showToast.mock.calls.at(-1)![0]).toMatch(/市区町村を足すと/);
     });
@@ -114,7 +114,7 @@ describe("地図に出す位置を選ぶ", () => {
         // 読み込み時は「おおよそ」と断っている
         expect(screen.getByTestId("coords-state")).toHaveTextContent("おおよそ");
 
-        await user.click(screen.getByRole("button", { name: "この場所名で候補を出す" }));
+        await user.click(screen.getByRole("button", { name: "撮影地の名前で候補を出す" }));
         await user.click(await screen.findByRole("button", { name: "福岡市, 福岡県, 日本" }));
         // 選んだ時点で「おおよそ」は消える（保存でサーバーが印を落とす）
         expect(screen.getByTestId("coords-state")).not.toHaveTextContent("おおよそ");
@@ -129,7 +129,7 @@ describe("地図に出す位置を選ぶ", () => {
         const user = userEvent.setup();
         render(<EditPage />);
         await screen.findByDisplayValue("海");
-        await user.click(screen.getByRole("button", { name: "この場所名で候補を出す" }));
+        await user.click(screen.getByRole("button", { name: "撮影地の名前で候補を出す" }));
         await screen.findByRole("button", { name: "福岡市, 福岡県, 日本" });
 
         const loc = screen.getByDisplayValue("福岡");

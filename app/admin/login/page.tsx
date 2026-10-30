@@ -92,7 +92,7 @@ export default function AdminLoginPage() {
                                     autoComplete="email"
                                     placeholder="admin@example.com"
                                     disabled={submitting}
-                                    className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                    className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-field text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                                 />
                             </div>
                             <div>
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
                                     autoComplete="current-password"
                                     placeholder="••••••••"
                                     disabled={submitting}
-                                    className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                    className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-field text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                                 />
                             </div>
 

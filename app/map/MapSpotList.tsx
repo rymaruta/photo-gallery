@@ -25,7 +25,7 @@ import { ROUTES } from "../../lib/routes";
  * **並べ替えない。** 渡された順（台帳の順）のまま。枚数順や近い順にすると、
  * 写真が1枚増えるたび・現在地が動くたびに並びが変わる。
  *
- * **寸法は px。** 640px 未満で root が 14px に落ちるため。
+ * **寸法は px。** 以前は 640px 未満で root が 14px に落ちていた（2026-10-30 束 0a で外した）。
  */
 /** 最初に並べる件数。**全件（1,079件）を一度に並べない**——PC でも一覧が縦に伸び続け、
  *  写真の一覧に届かない。絞り込み（語・範囲）で減らすのが本筋で、残りは押して足す */
@@ -118,8 +118,8 @@ export default function MapSpotList({ spots, total = spots.length, categoryActiv
                                 </span>
                                 <span className="block text-white/70" style={{ fontSize: "12px", lineHeight: "18px" }}>
                                     {s.stage === "published"
-                                        ? (en ? "Official guide" : "公式撮影地ガイド")
-                                        : (en ? "Guide (draft)" : "撮影地ガイド（下書き）")}
+                                        ? (en ? "Photo spot" : "撮影スポット")
+                                        : (en ? "Photo spot (draft)" : "撮影スポット（下書き）")}
                                     {s.region ? ` ・ ${s.region}` : ""}
                                 </span>
                             </span>

@@ -35,7 +35,7 @@ import { publicImageUrl } from "@/lib/utils/seo";
 import { BTN_FILL } from "../../components/buttonStyles";
 import { isPlaceholderTitle } from "../../../lib/utils/photoTitle";
 
-const inputCls = "w-full bg-surface-2 border border-line-strong rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
+const inputCls = "w-full bg-surface-2 border border-line-strong rounded-field px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
 
 // title/description は string か {ja,en}/{ja:[],en:[]} の両対応。
@@ -1110,7 +1110,7 @@ function EditContent() {
                                 >
                                     {placeSearching
                                         ? (isJa ? "探しています…" : "Searching…")
-                                        : (isJa ? "この場所名で候補を出す" : "Find from the location name")}
+                                        : (isJa ? "撮影地の名前で候補を出す" : "Find from the location name")}
                                 </button>
                                 {coords && (
                                     <button

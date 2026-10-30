@@ -725,7 +725,7 @@ export default function NotificationsBell() {
                         className={`flex-shrink-0 rounded-full transition ${selected
                             ? "bg-primary text-ink font-semibold"
                             : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
-                        // **px で書く**（640px 未満で root が 14px に落ちるので rem 系は縮む）
+                        // **px で書く**（以前は 640px 未満で root が 14px に落ちて rem 系が縮んでいた（2026-10-30 束 0a で外した））
                         style={{
                             fontSize: 13,
                             minHeight: 36,
@@ -917,7 +917,7 @@ export default function NotificationsBell() {
                                         なる。写真の通知は消えない限り出し続けてよい */}
                                     {n.type !== "follow" && n.type !== "storyreply" && n.photoSrc && byUser && (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className={`${M.thumb} rounded-[10px] object-cover bg-white/10 flex-shrink-0`} />
+                                        <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className={`${M.thumb} rounded-lg object-cover bg-white/10 flex-shrink-0`} />
                                     )}
                                 </>
                             );
@@ -957,7 +957,7 @@ export default function NotificationsBell() {
                                         </Link>
                                     ) : n.photoSrc ? (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className={`${M.avatar} rounded-[10px] object-cover bg-white/10 flex-shrink-0`} />
+                                        <img src={publicImageUrl(n.photoSrc)} alt="" loading="lazy" className={`${M.avatar} rounded-lg object-cover bg-white/10 flex-shrink-0`} />
                                     ) : (
                                         // **空の `src` を出さない。** 右端のサムネ（上）には
                                         // `n.photoSrc &&` のガードがあるのに、ここだけ無かった。
@@ -1033,7 +1033,7 @@ export default function NotificationsBell() {
                     **数は読み上げに渡す**——点は `aria-hidden` にし、「未読 N 件」を画面に
                     出さない説明文としてボタンに結ぶ（`aria-describedby`）。ボタンの名前は
                     「通知」のまま据え置く（名前に数を混ぜると、数が変わるたびに呼び名が変わる）。
-                    寸法は px で固定する（640px 未満は root が 14px で rem が縮む） */}
+                    寸法は px で固定する（以前は 640px 未満の root が 14px で rem が縮んでいた（2026-10-30 束 0a で外した）） */}
                 {unread > 0 && (
                     <span
                         aria-hidden="true"
