@@ -94,14 +94,16 @@ describe("下線の札（v2）", () => {
 });
 
 describe("写真の格子（v2）", () => {
-    it("3列・すき間 2px・縦長 4:5（広い画面でも4列にしない）", async () => {
+    // 2026-10-31 束 1 W3: PC の幅の決まり（1024 以上 4 列・1440 以上 5 列）。字・隙間・4:5 は電話と同じ
+    it("3列・すき間 2px・縦長 4:5、PC は 4 列（1024〜）・5 列（1440〜）", async () => {
         render(<UserProfileClient userId={OWNER} />);
         const panel = document.getElementById("profile-panel-posts")!;
         await screen.findAllByRole("link", { name: /^a/ });
         const grid = panel.querySelector(".grid") as HTMLElement;
         expect(grid.className).toContain("grid-cols-3");
         expect(grid.className).toContain("gap-[2px]");
-        expect(grid.className).not.toMatch(/lg:grid-cols-4/);
+        expect(grid.className).toContain("lg:grid-cols-4");
+        expect(grid.className).toContain("min-[1440px]:grid-cols-5");
         const tile = grid.firstElementChild as HTMLElement;
         expect(tile.style.paddingTop, "4:5 になっていない").toBe("125%");
     });

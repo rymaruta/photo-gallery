@@ -101,15 +101,17 @@ describe("名前の横の印", () => {
 describe("メダルの入口は右列の中（件数の下）", () => {
     const badges = { first: { tier: 1, at: AT }, morning: { tier: 2, at: AT } };
 
-    it("人のページ: 「メダル N →」は右列の中、件数の行より後ろ", async () => {
+    // 2026-10-31 束 1 U9: 人のページは切り替えの札（投稿・マップ・年表）の右端の字のボタン「メダル N ›」
+    it("人のページ: 「メダル N ›」は切り替えの札の右端（札の並びの中・札そのものではない）", async () => {
         profileResponse({ userId: ME, displayName: "旅人", badges });
-        const { container } = render(<UserProfileClient userId={ME} />);
+        render(<UserProfileClient userId={ME} />);
         const btn = await screen.findByTestId("medals-button");
-        const main = container.querySelector("[data-testid=profile-header-main]")!;
-        expect(main).not.toBeNull();
-        expect(main.contains(btn)).toBe(true);
-        const stats = within(main as HTMLElement).getByText("投稿");
-        expect(stats.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(btn.textContent).toBe("メダル 2");
+        const tablist = screen.getByRole("tablist");
+        const row = tablist.parentElement!;
+        expect(row.contains(btn)).toBe(true);
+        expect(tablist.contains(btn), "札（role=tab）の中に入れない").toBe(false);
+        expect(btn.closest("span")!.className).toContain("ml-auto");
     });
 
     it("本人のページ: 「下書き →」〜「メダル →」も右列の中", async () => {

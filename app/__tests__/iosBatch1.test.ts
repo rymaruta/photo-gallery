@@ -18,14 +18,27 @@ describe("P1・U1: スマホではサイトの見出しを外す頁", () => {
         expect(block).toMatch(/:root:has\(\[data-chromeless-phone\]\) \{\s*--header-h: 0px;/);
     });
 
-    it("写真の詳細はその印を持つ", () => {
+    it("写真の詳細と人のページはその印を持つ", () => {
         expect(read("app/photo/[id]/PhotoPageClient.tsx")).toContain('data-chromeless-phone=""');
+        expect(read("app/users/UserProfileClient.tsx")).toContain('<main className="min-h-screen text-white bg-bg" data-chromeless-phone="">');
     });
 
-    it("スモークは写真ページのスマホでメニューではなく「見出しが消えて戻るが押せる」を見て、メニューは PC で見る", () => {
+    it("スモークは写真ページ・人のページのスマホでメニューではなく「見出しが消えて戻るが押せる」を見て、メニューは PC で見る", () => {
         const smoke = read("scripts/e2e-smoke.mjs");
+        expect(smoke).toContain("await expectChromelessPhone(page, `[${eng}] プロフィール`");
+        expect(smoke).not.toContain("await expectMenuWorks(page, `[${eng}] プロフィール`)");
+        expect(smoke).toContain("await expectMenuWorks(dpage, `[${eng}] プロフィール(デスクトップ)`)");
         expect(smoke).toContain("await expectChromelessPhone(page, `[${eng}] 写真ページ`");
         expect(smoke).not.toContain("await expectMenuWorks(page, `[${eng}] 写真ページ`)");
         expect(smoke).toContain("await expectMenuWorks(dpage, `[${eng}] 写真ページ(デスクトップ)`)");
+    });
+});
+
+describe("U6: 人のページの訪れた場所のチップは外し、マップの札へ", () => {
+    it("チップの節（visited-places）を描かない・マップの札を持つ", () => {
+        const src = read("app/users/UserProfileClient.tsx");
+        expect(src).not.toContain('data-testid="visited-places"');
+        expect(src).toContain('const VISITOR_TABS: TabKey[] = ["posts", "map", "timeline"];');
+        expect(src).toContain("<ProfileMapTab photos={visiblePhotos}");
     });
 });
