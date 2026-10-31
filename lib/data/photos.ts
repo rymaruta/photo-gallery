@@ -59,6 +59,13 @@ export type Photo = {
      */
     spotId?: string;
     /**
+     * **自動の結びを本人が外した印**（`"off"` だけ・2026-10-31 owner 承認・journey.photo-ios#425）。
+     * 写真の詳細の「違う場所なので外す」で `api-user` の `PUT /photos/{id}` が書き、戻すと消える。
+     * これが付いた写真は、撮影地の名前と位置から自動で結ばない（`lib/utils/spotAutoLink.ts`）。
+     * 本人が選んだ `spotId` には効かない（そちらが先）
+     */
+    spotAuto?: "off";
+    /**
      * 「この写真を見て撮影」の元の写真の ID（`api-user/src/inspired.ts`）。
      * **ID だけ**で、元の写真が今も見られるかは読む側が確かめる
      * （写真ページは公開の一覧に在るときだけ出す）

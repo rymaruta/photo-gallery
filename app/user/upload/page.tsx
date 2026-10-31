@@ -30,6 +30,7 @@ import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, splitTa
 import { tagKey } from "../../../lib/utils/collections";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { readSpotParam, spotBodyUrl, parseSpotBody, coversSpot, spotIdToSend, type SpotUploadTarget } from "../../../lib/utils/spotUpload";
+import { SPOT_MATCH_URL, parseSpotMatchIndex, uploadSpotIndex, autoUploadSpot, uploadSpotFields, autoOffFor, type UploadSpotIndex, type BannerDismissal } from "../../../lib/utils/spotUploadAuto";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 import { normalizeInspiredId, inspiredPickFrom, inspiredWasDropped, InspiredCarrier, type InspiredPick } from "../../../lib/utils/inspired";
@@ -212,7 +213,22 @@ function UploadPageInner() {
      * ——1回目で紐付いた写真が上がり、2回目は残りだけ、でもスポットの画面へ戻す
      */
     const spotPostedRef = useRef(false);
+    /**
+     * **撮影スポットを自動で選ぶ**（2026-10-31 判断・journey.photo-ios#425・`lib/utils/spotUploadAuto.ts`）。
+     * 索引は撮影地・題・説明のどれかが入ってから1回だけ読む（約 270KB。入れない投稿では読まない）。
+     * `autoChoice` は本人が切り替えた写真（ID → 入り／切り）。自動の候補は `spotId` に書かない（静的な生成が結ぶ）。
+     * 書くのは本人が切ったときの `spotAuto: "off"` だけ
+     */
+    const [autoIndex, setAutoIndex] = useState<UploadSpotIndex | null>(null);
+    const autoIndexAskedRef = useRef(false);
+    const [autoChoice, setAutoChoice] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+    /** 帯の「外す」を押したとき見ていた1枚と撮影スポット（`autoOffFor`）。見ている写真は描画のたびに覚える */
+    const [dismissal, setDismissal] = useState<BannerDismissal>(null);
+    const editingIdRef = useRef<string | null>(null);
     const removeSpot = useCallback(() => {
+        const s = spotRef.current;
+        const seen = editingIdRef.current;
+        if (s && seen) setDismissal({ spotId: s.spotId, itemId: seen });
         setSpot(null);
         setSpotFailed(false);
         spotPendingRef.current.clear();
@@ -304,6 +320,21 @@ function UploadPageInner() {
         setTags((cur) => (hasTag(cur, themeTag) ? cur : toggleTag(cur, themeTag)));
     }, [themeTag]);
     const [uploading, setUploading] = useState(false);
+    /** 自動で選ぶための索引を読む（撮影地・題・説明のどれかが入ったら1回だけ。読めなければ選ばない） */
+    const wantsAutoIndex = items.some((it) => !!(it.location || it.title || it.description));
+    useEffect(() => {
+        if (!wantsAutoIndex || autoIndexAskedRef.current) return;
+        autoIndexAskedRef.current = true;
+        void (async () => {
+            try {
+                const res = await fetch(SPOT_MATCH_URL);
+                const index = res.ok ? parseSpotMatchIndex(await res.json()) : null;
+                if (index) setAutoIndex(uploadSpotIndex(index));
+            } catch {
+                // 読めなければ自動では選ばない（投稿はできる・あとで静的な生成が同じ決まりで結ぶ）
+            }
+        })();
+    }, [wantsAutoIndex]);
     /** スポットが届いたとき・EXIF を読み終えたときに、未判定の写真へスポット名を入れる（`spotPendingRef` の注記） */
     useEffect(() => {
         // **上げている間は判定を保留する**（印も消さない）。保存は押した時点の中身で送るので、
@@ -1316,8 +1347,9 @@ function UploadPageInner() {
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             // 共同アルバム（案C）。メンバーでなければサーバーが断る
                             ...(albumId ? { albumId } : {}),
-                            // 撮影スポット。**この写真がその近くで、撮影地に名前を含むときだけ**
-                            ...(() => { const id = spotIdToSend(spot, item); return id ? { spotId: id } : {}; })(),
+                            // 撮影スポット。撮影スポットの画面から来て**この写真がその近くで、撮影地に名前を含むとき**だけ spotId。
+                            // 自動の候補は書かず、本人が切り替えを切ったときだけ外した印（`spotUploadAuto.ts`）
+                            ...uploadSpotFields({ target: spot, index: autoIndex, item, off: autoOffFor(autoChoice, dismissal, item.id, autoUploadSpot(autoIndex, item)) }),
                             // この写真を見て撮影（形の合う ID だけ・付くかはサーバーが確かめる）
                             ...(inspiredId ? { inspiredBy: inspiredId } : {}),
                             ...audienceForSave(audience),
@@ -1419,7 +1451,7 @@ function UploadPageInner() {
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             ...(albumId ? { albumId } : {}),
                             // 撮影スポット。1件にまとめる回は表紙の写真で決める（題・撮影地と同じ）
-                            ...(() => { const id = spotIdToSend(spot, c); return id ? { spotId: id } : {}; })(),
+                            ...uploadSpotFields({ target: spot, index: autoIndex, item: c, off: autoOffFor(autoChoice, dismissal, c.id, autoUploadSpot(autoIndex, c)) }),
                             ...(inspiredId ? { inspiredBy: inspiredId } : {}),
                             ...audienceForSave(audience),
                             // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
@@ -1542,7 +1574,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot, inspired, noteInspiredDropped]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot, inspired, noteInspiredDropped, autoIndex, autoChoice, dismissal]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -1609,6 +1641,18 @@ function UploadPageInner() {
     const coverItem = items.find((i) => i.status === "pending" || i.status === "error");
     const groupMode = asOnePost && pendingCount > 1 && !tooManyToGroup;
     const editing: Item | undefined = groupMode ? (coverItem ?? selected) : selected;
+    editingIdRef.current = editing?.id ?? null;
+    /**
+     * いま編集している写真に自動で選んだ撮影スポット（板 UploadIOS の切り替え）。撮影スポットの画面から来て
+     * その写真が付くときは帯が受け持つので出さない
+     */
+    const editingAutoSpot = (() => {
+        if (!editing || spotIdToSend(spot, editing)) return null;
+        const id = autoUploadSpot(autoIndex, editing);
+        const name = id ? autoIndex?.names.get(id) : undefined;
+        if (!id || !name) return null;
+        return { itemId: editing.id, name, on: autoOffFor(autoChoice, dismissal, editing.id, id) !== true };
+    })();
     const editingNo = editing ? items.findIndex((i) => i.id === editing.id) + 1 : 0;
     /** 上げ終わった写真の欄は触らせない（サーバーの値と食い違う） */
     const fieldsLocked = uploading || editing?.status === "done";
@@ -2255,6 +2299,38 @@ function UploadPageInner() {
                                         確認画面に出て、写真ページの表示とも食い違う。 */}
                                     {formatStoredDateTime(editing.dateTimeOriginal, isJa ? "ja" : "en")}
                                 </p>
+                            )}
+                            {editingAutoSpot && (
+                                <div className="mt-3 rounded-2xl bg-surface ring-1 ring-line px-3.5 py-3" data-testid="upload-auto-spot">
+                                    <div className="flex items-center gap-3" style={{ minHeight: "44px" }}>
+                                        <span id="upload-auto-spot-label" className="flex-1 min-w-0 text-white" style={{ fontSize: "15px", lineHeight: "21px" }}>
+                                            {isJa ? `撮影スポット「${editingAutoSpot.name}」に結ぶ` : `Link to “${editingAutoSpot.name}”`}
+                                        </span>
+                                        {/* 切り替え（板 UploadIOS）。入りは真鍮の地（黒い札の上）・切りは灰。押せる所は 44pt */}
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={editingAutoSpot.on}
+                                            aria-labelledby="upload-auto-spot-label"
+                                            disabled={fieldsLocked}
+                                            onClick={() => setAutoChoice((cur) => new Map(cur).set(editingAutoSpot.itemId, !editingAutoSpot.on))}
+                                            className="relative flex-shrink-0 flex items-center justify-center disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
+                                            style={{ minWidth: "51px", minHeight: "44px", touchAction: "manipulation" }}
+                                        >
+                                            <span aria-hidden="true" className={`relative block rounded-full transition-colors ${editingAutoSpot.on ? "bg-accent" : "bg-white/20"}`}
+                                                  style={{ width: "51px", height: "31px" }}>
+                                                <span className={`absolute top-[2px] block rounded-full transition-all ${editingAutoSpot.on ? "bg-ink" : "bg-white"}`}
+                                                      style={{ width: "27px", height: "27px", left: editingAutoSpot.on ? "22px" : "2px" }} />
+                                            </span>
+                                        </button>
+                                    </div>
+                                    <p className="m-0 mt-1 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
+                                        {editingAutoSpot.on
+                                            ? (isJa ? "撮影地の名前と写真の位置から、自動で選んであります。投稿のあと、撮影スポットの頁に並びます。ここで撮っていなければ外してください。"
+                                                : "Chosen automatically from the place name and photo location. It will appear on the spot page. Turn off if you didn’t take it here.")
+                                            : (isJa ? "撮影スポットには結ばずに投稿します。" : "This photo won’t be linked to the spot.")}
+                                    </p>
+                                </div>
                             )}
                         </div>
                     )}

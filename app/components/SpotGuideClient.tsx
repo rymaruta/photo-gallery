@@ -61,8 +61,10 @@ export const COVER_CROP_NOTE = { ja: "一部を切り抜いて表示", en: "crop
  */
 type Props = {
     spot: Spot;
-    /** そのスポットに**確認済みで紐付いた**公開写真だけ */
+    /** そのスポットの公開写真（本人が選んだ `spotId` と、自動の結び・`SpotGuidePage` の `photosForSpot`） */
     photos: Photo[];
+    /** 自動で結んだ写真を含むか（節の下に小さく断る・2026-10-31 journey.photo-ios#425） */
+    autoNote?: boolean;
     /** 周辺スポット（台帳に登録済みで、手で選んだものだけ） */
     nearby: SpotRow[];
     /** 同じ場所を指す集約ページ（あれば）。無ければ `null` */
@@ -496,7 +498,7 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     );
 }
 
-export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, sky = null, samples = [], topics = [], country = null }: Props) {
+export default function SpotGuideClient({ spot, photos, autoNote = false, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, sky = null, samples = [], topics = [], country = null }: Props) {
     const { locale } = useLocale();
     const { showToast } = useToast();
     const isJa = locale !== "en";
@@ -588,6 +590,14 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
             )}
             {photos.length > 0 ? (
                 <>
+                    {/* 自動で結んだ写真を含むときだけ（板 SpotWeb の注記・13px の灰） */}
+                    {autoNote && (
+                        <p className="m-0 mb-3 text-white/60" style={{ fontSize: "13px", lineHeight: "20px" }} data-testid="spot-auto-note">
+                            {isJa
+                                ? "撮影地の名前と位置から自動で結んだ写真を含みます。"
+                                : "Includes photos linked automatically by place name and location."}
+                        </p>
+                    )}
                     <GalleryGrid photos={photos} locale={locale} sizes="(min-width:1024px) 300px, 50vw"
                                   columnsClassName="grid-cols-2 sm:grid-cols-3" />
                     {/* 写真がある場所にも投稿の入口を置く（0枚のときだけだと、2枚目以降が紐付かない） */}

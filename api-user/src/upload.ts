@@ -6,7 +6,7 @@ import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems, markStatic
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { displayNameOf } from "./notify";
-import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint, sanitizeGroupId, sanitizeAudience, sanitizeSpotId } from "./sanitize";
+import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint, sanitizeGroupId, sanitizeAudience, sanitizeSpotId, sanitizeSpotAuto } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { sanitizeExtraImages, mergeExtraImages } from "./photoImages";
 import { mediaKeys } from "./mediaKeys";
@@ -302,6 +302,11 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         spotId?: unknown;
         /** 「この写真を見て撮影」の元の写真の ID（`inspired.ts`）。見られない写真なら付けない */
         inspiredBy?: unknown;
+        /**
+         * 自動の結びを外した印（`"off"` だけ書く・2026-10-31 journey.photo-ios#425）。投稿画面で
+         * 候補の撮影スポットを本人が外したとき。書かないと、あとで静的な生成が同じ決まりで結び直す
+         */
+        spotAuto?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -440,6 +445,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(() => { const safeExif = sanitizeExif(exif); return safeExif ? { exif: safeExif } : {}; })(),
         ...(safeCoords ? { coords: safeCoords } : {}),
         ...(() => { const s = sanitizeSpotId(body.spotId); return s ? { spotId: s } : {}; })(),
+        // 外した印は `"off"` のときだけ書く（読めない値・戻す値は書かない——新しい行に消す印は要らない）
+        ...(sanitizeSpotAuto(body.spotAuto) === "off" ? { spotAuto: "off" } : {}),
         // **使えない値は属性ごと書かない**（`coords` と同じ）。中央のままに
         // 落ちるので、今までの写真と見え方が変わらない
         ...(() => { const f = sanitizeFocalPoint(body.focalPoint); return f ? { focalPoint: f } : {}; })(),

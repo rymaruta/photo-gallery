@@ -341,6 +341,46 @@ describe("updatePhotoVisibility", () => {
         });
     });
 
+    // **自動の結びを本人が外す**（`spotAuto`・2026-10-31 owner 承認・journey.photo-ios#425）
+    describe("spotAuto", () => {
+        const upd = () => (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeNames?: Record<string, string>; ExpressionAttributeValues?: Record<string, unknown> } }).input;
+
+        it("\"off\" で外した印を書き、静的サイトを作り直す", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true } }).mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { spotAuto: "off" }));
+            expect(res.statusCode).toBe(200);
+            expect(upd().UpdateExpression).toMatch(/SET .*#spotAuto = :spotAuto/);
+            expect(upd().ExpressionAttributeValues?.[":spotAuto"]).toBe("off");
+            expect(mockRebuild).toHaveBeenCalled();
+        });
+
+        it("null・空文字で印を消す（自動に戻す）", async () => {
+            for (const spotAuto of [null, ""]) {
+                mockDdbSend.mockReset();
+                mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", spotAuto: "off" } }).mockResolvedValueOnce({});
+                const res = await invoke(event("u1", "p1", { spotAuto }));
+                expect(res.statusCode, JSON.stringify(spotAuto)).toBe(200);
+                expect(upd().UpdateExpression).toMatch(/REMOVE .*#spotAuto/);
+            }
+        });
+
+        it("形の違う値は 400（外した印を黙って消さない）", async () => {
+            for (const spotAuto of ["on", "OFF!", true, 1, {}, ["off"]]) {
+                mockDdbSend.mockReset();
+                const res = await invoke(event("u1", "p1", { spotAuto }));
+                expect(res.statusCode, JSON.stringify(spotAuto)).toBe(400);
+                expect(mockDdbSend).not.toHaveBeenCalled();
+            }
+        });
+
+        it("他人の写真には書けない", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "someone" } });
+            const res = await invoke(event("u1", "p1", { spotAuto: "off" }));
+            expect(res.statusCode).toBe(403);
+            expect(mockDdbSend).toHaveBeenCalledTimes(1);
+        });
+    });
+
     // **公開一覧用 GSI の印を一緒に動かす。** 忘れると、非公開にした写真が
     // 一覧に出続ける／公開に戻した写真が二度と一覧に出ない
     it("非公開にしたら、公開一覧の印を外す", async () => {

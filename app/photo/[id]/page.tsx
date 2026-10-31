@@ -16,6 +16,7 @@ import { photoTitleFor } from "@/lib/utils/photoTitle";
 import { categoryLabel } from "../../../lib/utils/collections";
 import { spotLinkForPhoto, spotTimeZoneForPhoto } from "@/lib/data/spotLink";
 import { nearbySpotsForPhoto } from "@/lib/data/spotSeo";
+import { autoSpotIdForPhoto, ruleSpotIdFor } from "@/lib/server/spotAutoLinks";
 import { inspiredSourceFor, toInspiredLink } from "@/lib/utils/inspired";
 
 // 写真データを読み込む関数
@@ -233,6 +234,14 @@ export default async function PhotoPage({ params }: PageProps) {
     // 「この写真を見て撮影」の元の写真。**公開の一覧に居るときだけ**（非公開・削除・
     // 絞った写真は居ない）。静的HTMLにも焼く（写真から写真への内部リンクになる）
     const inspired = inspiredSourceFor(photo, photos);
+    // 撮影スポット: 本人が選んだ `spotId`、無ければ撮影地の名前と位置から自動で結んだ先
+    // （`lib/utils/spotAutoLink.ts`・2026-10-31 判断 journey.photo-ios#425）。
+    // `rule` は外した写真でも決まりだけの答え（本人に「外しています・元に戻す」を出すため）
+    const rule = photo && !photo.spotId && photo.published !== false ? ruleSpotIdFor(photo) : null;
+    // 公開の写真だけ（`rule` と同じ守り。表 `autoLinksFor` も非公開を入れない）
+    const auto = photo && photo.published !== false ? autoSpotIdForPhoto(photo) : null;
+    const spotId = photo?.spotId || auto || undefined;
+    const ruleLink = rule ? spotLinkForPhoto(rule) : null;
     return (
         <PhotoPageClient
             photoId={id}
@@ -240,13 +249,14 @@ export default async function PhotoPage({ params }: PageProps) {
             initialRelated={initialRelated}
             // **台帳はここで解く。** 画面へ渡すのは表示に要る項目だけ
             // （`"use client"` から台帳を読むと全文がチャンクに載る）
-            spotLink={spotLinkForPhoto(photo?.spotId)}
+            spotLink={spotLinkForPhoto(spotId)}
             // 「次のゴールデンアワー」をスポットの土地の時計で言う（台帳はここで解く）
-            spotTimeZone={spotTimeZoneForPhoto(photo?.spotId)}
+            spotTimeZone={spotTimeZoneForPhoto(spotId)}
             initialInspired={inspired ? toInspiredLink(inspired) : null}
             // 近くの撮影スポット（公開済みの撮影地ガイドを近い順に数件・距離は出さない）。静的HTMLに焼く
             // ＝写真ページから撮影地ガイドへの内部リンク（2026-10-22）
-            nearbySpots={photo ? nearbySpotsForPhoto(photo) : []}
+            nearbySpots={photo ? nearbySpotsForPhoto({ ...photo, spotId }) : []}
+            spotAuto={ruleLink ? { name: ruleLink.name, off: photo?.spotAuto === "off" } : null}
         />
     );
 }

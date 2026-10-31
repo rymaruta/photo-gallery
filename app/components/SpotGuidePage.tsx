@@ -15,6 +15,8 @@ import SpotGuideClient from "./SpotGuideClient";
 import { spotCoverImage } from "@/lib/data/spotImages";
 import { spotSamples, coverImageObject, spotCoverSeoSource, spotSeoImage } from "@/lib/data/spotSamples";
 import { loadAllPhotos } from "@/lib/server/photos";
+import { autoLinksFor } from "@/lib/server/spotAutoLinks";
+import { photosLinkedTo } from "@/lib/utils/spotAutoLink";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { slimForGrid } from "@/lib/utils/related";
@@ -29,19 +31,6 @@ import { topicLinksForSpot, spotCountryRef } from "@/lib/data/spotTopics";
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
-/**
- * そのスポットの写真。**`spotId` が付いているものだけ。**
- *
- * owner:「写真の `location` 文字列が似ているだけで、未確認のスポットへ
- * 紐付けないでください」。だから**文字列の一致では拾わない**。`spotId` が入る道は2つ:
- * - 運営が候補を確かめた紐付け（`lib/utils/spots.ts` の `linkStates`）
- * - **撮った本人がスポットの画面から選んだもの**（`api-user` の投稿・編集・2026-09-29）。
- *   運営の確認は挟まない——本人が「ここで撮った」と言ったものを信じる
- */
-function photosForSpot(photos: Awaited<ReturnType<typeof loadAllPhotos>>, spotId: string) {
-    return photos.filter((p) => p.published !== false && p.spotId === spotId);
-}
-
 export default async function SpotGuidePage({ slug }: { slug: string }) {
     const spot = visibleSpots(SPOTS).find((s) => s.slug === slug);
     // **建てる条件を満たさないものはページを作らない**（`draft`・情報不足）。
@@ -50,7 +39,9 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     if (!spot) notFound();
 
     const photos = await loadAllPhotos();
-    const mine = photosForSpot(photos, spot.spotId);
+    // そのスポットの写真。本人が選んだ `spotId`、無ければ撮影地の名前と位置から自動で結んだもの
+    // （`photosLinkedTo`・2026-10-31 判断 journey.photo-ios#425。写真のデータは書き換えない）
+    const { photos: mine, hasAuto } = photosLinkedTo(photos, spot.spotId, autoLinksFor(photos));
 
     // 周辺スポット。**手で選んだものだけ**（座標が近い＝関係があるとは限らない）。
     // 座標で近い順に並べる節は別に「◯◯県の撮影スポット」として出す（`sameAreaSpots`・2026-09-29）
@@ -110,6 +101,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
             <SpotGuideClient
                 spot={spotForClient}
                 photos={mine.map(slimForGrid)}
+                autoNote={hasAuto}
                 nearby={nearby}
                 locationPath={locationPath}
                 area={area ? { slug: area.slug, name: area.name, nameEn: area.nameEn } : null}

@@ -31,6 +31,12 @@ describe("guidesFor", () => {
         expect(guidesFor([P("1"), P("2")])).toEqual([]);
     });
 
+    it("spotId が無い写真は、自動の結び（表）で数える。spotId があればそちらが先", () => {
+        const got = guidesFor([P("1"), P("2"), P("3", { spotId: "sp_bbbbbbbbbbbb" })],
+            { "1": "sp_aaaaaaaaaaaa", "2": "sp_aaaaaaaaaaaa", "3": "sp_aaaaaaaaaaaa" });
+        expect(got.map((g) => g.slug)).toEqual(["ginzan-onsen", "yamadera"]);
+    });
+
     it("台帳に無い（公開されていない）spotId は出さない", () => {
         expect(guidesFor([P("1", { spotId: "sp_cccccccccccc" })])).toEqual([]);
     });

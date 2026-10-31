@@ -15,6 +15,8 @@
 import { notFound } from "next/navigation";
 import SpotPageClient from "./SpotPageClient";
 import { loadAllPhotos } from "@/lib/server/photos";
+import { autoLinksFor } from "@/lib/server/spotAutoLinks";
+import { effectiveSpotId } from "@/lib/utils/spotAutoLink";
 import {
     photosInCollection,
     labelForSlug,
@@ -150,20 +152,22 @@ export default async function SpotPage({ slug }: { slug: string }) {
                 narrower={narrower.map(link)}
                 nearby={nearby.map((n) => ({ ...link(n), km: n.km, approx: n.approx, cover: coverOf(n.slug) }))}
                 related={related}
-                guides={guidesFor(matched)}
+                guides={guidesFor(matched, autoLinksFor(photos))}
             />
         </>
     );
 }
 
 /**
- * この撮影地の写真が **`spotId` で紐付いている**公式ガイド（重複なし・多い順・最大3件）。
- * 撮影地の文字列とスポットの名前が似ているだけでは入れない（owner の指示書 第11章）
+ * この撮影地の写真が紐付いている公式ガイド（重複なし・多い順・最大3件）。
+ * 本人が選んだ `spotId`、無ければ自動の結び（`lib/utils/spotAutoLink.ts`・2026-10-31 判断
+ * journey.photo-ios#425）。撮影地の文字列とスポットの名前が似ているだけでは入れない——
+ * 自動の結びは名前＋位置＋候補が1つだけの決まりを通ったものだけ
  */
-export function guidesFor(matched: readonly Photo[]): GuideLink[] {
+export function guidesFor(matched: readonly Photo[], autoLinks: Readonly<Record<string, string>> = {}): GuideLink[] {
     const count = new Map<string, number>();
     for (const p of matched) {
-        const id = typeof p.spotId === "string" ? p.spotId : "";
+        const id = effectiveSpotId(p, autoLinks) ?? "";
         if (id) count.set(id, (count.get(id) ?? 0) + 1);
     }
     return [...count.entries()]
