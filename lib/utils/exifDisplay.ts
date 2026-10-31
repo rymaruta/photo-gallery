@@ -100,3 +100,21 @@ export function exifGearLine(exif: ExifLineSource): string | undefined {
     const items = [trimmed(exif.camera), trimmed(exif.lens)].filter((s): s is string => !!s);
     return items.length > 0 ? items.join(SEP) : undefined;
 }
+
+/**
+ * **撮影設定の4つの升**（iOS の `PhotoMetaLine.settingsCells`・写真の詳細の撮影情報を開いたとき）。
+ * 焦点距離・絞り・シャッター・ISO の順で、**値の無い升は出さない**。ISO の升は数だけ（名前が「ISO」）。
+ * 2026-10-31 判断（束 1 P8）: 以前の Web は札の中に 2 列の名前と値を並べていた
+ */
+export function exifSettingsCells(exif: ExifLineSource, locale: "ja" | "en" = "ja"): { label: string; value: string }[] {
+    if (!exif) return [];
+    const en = locale === "en";
+    const iso = isoText(exif.iso);
+    const cells: [string, string | undefined][] = [
+        [en ? "Focal length" : "焦点距離", trimmed(exif.focalLength)],
+        [en ? "Aperture" : "絞り", apertureText(exif.aperture)],
+        [en ? "Shutter" : "シャッター", exposureText(exif.exposure)],
+        ["ISO", iso ? iso.replace(/^ISO /, "") : undefined],
+    ];
+    return cells.filter((c): c is [string, string] => !!c[1]).map(([label, value]) => ({ label, value }));
+}

@@ -250,6 +250,32 @@ async function expectMenuWorks(page, label) {
     }
 }
 
+/**
+ * **スマホでサイトの見出しを外す頁**（写真の詳細・人のページ・2026-10-31 束 1 P1・U1）。
+ * iOS と同じく写真（カバー）を画面の上端から敷き、戻る・「…」を写真の上のガラスの丸に置く
+ * （`globals.css` の `data-chromeless-phone`）。メニューの確かめの代わりに、見出しが本当に消えて
+ * 頁の戻る（ホームへ）が覆われずに押せることを見る。メニューそのものは PC の幅（下のデスクトップ）で見る
+ */
+async function expectChromelessPhone(page, label, backSelector) {
+    const r = await page.evaluate((sel) => {
+        const header = document.querySelector("[data-site-header]");
+        const back = document.querySelector(sel);
+        let covered = "no-back";
+        if (back) {
+            const b = back.getBoundingClientRect();
+            const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+            covered = top && (back === top || back.contains(top)) ? "ok" : `covered-by:${top?.tagName}`;
+        }
+        return {
+            marked: !!document.querySelector("[data-chromeless-phone]"),
+            headerHidden: !!header && getComputedStyle(header).display === "none",
+            back: covered,
+        };
+    }, backSelector);
+    check(`${label}: スマホではサイトの見出しを出さない`, r.marked && r.headerHidden, JSON.stringify(r));
+    check(`${label}: 戻るが写真の上で押せる`, r.back === "ok", r.back);
+}
+
 // 1エンジン分の検査一式（モバイル context + デスクトップ context）。
 async function runChecks(browser, eng) {
     // ── モバイル（タッチ）context ──
@@ -500,7 +526,7 @@ async function runChecks(browser, eng) {
         check(`[${eng}] 写真ページ: 壊れた画像が無い`, detail.broken === 0, `broken=${detail.broken}`);
         check(`[${eng}] 写真ページ: 回遊の導線がある`, detail.outLinks > 0, `links=${detail.outLinks}`);
         check(`[${eng}] 写真ページ: ほかの写真への導線がある`, detail.otherPhotos > 0, `links=${detail.otherPhotos}`);
-        await expectMenuWorks(page, `[${eng}] 写真ページ`);
+        await expectChromelessPhone(page, `[${eng}] 写真ページ`, "[data-testid='photo-top-bar'] a[href='/']");
     }
 
     // 集約ページ（タグ／カテゴリ／撮影地／機材）。**生成の 86/140 がここ**で、
@@ -819,6 +845,12 @@ async function runChecks(browser, eng) {
         await gotoSettled(dpage, `http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`);
         await waitForHydration(dpage);
         await expectMenuWorks(dpage, `[${eng}] プロフィール(デスクトップ)`);
+    }
+    // 写真ページは**スマホでは見出しを外す**ので（`expectChromelessPhone`）、メニューは PC の幅で見る
+    if (photoPages.length > 0) {
+        await gotoSettled(dpage, `http://localhost:${PORT}/photo/${encodeURIComponent(photoPages[0].replace(/\.html$/, ""))}`);
+        await waitForHydration(dpage);
+        await expectMenuWorks(dpage, `[${eng}] 写真ページ(デスクトップ)`);
     }
     const dRealErrors = dbag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
     check(`[${eng}] デスクトップ: 実行時のJSエラーがない`, dRealErrors.length === 0, dRealErrors.slice(0, 3).join(" / "));
