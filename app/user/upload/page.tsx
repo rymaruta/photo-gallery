@@ -216,14 +216,13 @@ function UploadPageInner() {
     /**
      * **撮影スポットを自動で選ぶ**（2026-10-31 判断・journey.photo-ios#425・`lib/utils/spotUploadAuto.ts`）。
      * 索引は撮影地・題・説明のどれかが入ってから1回だけ読む（約 270KB。入れない投稿では読まない）。
-     * `autoChoice` は本人が切り替えた写真（ID → 入り／切り）、`dismissedSpotId` は撮影スポットの帯で外した場所
+     * `autoChoice` は本人が切り替えた写真（ID → 入り／切り）。自動の候補は `spotId` に書かない（静的な生成が結ぶ）。
+     * 書くのは本人が切ったときの `spotAuto: "off"` だけ
      */
     const [autoIndex, setAutoIndex] = useState<UploadSpotIndex | null>(null);
     const autoIndexAskedRef = useRef(false);
     const [autoChoice, setAutoChoice] = useState<ReadonlyMap<string, boolean>>(() => new Map());
-    const [dismissedSpotId, setDismissedSpotId] = useState<string | null>(null);
     const removeSpot = useCallback(() => {
-        setDismissedSpotId((cur) => spotRef.current?.spotId ?? cur);
         setSpot(null);
         setSpotFailed(false);
         spotPendingRef.current.clear();
@@ -1342,9 +1341,9 @@ function UploadPageInner() {
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             // 共同アルバム（案C）。メンバーでなければサーバーが断る
                             ...(albumId ? { albumId } : {}),
-                            // 撮影スポット。撮影スポットの画面から来て**この写真がその近くで、撮影地に名前を含むとき**、
-                            // または撮影地の名前と位置から自動で選べたとき（本人が外したら外した印）
-                            ...uploadSpotFields({ target: spot, index: autoIndex, item, off: choiceOff(autoChoice, item.id), dismissedSpotId }),
+                            // 撮影スポット。撮影スポットの画面から来て**この写真がその近くで、撮影地に名前を含むとき**だけ spotId。
+                            // 自動の候補は書かず、本人が切り替えを切ったときだけ外した印（`spotUploadAuto.ts`）
+                            ...uploadSpotFields({ target: spot, index: autoIndex, item, off: choiceOff(autoChoice, item.id) }),
                             // この写真を見て撮影（形の合う ID だけ・付くかはサーバーが確かめる）
                             ...(inspiredId ? { inspiredBy: inspiredId } : {}),
                             ...audienceForSave(audience),
@@ -1446,7 +1445,7 @@ function UploadPageInner() {
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             ...(albumId ? { albumId } : {}),
                             // 撮影スポット。1件にまとめる回は表紙の写真で決める（題・撮影地と同じ）
-                            ...uploadSpotFields({ target: spot, index: autoIndex, item: c, off: choiceOff(autoChoice, c.id), dismissedSpotId }),
+                            ...uploadSpotFields({ target: spot, index: autoIndex, item: c, off: choiceOff(autoChoice, c.id) }),
                             ...(inspiredId ? { inspiredBy: inspiredId } : {}),
                             ...audienceForSave(audience),
                             // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
@@ -1569,7 +1568,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot, inspired, noteInspiredDropped, autoIndex, autoChoice, dismissedSpotId]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot, inspired, noteInspiredDropped, autoIndex, autoChoice]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -1638,14 +1637,14 @@ function UploadPageInner() {
     const editing: Item | undefined = groupMode ? (coverItem ?? selected) : selected;
     /**
      * いま編集している写真に自動で選んだ撮影スポット（板 UploadIOS の切り替え）。撮影スポットの画面から来て
-     * その写真が付くときは帯が受け持つので出さない。帯で外した場所は「切り」で出す
+     * その写真が付くときは帯が受け持つので出さない
      */
     const editingAutoSpot = (() => {
         if (!editing || spotIdToSend(spot, editing)) return null;
         const id = autoUploadSpot(autoIndex, editing);
         const name = id ? autoIndex?.names.get(id) : undefined;
         if (!id || !name) return null;
-        return { itemId: editing.id, name, on: !(choiceOff(autoChoice, editing.id) ?? id === dismissedSpotId) };
+        return { itemId: editing.id, name, on: choiceOff(autoChoice, editing.id) !== true };
     })();
     const editingNo = editing ? items.findIndex((i) => i.id === editing.id) + 1 : 0;
     /** 上げ終わった写真の欄は触らせない（サーバーの値と食い違う） */
@@ -2320,7 +2319,7 @@ function UploadPageInner() {
                                     </div>
                                     <p className="m-0 mt-1 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
                                         {editingAutoSpot.on
-                                            ? (isJa ? "撮影地の名前と写真の位置から、自動で選んであります。撮影スポットの頁に並びます。ここで撮っていなければ外してください。"
+                                            ? (isJa ? "撮影地の名前と写真の位置から、自動で選んであります。投稿のあと、撮影スポットの頁に並びます。ここで撮っていなければ外してください。"
                                                 : "Chosen automatically from the place name and photo location. It will appear on the spot page. Turn off if you didn’t take it here.")
                                             : (isJa ? "撮影スポットには結ばずに投稿します。" : "This photo won’t be linked to the spot.")}
                                     </p>

@@ -7,7 +7,7 @@ import type { Photo } from "@/lib/data/photos";
 
 /**
  * 撮影スポットの頁の写真の節: 自動で結んだ写真を含むときだけ
- * 「撮影地の名前と位置から自動でまとめた写真を含みます。」と小さく断る（2026-10-31・journey.photo-ios#425・板 SpotWeb）
+ * 「撮影地の名前と位置から自動で結んだ写真を含みます。」と小さく断る（2026-10-31・journey.photo-ios#425・板 SpotWeb）
  */
 vi.mock("../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, loading: false }) }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
@@ -43,11 +43,11 @@ beforeEach(() => {
     window.history.replaceState(null, "", "/spots/miyagi-zao-fox");
 });
 
-describe("撮影スポットの頁: 自動でまとめた写真の注記", () => {
+describe("撮影スポットの頁: 自動で結んだ写真の注記", () => {
     it("自動で結んだ写真を含むときは注記を出す（数は自動の分も数える）", () => {
         view(true);
         expect(screen.getByRole("heading", { name: "この撮影スポットの写真（1）" })).toBeTruthy();
-        expect(screen.getByTestId("spot-auto-note").textContent).toBe("撮影地の名前と位置から自動でまとめた写真を含みます。");
+        expect(screen.getByTestId("spot-auto-note").textContent).toBe("撮影地の名前と位置から自動で結んだ写真を含みます。");
     });
 
     it("本人が選んだ写真だけなら出さない", () => {

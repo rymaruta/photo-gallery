@@ -10,7 +10,6 @@ const index = uploadSpotIndex(parseSpotMatchIndex({
         { i: FOX, d: "蔵王キツネ村", n: "蔵王キツネ村", c: [38.02, 140.55], p: "宮城県" },
         { i: GINZAN.spotId, d: "銀山温泉", n: "銀山温泉", c: [38.58, 140.53], p: "山形県" },
     ],
-    regions: ["宮城県", "白石市", "日本"],
 })!);
 
 describe("uploadSpotFields", () => {
@@ -18,16 +17,15 @@ describe("uploadSpotFields", () => {
         expect(uploadSpotFields({ target: GINZAN, index, item: { location: "銀山温泉 蔵王キツネ村" } })).toEqual({ spotId: GINZAN.spotId });
     });
 
-    it("自動で選べれば spotId・本人が外せば spotAuto: off", () => {
+    it("自動の候補は spotId にしない（静的な生成が結ぶ）・本人が切ったときだけ spotAuto: off", () => {
         const item = { location: "蔵王キツネ村" };
-        expect(uploadSpotFields({ target: null, index, item })).toEqual({ spotId: FOX });
+        expect(uploadSpotFields({ target: null, index, item })).toEqual({});
+        expect(uploadSpotFields({ target: null, index, item, off: false })).toEqual({});
         expect(uploadSpotFields({ target: null, index, item, off: true })).toEqual({ spotAuto: "off" });
     });
 
-    it("撮影スポットの帯で外した場所は自動でも選ばない（この写真で入れ直したらそちらが先）", () => {
-        const item = { location: "銀山温泉" };
-        expect(uploadSpotFields({ target: null, index, item, dismissedSpotId: GINZAN.spotId })).toEqual({ spotAuto: "off" });
-        expect(uploadSpotFields({ target: null, index, item, dismissedSpotId: GINZAN.spotId, off: false })).toEqual({ spotId: GINZAN.spotId });
+    it("撮影スポットの画面から来た投稿でも、付かない写真の自動の候補は書かない", () => {
+        expect(uploadSpotFields({ target: GINZAN, index, item: { location: "蔵王キツネ村" } })).toEqual({});
     });
 
     it("選べない・索引が無いときは何も送らない", () => {
@@ -51,7 +49,7 @@ describe("uploadSpotFields", () => {
 describe("parseSpotMatchIndex", () => {
     it("形の違う索引は使わない", () => {
         expect(parseSpotMatchIndex(null)).toBeNull();
-        expect(parseSpotMatchIndex({ v: 2, spots: [], regions: [] })).toBeNull();
-        expect(parseSpotMatchIndex({ v: 1, spots: [{ i: 1 }], regions: [] })!.spots).toEqual([]);
+        expect(parseSpotMatchIndex({ v: 2, spots: [] })).toBeNull();
+        expect(parseSpotMatchIndex({ v: 1, spots: [{ i: 1 }] })!.spots).toEqual([]);
     });
 });

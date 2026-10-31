@@ -238,7 +238,8 @@ export default async function PhotoPage({ params }: PageProps) {
     // （`lib/utils/spotAutoLink.ts`・2026-10-31 判断 journey.photo-ios#425）。
     // `rule` は外した写真でも決まりだけの答え（本人に「外しています・元に戻す」を出すため）
     const rule = photo && !photo.spotId && photo.published !== false ? ruleSpotIdFor(photo) : null;
-    const auto = photo ? autoSpotIdForPhoto(photo) : null;
+    // 公開の写真だけ（`rule` と同じ守り。表 `autoLinksFor` も非公開を入れない）
+    const auto = photo && photo.published !== false ? autoSpotIdForPhoto(photo) : null;
     const spotId = photo?.spotId || auto || undefined;
     const ruleLink = rule ? spotLinkForPhoto(rule) : null;
     return (

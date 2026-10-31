@@ -157,7 +157,8 @@
   "coords": {
    "lng": 138.88,
    "lat": 35.42
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "88c66c1d-c2fc-4875-9b52-55756db18dbc",
@@ -181,7 +182,8 @@
   "coords": {
    "lng": 138.88,
    "lat": 35.42
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "edb09f51-c821-4ec4-8b84-6ea467d77131",
@@ -196,7 +198,8 @@
   "coords": {
    "lng": 2.18,
    "lat": 41.38
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "a5951859-7334-43c6-9e6a-e65d8c6fe70f",
@@ -211,7 +214,8 @@
   "coords": {
    "lng": 2.32,
    "lat": 48.86
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "ab5e9442-d146-4eb4-9506-89cb8ed18daf",
@@ -232,7 +236,8 @@
   "coords": {
    "lng": 135.5,
    "lat": 34.69
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "50b9f638-c86c-4df7-95ad-0bc2050ec535",
@@ -252,7 +257,8 @@
   "coords": {
    "lng": 139.76,
    "lat": 35.68
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "65300204-f4d3-4faf-9724-6cdd83bda35a",
@@ -272,7 +278,8 @@
   "coords": {
    "lng": 139.76,
    "lat": 35.68
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "30891834-7d3b-45c4-a3c5-d5d455b725a2",
@@ -292,7 +299,8 @@
   "coords": {
    "lng": 25.92,
    "lat": 63.25
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "8e82737f-5a6a-43b1-b42d-07d6b1913f2b",
@@ -343,7 +351,8 @@
   "coords": {
    "lng": 1.89,
    "lat": 46.6
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "3efd3a7c-a625-473e-9622-8daaffca1cf8",
@@ -405,7 +414,8 @@
   "coords": {
    "lng": 2.13,
    "lat": 48.8
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "28e09a2a-918b-43f7-8ffe-e62d8822c6bf",
@@ -427,7 +437,8 @@
   "coords": {
    "lng": 2.35,
    "lat": 48.85
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "ecb99a5f-ef3f-4951-bb4f-b255d36270d9",
@@ -451,7 +462,8 @@
   "coords": {
    "lng": 2.13,
    "lat": 48.8
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "18c7ad60-5600-4020-bbe0-edc84332e9ce",
@@ -473,7 +485,8 @@
   "coords": {
    "lng": 142.82,
    "lat": 43.45
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "e4e47af3-08e9-4791-8fd3-d8688a52d22c",
@@ -499,7 +512,8 @@
   "coords": {
    "lng": 2.33,
    "lat": 48.87
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "a0e0e987-4686-437a-a5fd-b6eaa2debd84",
@@ -523,7 +537,8 @@
   "coords": {
    "lng": 133.65,
    "lat": 34.15
-  }
+  },
+  "geoApprox": true
  },
  {
   "id": "e2ff51a0-3364-4b9d-a6a3-c4a2c837b006",
@@ -719,6 +734,7 @@
   "coords": {
    "lng": 140.59,
    "lat": 36.4
-  }
+  },
+  "geoApprox": true
  }
 ]

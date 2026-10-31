@@ -246,7 +246,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     const hasSpotAuto = "spotAuto" in body;
     const spotAutoValue = hasSpotAuto ? sanitizeSpotAuto(body.spotAuto) : undefined;
     if (hasSpotAuto && spotAutoValue === undefined) {
-        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影スポットの自動のまとめの指定が正しくありません" }) };
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影スポットの自動の結びつけの指定が正しくありません" }) };
     }
 
     // **「この写真を見て撮影」も同じ。** 外すのは null・空文字だけ。形の違う値は断る

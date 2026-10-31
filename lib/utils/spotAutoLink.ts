@@ -13,9 +13,13 @@
 //   2. 別名: 撮影地の文字にあるときだけ使う（題・説明には当てない。「リアス海岸」「トンネル」の
 //      ような普通の言葉が別名に入っているため）。**地名だけでできた別名は使わない**
 //      （台帳の全行から地域の名前を集め、それだけを並べてできている別名を外す・`regionTokens`）
-//   3. 距離: 写真と撮影スポットの両方に位置があれば 5km 以内。撮影地が地域の名前だけ
-//      （「パリ」「板橋区, 日本」）なら、位置は地域の代表点なので距離は見ない。
-//      写真に位置が無いときは、撮影地に書かれた都道府県が撮影スポットの県と食い違わないこと
+//   3. 距離: 写真に本物の位置があれば、撮影スポットまで 5km 以内（撮影地が地域の名前だけでも見る。
+//      2026-10-31 確かめの指摘: 撮影地「日本」・札幌の位置・題「東京タワー」を結んでいた）。
+//      距離を省くのは、写真の位置が地名から補ったもの（`geoApprox`・地域の代表点）のときだけで、
+//      そのときと写真に位置が無いときは、撮影地に書かれた都道府県が撮影スポットの県と食い違わないこと
+//   2b. 短いカタカナ: カタカナだけでできた4字以下の名前・別名（「ポルト」「カバー」）は、撮影地を
+//      「,」「、」で区切った1項目と丸ごと同じときだけ当てる（題・説明の部分一致には使わない。
+//      「ポルトガル旅行」→ ポルト、「スマホカバー」→ カバー を結ばない）
 //   4. 1つだけ: 当てはまる撮影スポットが2つ以上なら結ばない。台帳で2件以上に当たる
 //      名前・別名も使わない
 //   5. 公開済みの撮影スポットだけ。本人が外した写真（`spotAuto: "off"`）は結ばない。
@@ -53,8 +57,6 @@ export type SpotMatchIndex = {
     v: 1;
     /** 公開済みの撮影スポット。鍵は短く（約 2,700 行） */
     spots: SpotMatchRow[];
-    /** 地域の名前（正規化済み）。撮影地が地域だけかを見る */
-    regions: string[];
 };
 
 export type SpotMatchRow = {
@@ -153,7 +155,7 @@ export function buildSpotMatchIndex(spots: readonly Spot[]): SpotMatchIndex {
             ...(pref ? { p: pref } : {}),
         };
     }).filter((r) => r.n || r.a);
-    return { v: 1, spots: rows, regions: [...regions].sort() };
+    return { v: 1, spots: rows };
 }
 
 /** 結びの判定に要る写真の項目 */
@@ -163,6 +165,8 @@ export type AutoLinkPhoto = {
     description?: Photo["description"];
     location?: string;
     coords?: { lat: number; lng: number } | null;
+    /** 位置が地名から補ったもの（地域の代表点）。距離は見ない */
+    geoApprox?: boolean | null;
     spotId?: string | null;
     spotAuto?: string | null;
 };
@@ -174,12 +178,16 @@ function texts(v: unknown): string[] {
     return [];
 }
 
-/** 撮影地が地域の名前だけか（「板橋区, 日本」「パリ」）。郵便番号は数えない */
-export function locationIsRegionOnly(location: string | undefined, regions: ReadonlySet<string>): boolean {
-    const parts = (location ?? "").normalize("NFKC").split(/[,、，/\s]+/)
-        .map((t) => t.trim()).filter((t) => t && !/^[〒\d-]+$/.test(t));
-    if (parts.length === 0) return false;
-    return parts.every((t) => isRegionOnly(normalizeSpotName(t), regions));
+
+/** カタカナだけでできた4字以下の語（正規化した鍵で見る）。撮影地の1項目と丸ごと同じときだけ当てる */
+const SHORT_KATAKANA = /^[\u30A0-\u30FF]{1,4}$/;
+export function isShortKatakana(key: string): boolean {
+    return SHORT_KATAKANA.test(key);
+}
+
+/** 撮影地を「,」「、」で区切った項目（正規化済み） */
+function locationItems(location: string | undefined): Set<string> {
+    return new Set((location ?? "").normalize("NFKC").split(/[,、，]/).map((t) => normalizeSpotName(t)).filter(Boolean));
 }
 
 /** 撮影地に書かれた都道府県（正式な綴りだけ） */
@@ -192,20 +200,23 @@ function prefecturesIn(location: string | undefined): string[] {
 export type SpotMatcher = { match: (photo: AutoLinkPhoto) => string | null };
 
 export function spotMatcher(index: SpotMatchIndex): SpotMatcher {
-    const regions = new Set(index.regions);
     const match = (photo: AutoLinkPhoto): string | null => {
         const loc = normalizeSpotName(photo.location);
         const all = normalizeSpotName([photo.location ?? "", ...texts(photo.title), ...texts(photo.description)].join("\n"));
         if (!all) return null;
-        const regionOnly = locationIsRegionOnly(photo.location, regions);
+        const items = locationItems(photo.location);
         const prefs = prefecturesIn(photo.location);
-        const c = photo.coords && Number.isFinite(photo.coords.lat) && Number.isFinite(photo.coords.lng) ? photo.coords : null;
+        // 地名から補った位置（`geoApprox`）は地域の代表点なので、位置が無いのと同じに扱う
+        const c = !photo.geoApprox && photo.coords && Number.isFinite(photo.coords.lat) && Number.isFinite(photo.coords.lng)
+            ? photo.coords : null;
+        const nameHit = (k: string) => (isShortKatakana(k) ? items.has(k) : all.includes(k));
+        const aliasHit = (k: string) => (isShortKatakana(k) ? items.has(k) : loc.includes(k));
         let found: string | null = null;
         for (const row of index.spots) {
-            const hit = (row.n && all.includes(row.n)) || (loc && row.a?.some((k) => loc.includes(k)));
+            const hit = (row.n && nameHit(row.n)) || (loc && row.a?.some(aliasHit));
             if (!hit) continue;
             if (c && row.c) {
-                if (!regionOnly && haversineKm(c, { lat: row.c[0], lng: row.c[1] }) > SPOT_AUTO_KM) continue;
+                if (haversineKm(c, { lat: row.c[0], lng: row.c[1] }) > SPOT_AUTO_KM) continue;
             } else if (!c && prefs.length > 0 && !(row.p && prefs.includes(row.p))) {
                 continue;
             }

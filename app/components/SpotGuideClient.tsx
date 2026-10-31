@@ -593,7 +593,7 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                     {autoNote && (
                         <p className="m-0 mb-3 text-white/60" style={{ fontSize: "13px", lineHeight: "20px" }} data-testid="spot-auto-note">
                             {isJa
-                                ? "撮影地の名前と位置から自動でまとめた写真を含みます。"
+                                ? "撮影地の名前と位置から自動で結んだ写真を含みます。"
                                 : "Includes photos grouped automatically by place name and location."}
                         </p>
                     )}

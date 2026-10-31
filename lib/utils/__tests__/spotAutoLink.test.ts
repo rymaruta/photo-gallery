@@ -4,7 +4,7 @@ import { SPOTS } from "../../data/spots";
 import { SUMMARY_MIN } from "../spotGuide";
 import {
     buildSpotMatchIndex, spotMatcher, autoSpotIdFor, autoLinkTable, effectiveSpotId, photosLinkedTo,
-    isRegionOnly, locationIsRegionOnly, regionTokens, matchKey, SPOT_AUTO_KM,
+    isRegionOnly, regionTokens, matchKey, SPOT_AUTO_KM,
 } from "../spotAutoLink";
 import PROD48 from "./spotAutoLink.prod48.json";
 
@@ -68,6 +68,29 @@ describe("本番の 48枚（案の表）", () => {
     });
 });
 
+describe("確かめで出た誤り（2026-10-31）", () => {
+    const york = spot(12, { name: "ヨーク", region: { country: "イギリス", city: "ヨーク" }, coords: { lat: 53.96, lng: -1.08 } });
+
+    it("撮影地「ニューヨーク」・NY の位置・題「ニューヨークの夜」→ ヨーク を結ばない", () => {
+        expect(m([york]).match({ title: "ニューヨークの夜", location: "ニューヨーク", coords: { lat: 40.71, lng: -74.01 } })).toBeNull();
+    });
+
+    it("撮影地「リスボン, ポルトガル」・リスボンの位置・題「ポルトガルの夕日」→ ポルト を結ばない（本物の台帳）", () => {
+        expect(matcher.match({ title: "ポルトガルの夕日", location: "リスボン, ポルトガル", coords: { lat: 38.72, lng: -9.14 } })).toBeNull();
+    });
+
+    it("撮影地「日本」・札幌の位置・題「東京タワー」→ 東京タワー を結ばない（本物の台帳）", () => {
+        expect(matcher.match({ title: "東京タワー", location: "日本", coords: { lat: 43.06, lng: 141.35 } })).toBeNull();
+        // 東京タワーの近くの本物の位置なら結ぶ（台帳に東京タワーがあることの確かめ）
+        expect(slugOf.get(matcher.match({ title: "東京タワー", location: "日本", coords: { lat: 35.66, lng: 139.75 } }) ?? "")).toBe("tokyo-tower");
+    });
+
+    it("スマホカバー・ポルトガル旅行は結ばない（本物の台帳）", () => {
+        expect(matcher.match({ title: "スマホカバーを新しくした" })).toBeNull();
+        expect(matcher.match({ title: "ポルトガル旅行" })).toBeNull();
+    });
+});
+
 describe("地名だけの別名（台帳の全行の地域から決める）", () => {
     const regions = regionTokens(SPOTS);
 
@@ -85,13 +108,6 @@ describe("地名だけの別名（台帳の全行の地域から決める）", (
         const index = buildSpotMatchIndex(SPOTS);
         const left = index.spots.flatMap((r) => r.a ?? []).filter((a) => isRegionOnly(a, regions));
         expect(left).toEqual([]);
-    });
-
-    it("撮影地が地域だけか（郵便番号は数えない）", () => {
-        expect(locationIsRegionOnly("板橋区, 日本", regions)).toBe(true);
-        expect(locationIsRegionOnly("パリ, フランス", regions)).toBe(true);
-        expect(locationIsRegionOnly("蔵王キツネ村, 南蔵王七ヶ宿線, 福岡八宮, 白石市, 宮城県, 989-0733, 日本", regions)).toBe(false);
-        expect(locationIsRegionOnly("", regions)).toBe(false);
     });
 });
 
@@ -154,12 +170,32 @@ describe("決まり", () => {
         expect(mm.match({ title: "蔵王キツネ村", coords: north(5.5) })).toBeNull();
     });
 
-    it("撮影地が地域の名前だけなら距離を見ない（位置は地域の代表点）", () => {
+    it("距離を省くのは、写真の位置が地名から補ったもの（geoApprox）のときだけ", () => {
         const vendome = spot(4, { name: "ヴァンドーム広場", region: { country: "フランス", city: "パリ" }, coords: { lat: 48.87, lng: 2.33 } });
         const mm = m([vendome]);
-        // パリの代表点から 20km 北でも、撮影地が「パリ」なら結ぶ
-        expect(mm.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 49.05, lng: 2.33 } })).toBe(vendome.spotId);
+        // 地名「パリ」から補った代表点なら、20km 離れていても結ぶ
+        expect(mm.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 49.05, lng: 2.33 }, geoApprox: true })).toBe(vendome.spotId);
+        // 本物の位置なら、撮影地が地域の名前だけでも 5km を見る（2026-10-31 確かめの指摘）
+        expect(mm.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 49.05, lng: 2.33 } })).toBeNull();
         expect(mm.match({ title: "ヴァンドーム広場", location: "ホテル前", coords: { lat: 49.05, lng: 2.33 } })).toBeNull();
+    });
+
+    it("補った位置のときは、位置が無いときと同じく県の食い違いを見る", () => {
+        expect(m([FOX]).match({ title: "蔵王キツネ村", location: "山形県", coords: { lat: 38.02, lng: 140.55 }, geoApprox: true })).toBeNull();
+    });
+
+    it("短いカタカナの名前・別名は、撮影地の1項目と丸ごと同じときだけ（題・説明の部分一致には使わない）", () => {
+        const cover = spot(9, { name: "カバー", region: { country: "日本", prefecture: "東京都" }, coords: { lat: 35.68, lng: 139.76 } });
+        const porto = spot(10, { name: "ポルト", region: { country: "ポルトガル", city: "ポルト" }, coords: { lat: 41.15, lng: -8.61 } });
+        const ginza = spot(11, { name: "銀座の通り", aliases: ["ギンザ"], region: { country: "日本", prefecture: "東京都" }, coords: { lat: 35.67, lng: 139.77 } });
+        const mm = m([cover, porto, ginza]);
+        expect(mm.match({ title: "スマホカバーを新しくした" })).toBeNull();
+        expect(mm.match({ title: "ポルトガル旅行" })).toBeNull();
+        expect(mm.match({ location: "ポルトガル" })).toBeNull();
+        expect(mm.match({ title: "ポルトの朝" })).toBeNull();
+        expect(mm.match({ location: "ポルト, ポルトガル" })).toBe(porto.spotId);
+        expect(mm.match({ location: "ギンザ、東京" })).toBe(ginza.spotId);
+        expect(mm.match({ location: "ギンザ通り" })).toBeNull();
     });
 
     it("写真に位置が無いときは、撮影地の県が食い違わないこと", () => {

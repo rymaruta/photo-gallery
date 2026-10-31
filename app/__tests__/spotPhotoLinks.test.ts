@@ -56,9 +56,8 @@ describe("spot-photo-links.json", () => {
 describe("spot-match.json", () => {
     it("投稿画面が読む索引が静的に建つ（v:1・公開済みの行）", async () => {
         expect(matchRoute.dynamic).toBe("force-static");
-        const body = await matchRoute.GET().json() as { v: number; spots: unknown[]; regions: string[] };
+        const body = await matchRoute.GET().json() as { v: number; spots: unknown[] };
         expect(body.v).toBe(1);
         expect(body.spots.length).toBeGreaterThan(1000);
-        expect(body.regions.length).toBeGreaterThan(100);
     });
 });

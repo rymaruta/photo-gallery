@@ -7,9 +7,9 @@ import type { SpotLink } from "@/lib/data/spotLink";
 /**
  * 写真の詳細の**自動の結び**（2026-10-31 判断・journey.photo-ios#425）。
  *
- * - 撮った本人にだけ「『◯◯』の写真としてまとめました」と「違う場所なので外す」
+ * - 撮った本人にだけ「撮影スポット『◯◯』に結びました」と「違う場所なので外す」
  * - 外すと `PUT /photos/{id}` に `spotAuto: "off"`、元に戻すと `spotAuto: null`
- * - 外したら撮影スポットの札（この写真の撮影スポット）も引っ込める
+ * - 外したら写真の裾の帯のチップ「撮影スポット · ◯◯」も引っ込める（自動で結んだ写真でもチップは出る）
  * - ほかの人には知らせを出さない（札は出る）・本人が選んだ `spotId` があれば知らせを出さない
  */
 const auth = vi.hoisted(() => ({ userId: "bob" as string | null }));
@@ -55,14 +55,17 @@ describe("写真の詳細: 自動の結び", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={FOX_PHOTO} spotLink={FOX_LINK} spotAuto={{ name: "蔵王キツネ村", off: false }} />);
         const notice = await screen.findByTestId("spot-auto-notice");
         expect(notice.textContent).toContain("あなたにだけ表示");
-        expect(notice.textContent).toContain("「蔵王キツネ村」の写真としてまとめました");
-        expect(screen.getByRole("heading", { name: "この写真の撮影スポット" })).toBeTruthy();
+        // 自動で結んだ写真でも、裾の帯に撮影スポットのチップが出る
+        expect(screen.getByTestId("photo-spot-guide").textContent).toContain("撮影スポット · 蔵王キツネ村");
+        expect(screen.getByTestId("photo-spot-guide").getAttribute("href")).toBe("/spots/miyagi-zao-fox");
+        expect(notice.textContent).toContain("撮影スポット「蔵王キツネ村」に結びました");
+        expect(screen.getByTestId("photo-spot-guide")).toBeTruthy();
 
         fireEvent.click(screen.getByRole("button", { name: "違う場所なので外す" }));
         await waitFor(() => expect(spotAutoCalls()).toHaveLength(1));
         expect(spotAutoCalls()[0]).toEqual({ url: "/photos/p1", method: "PUT", body: { spotAuto: "off" } });
-        await waitFor(() => expect(screen.queryByRole("heading", { name: "この写真の撮影スポット" })).toBeNull());
-        expect(screen.getByTestId("spot-auto-notice").textContent).toContain("自動のまとめを外しています");
+        await waitFor(() => expect(screen.queryByTestId("photo-spot-guide")).toBeNull());
+        expect(screen.getByTestId("spot-auto-notice").textContent).toContain("自動の結びつけを外しています");
 
         fireEvent.click(screen.getByRole("button", { name: "元に戻す" }));
         await waitFor(() => expect(spotAutoCalls()).toHaveLength(2));
@@ -74,27 +77,27 @@ describe("写真の詳細: 自動の結び", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={FOX_PHOTO} spotLink={FOX_LINK} spotAuto={{ name: "蔵王キツネ村", off: false }} />);
         fireEvent.click(await screen.findByRole("button", { name: "違う場所なので外す" }));
         await waitFor(() => expect(spotAutoCalls()).toHaveLength(1));
-        expect(screen.getByRole("heading", { name: "この写真の撮影スポット" })).toBeTruthy();
-        expect(screen.getByTestId("spot-auto-notice").textContent).toContain("まとめました");
+        expect(screen.getByTestId("photo-spot-guide")).toBeTruthy();
+        expect(screen.getByTestId("spot-auto-notice").textContent).toContain("に結びました");
     });
 
     it("外してある写真は「元に戻す」を出す", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...FOX_PHOTO, spotAuto: "off" } as Photo} spotLink={null} spotAuto={{ name: "蔵王キツネ村", off: true }} />);
         const notice = await screen.findByTestId("spot-auto-notice");
-        expect(notice.textContent).toContain("自動のまとめを外しています");
+        expect(notice.textContent).toContain("自動の結びつけを外しています");
         expect(screen.getByRole("button", { name: "元に戻す" })).toBeTruthy();
     });
 
     it("ほかの人には知らせを出さない（札は出る）", async () => {
         auth.userId = "alice";
         render(<PhotoPageClient photoId="p1" initialPhoto={FOX_PHOTO} spotLink={FOX_LINK} spotAuto={{ name: "蔵王キツネ村", off: false }} />);
-        expect(await screen.findByRole("heading", { name: "この写真の撮影スポット" })).toBeTruthy();
+        expect(await screen.findByTestId("photo-spot-guide")).toBeTruthy();
         expect(screen.queryByTestId("spot-auto-notice")).toBeNull();
     });
 
     it("本人が選んだ spotId がある写真には知らせを出さない", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...FOX_PHOTO, spotId: "sp_aaaaaaaaaaaa" } as Photo} spotLink={FOX_LINK} spotAuto={{ name: "蔵王キツネ村", off: false }} />);
-        expect(await screen.findByRole("heading", { name: "この写真の撮影スポット" })).toBeTruthy();
+        expect(await screen.findByTestId("photo-spot-guide")).toBeTruthy();
         expect(screen.queryByTestId("spot-auto-notice")).toBeNull();
     });
 });

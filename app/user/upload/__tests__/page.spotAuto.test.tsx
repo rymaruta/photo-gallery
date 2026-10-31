@@ -4,13 +4,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // **投稿で撮影スポットを自動で選ぶ**（2026-10-31 判断・journey.photo-ios#425・`lib/utils/spotUploadAuto.ts`）。
-// 撮影地・題・説明と位置から、静的な生成と同じ決まりで撮影スポットを1つ選んだ状態にし、
-// 保存で `spotId` を書く。本人が切り替えで外したら `spotAuto: "off"` を書く
-// （書かないと、あとで静的な生成が同じ決まりで結び直す）。
+// 撮影地・題・説明と位置から、静的な生成と同じ決まりで撮影スポットの候補を見せる（切り替えは「入り」から）。
+// **自動の候補は `spotId` に書かない**（結ぶのは静的な生成・決まりを1か所に）。
+// 本人が切り替えを切ったときだけ `spotAuto: "off"` を書く。触っていない写真には何も書かない。
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const q = vi.hoisted(() => ({ search: "" }));
+const geo = vi.hoisted(() => ({ place: "Barcelona, Spain" }));
 const exif = vi.hoisted(() => ({ meta: {} as Record<string, unknown>, gate: null as Promise<void> | null }));
 const body = vi.hoisted(() => ({ json: null as unknown, ok: true, gate: null as Promise<void> | null }));
 const auth = vi.hoisted(() => ({ userId: null as string | null }));
@@ -45,7 +46,7 @@ vi.mock("../../../../lib/utils/shareStore", () => ({
 vi.mock("../../../../lib/utils/exif", () => ({
     extractExifFromFile: vi.fn(async () => { if (exif.gate) await exif.gate; return exif.meta; }),
     extractCameraExif: vi.fn(async () => ({})),
-    reverseGeocode: vi.fn(async () => "Barcelona, Spain"),
+    reverseGeocode: vi.fn(async () => geo.place),
 }));
 vi.mock("../../../../lib/utils/image", () => ({
     createThumbnail: vi.fn(async () => null),
@@ -69,7 +70,6 @@ const FOX_ID = "sp_000000000001";
 const INDEX = {
     v: 1,
     spots: [{ i: FOX_ID, d: "蔵王キツネ村", n: "蔵王キツネ村", c: [38.02, 140.55], p: "宮城県" }],
-    regions: ["宮城県", "白石市", "日本", "東京", "東京都"],
 };
 
 function savedBody(): Record<string, unknown> | null {
@@ -80,6 +80,7 @@ function savedBody(): Record<string, unknown> | null {
 beforeEach(() => {
     q.search = "";
     exif.meta = {};
+    geo.place = "Barcelona, Spain";
     exif.gate = null;
     body.json = GINZAN;
     body.ok = true;
@@ -131,7 +132,7 @@ async function typePlace(text: string) {
 }
 
 describe("アップロード画面: 撮影スポットを自動で選ぶ", () => {
-    it("撮影地に撮影スポットの名前があれば選んだ状態にし、保存に spotId を載せる", async () => {
+    it("撮影地に撮影スポットの名前があれば選んだ状態で見せるが、保存には spotId も外した印も載せない", async () => {
         const { container } = render(<UploadPage />);
         await pick(container);
         await typePlace("蔵王キツネ村");
@@ -139,7 +140,7 @@ describe("アップロード画面: 撮影スポットを自動で選ぶ", () =>
         expect(card.textContent).toContain("撮影スポット「蔵王キツネ村」に結ぶ");
         expect(screen.getByRole("switch", { name: "撮影スポット「蔵王キツネ村」に結ぶ" }).getAttribute("aria-checked")).toBe("true");
         await publish();
-        expect(savedBody()!.spotId).toBe(FOX_ID);
+        expect("spotId" in savedBody()!).toBe(false);
         expect("spotAuto" in savedBody()!).toBe(false);
     });
 
@@ -179,4 +180,31 @@ describe("アップロード画面: 撮影スポットを自動で選ぶ", () =>
         await new Promise((r) => setTimeout(r, 100));
         expect(screen.queryByTestId("upload-auto-spot")).toBeNull();
     });
+});
+
+describe("アップロード画面: 複数枚の投稿", () => {
+    function savedBodies(): Record<string, unknown>[] {
+        return mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/save").map((c) => JSON.parse((c[1] as { body: string }).body));
+    }
+
+    it("切ったのは見ている1枚だけ。本人が見ていない写真には何も書かない（自動のまま）", async () => {
+        exif.meta = { latitude: 38.03, longitude: 140.54 };
+        geo.place = "蔵王キツネ村";
+        const { container } = render(<UploadPage />);
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, [new File(["x"], "a.jpg", { type: "image/jpeg" }), new File(["y"], "b.jpg", { type: "image/jpeg" })]);
+        const sw = await screen.findByRole("switch", { name: "撮影スポット「蔵王キツネ村」に結ぶ" }, { timeout: 4000 });
+        await userEvent.click(sw);
+        const btn = await screen.findByRole("button", { name: /投稿する/ }, { timeout: 4000 });
+        await waitFor(() => expect(btn).not.toBeDisabled(), { timeout: 4000 });
+        await userEvent.click(btn);
+        await waitFor(() => expect(savedBodies()).toHaveLength(2), { timeout: 4000 });
+        const [first, second] = savedBodies();
+        expect(first.location).toBe("蔵王キツネ村");
+        expect(second.location).toBe("蔵王キツネ村");
+        expect(first.spotAuto).toBe("off");
+        expect("spotId" in first).toBe(false);
+        expect("spotAuto" in second).toBe(false);
+        expect("spotId" in second).toBe(false);
+    }, 15000);
 });
