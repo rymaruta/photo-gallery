@@ -64,7 +64,7 @@ describe("長い文字列で横に流れない", () => {
         const src = read("app/photo/[id]/PhotoPageClient.tsx");
         const title = src.split("\n").find((l) => l.includes("{titleText}</h1>"));
         expect(title, "タイトルに break-words が無い").toContain("break-words");
-        const desc = src.split("\n").find((l) => l.includes('className="text-white/85 break-words" style={{ fontSize: "14px"'));
+        const desc = src.split("\n").find((l) => l.includes('className="text-text-2 break-words flex flex-col gap-3" style={{ fontSize: "15px"'));
         expect(desc, "説明に break-words が無い").toContain("break-words");
     });
 

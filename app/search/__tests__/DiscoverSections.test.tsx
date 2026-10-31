@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 
 vi.mock("../../components/Thumb", () => ({ default: ({ photo }: { photo: Photo }) => <span data-thumb={photo.id} /> }));
@@ -37,56 +37,102 @@ const photo = (id: string, extra: Partial<Photo> = {}): Photo => ({
 const render1 = (photos: Photo[], map: Record<string, string> = {}) =>
     render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={map} />);
 
+vi.mock("../../components/GalleryGrid", () => ({
+    default: ({ photos, searchTiles }: { photos: Photo[]; searchTiles?: boolean }) =>
+        <div data-testid="open-grid" data-tiles={String(!!searchTiles)}>{photos.map((p) => p.id).join(",")}</div>,
+}));
+
+// 2026-10-31 束 1 S4・S5・S7・S8: iOS の発見の面（撮影地 → おすすめ → 色 → 機材）
 describe("さがす: 発見の節", () => {
-    // 2026-09-30 のレビュー: 長い住所を見出しにしない・地域と場所を見分ける
-    it("撮影地のカードは、具体的な部分を見出しに・地域は2行目に（地域の束は「地域」と名乗る）", () => {
+    it("撮影地の札は 156×116・角 14・名前は写真の上（明朝 18）・枚数を出さない（S5）", () => {
         const { container } = render1([
             photo("a", { location: "香川県 観音寺市 高屋神社" }), photo("b", { location: "香川県 観音寺市 高屋神社" }),
-            photo("c", { location: "フランス" }),
         ]);
-        const cards = [...container.querySelectorAll('a[href*="/location/"]')];
-        const takaya = cards.find((a) => (a.textContent ?? "").includes("高屋神社"))!;
-        const spans = [...takaya.querySelectorAll("span")].map((s) => s.textContent);
-        expect(spans).toContain("高屋神社");
-        expect(spans.some((t) => t === "香川県 観音寺市・2枚")).toBe(true);
-        const france = cards.find((a) => (a.textContent ?? "").includes("フランス"))!;
-        expect([...france.querySelectorAll("span")].map((s) => s.textContent)).toContain("地域・1枚");
+        const card = container.querySelector('a[href*="/location/"]') as HTMLElement;
+        expect(card.style.width).toBe("156px");
+        expect(card.style.height).toBe("116px");
+        expect(card.className).toContain("rounded-xl");
+        const name = card.querySelector(".font-serif") as HTMLElement;
+        expect(name.textContent).toBe("高屋神社");
+        expect(name.style.fontSize).toBe("18px");
+        expect(card.textContent, "枚数を外した").not.toMatch(/枚/);
     });
 
-    it("撮影地のカード: 地域が長くても枚数は切らない（枚数は省略の外）", () => {
-        const { container } = render1([photo("a", { location: "茨城県 ひたちなか市 国営ひたち海浜公園" })]);
-        const card = container.querySelector('a[href*="/location/"]')!;
-        const count = [...card.querySelectorAll("span")].find((s) => s.textContent === "1枚")!;
-        expect(count, "枚数が独立していない").toBeTruthy();
-        expect(count.className).toContain("shrink-0");
-        expect(count.className).not.toContain("truncate");
+    it("🔴 国の名前だけの撮影地は札にしない（「フランス」の札を出さない・iOS の `spotName`）", () => {
+        const { container } = render1([photo("a", { location: "フランス" }), photo("b", { location: "パリ" })]);
+        const names = [...container.querySelectorAll('a[href*="/location/"]')].map((a) => a.textContent);
+        expect(names).toEqual(["パリ"]);
     });
 
-    it("カテゴリ・撮影地・機材の節を、集約ページへのリンクで出す", () => {
-        render1([
-            photo("a", { category: "landscape", location: "パリ", exif: { camera: "SONY ILCE-7M3" } }),
-            photo("b", { category: "landscape", location: "パリ", exif: { camera: "SONY ILCE-7M3" } }),
-            photo("c", { category: "nature", location: "東京", exif: { camera: "Canon EOS R6" } }),
-        ], { landscape: "風景", nature: "自然" });
-        expect(screen.getByRole("link", { name: /風景/ }).getAttribute("href")).toContain("/category/");
-        expect(screen.getByRole("link", { name: /パリ/ }).getAttribute("href")).toContain("/location/");
-        expect(screen.getByRole("link", { name: /SONY ILCE-7M3/ }).getAttribute("href")).toContain("/camera/");
+    it("🔴 同じ名前の撮影地は1枚の札にまとめる（「パリ」と「パリ, フランス」を2枚の「パリ」にしない）", () => {
+        const { container } = render1([
+            photo("a", { location: "パリ" }), photo("b", { location: "パリ" }), photo("c", { location: "パリ, フランス" }),
+        ]);
+        const names = [...container.querySelectorAll('a[href*="/location/"]')].map((a) => a.textContent);
+        expect(names).toEqual(["パリ"]);
     });
 
-    it("🔴 撮影地は枚数順で、数を添える。「人気」とは呼ばない（数えているのは枚数だけ）", () => {
+    it("🔴 撮影地は枚数順。「人気」とは呼ばない（数えているのは枚数だけ）。見出しの右は「地図で見る」", () => {
         const { container } = render1([
             photo("a", { location: "東京" }), photo("b", { location: "東京" }), photo("c", { location: "パリ" }),
         ]);
         const links = [...container.querySelectorAll('a[href*="/location/"]')].map((a) => a.textContent);
         expect(links[0], "枚数順になっていない").toContain("東京");
-        expect(links[0]).toContain("2枚");
         expect(container.textContent, "数えていない「人気」を名乗っている").not.toMatch(/人気|おすすめ撮影スポット/);
+        expect(screen.getByRole("link", { name: "地図で見る" }).getAttribute("href")).toBe("/map");
+    });
+
+    it("おすすめ（S4）: owner が選んだ写真をカテゴリごとに 120×160 の帯で・「すべて見る」はカテゴリの頁へ", () => {
+        render1([
+            photo("a", { category: "landscape", featured: true }), photo("b", { category: "landscape", featured: true }),
+            photo("c", { category: "nature" }),
+        ], { landscape: "風景" });
+        const picks = screen.getByTestId("discover-picks");
+        const tiles = [...picks.querySelectorAll("a")];
+        expect(tiles.map((a) => a.getAttribute("href"))).toEqual(expect.arrayContaining([expect.stringContaining("a"), expect.stringContaining("b")]));
+        expect((tiles[0] as HTMLElement).style.width).toBe("120px");
+        expect((tiles[0] as HTMLElement).style.height).toBe("160px");
+        expect(screen.getByRole("heading", { name: "おすすめ" })).toBeTruthy();
+        expect(document.body.textContent).toContain("PICKS · 風景");
+    });
+
+    it("色から探す（S8）: 写真の丸 62＋題材の名前。押すとその色の写真が開き、押し直すと閉じる", () => {
+        render1([
+            photo("a", { dominantColor: "#3a7bd5", category: "landscape" }),
+            photo("b", { dominantColor: "#ff8c00", category: "landscape" }),
+            photo("c", { dominantColor: "#ff8c00", category: "food" }),
+        ]);
+        const colors = screen.getByTestId("discover-colors");
+        const btns = [...colors.querySelectorAll("button")];
+        expect(btns.map((b) => b.getAttribute("aria-label"))).toEqual(["青（空・海）・1枚", "オレンジ（夕日）・1枚"]);
+        expect((btns[0].querySelector("span") as HTMLElement).style.width).toBe("62px");
+        expect(colors.className, "5 等分の位置に左から").toContain("grid-cols-5");
+        fireEvent.click(btns[1]);
+        expect(btns[1].getAttribute("aria-pressed")).toBe("true");
+        expect(screen.getByTestId("open-grid").textContent, "料理の写真は夕日に入れない").toBe("b");
+        fireEvent.click(btns[1]);
+        expect(screen.queryByTestId("open-grid")).toBeNull();
+    });
+
+    it("機材から探す（S7）: 札 3 枚（広角・標準・望遠と範囲）。押すとその焦点距離の写真。機種の索引へも行ける", () => {
+        render1([
+            photo("a", { exif: { camera: "SONY ILCE-7M3", focalLength: "24mm" } }),
+            photo("b", { exif: { camera: "SONY ILCE-7M3", focalLength: "50mm" } }),
+            photo("c", { exif: { camera: "Canon EOS R6", focalLength: "200mm" } }),
+        ]);
+        const gear = screen.getByTestId("discover-gear");
+        const btns = [...gear.querySelectorAll("button")];
+        expect(btns.map((b) => b.getAttribute("aria-label"))).toEqual(["広角で撮る 〜35mm", "標準で撮る 36〜70mm", "望遠で撮る 71mm〜"]);
+        expect(btns[0].className).toContain("min-h-[88px]");
+        fireEvent.click(btns[2]);
+        expect(screen.getByTestId("open-grid").textContent).toBe("c");
+        expect(screen.getByRole("link", { name: /機種で見る/ }).getAttribute("href")).toBe("/camera");
     });
 
     it("🔴 データが無い節は丸ごと出さない（空の枠を置かない）", () => {
         const { container } = render1([photo("a", { category: "landscape" })]);
         expect(container.querySelector('a[href*="/location/"]'), "撮影地が無いのに節が出ている").toBeNull();
-        expect(container.querySelector('a[href*="/camera/"]'), "機材が無いのに節が出ている").toBeNull();
+        expect(screen.queryByTestId("discover-gear"), "機材が無いのに節が出ている").toBeNull();
         expect(screen.queryByText(/写真の多い撮影地/)).toBeNull();
     });
 
@@ -95,52 +141,18 @@ describe("さがす: 発見の節", () => {
         expect(container.innerHTML).toBe("");
     });
 
-    it("🔴 機材は「広角・標準・望遠」にしない（35mm換算が無いので嘘になる）", () => {
-        const { container } = render1([photo("a", { exif: { camera: "SONY ILCE-7M3", focalLength: "28mm" } })]);
-        expect(container.textContent).not.toMatch(/広角|標準|望遠|Wide|Telephoto/);
+    it("代表写真は、その撮影地に入る写真から選ぶ（別の綴りで保存された写真にも当たる）", () => {
+        const { container } = render1([photo("p1", { location: "パリ" }), photo("p2", { location: "パリ, フランス" })]);
+        const card = container.querySelector('a[href*="/location/"]')!;
+        expect(card.querySelector("[data-thumb]")?.getAttribute("data-thumb")).toBe("p1");
     });
 
-    it("二重のメーカー名は畳んで出す", () => {
-        render1([photo("a", { exif: { camera: "Hasselblad Hasselblad X2D II 100C" } })]);
-        expect(screen.getByRole("link", { name: /Hasselblad X2D II 100C/ })).toBeTruthy();
-        expect(screen.queryByText(/Hasselblad Hasselblad/)).toBeNull();
-    });
-
-    it("代表写真は、その集約に入る写真から選ぶ（別名で保存された写真にも当たる）", () => {
-        const { container } = render1([
-            photo("en", { category: "architecture" }),
-            photo("ja", { category: "建築" }),
-        ]);
-        // どちらも `/category/architecture` に寄る＝節は1つ、絵は先頭の写真
-        const links = [...container.querySelectorAll('a[href*="/category/"]')];
-        expect(links).toHaveLength(1);
-        expect(container.querySelector("[data-thumb]")?.getAttribute("data-thumb")).toBe("en");
-    });
-
-    it("集約ページへのリンクは先読みしない（画面に入るたび行き先を落とし直さない）", () => {
+    it("撮影地・おすすめのリンクは先読みしない（本物の `<Link>` を通る）", () => {
         const { container } = render1([photo("a", { location: "東京" }), photo("b", { location: "東京" })]);
-        for (const a of container.querySelectorAll("a")) {
-            expect(a.getAttribute("href"), "先読みしている").toBeTruthy();
-        }
+        const links = [...container.querySelectorAll("a")];
+        expect(links.length).toBeGreaterThan(0);
+        for (const a of links) expect(a.getAttribute("data-next-link"), "素の <a> になっている").toBe("1");
     });
-
-    /**
-     * ホームの PC の右の柱（`variant="rail"`）。
-     *
-     * 柱は幅 320px・高さは画面に貼り付いたまま収まらないといけないので、
-     * **面の中と同じ形では置けない**。数え方と行き先は同じ1か所のまま、
-     * 並べ方と件数だけが違う。
-     */
-    // 🔴 **柱（`variant="rail"`）はこの部品から無くなった。**
-    //
-    // ホームの PC の柱は `app/components/DiscoverRail.tsx` に移り、
-    // ここの `rail` は**本体から一度も呼ばれない**枝になっていた。
-    // ところが**その性質を守る4本のテストはこちらに残った**ので、
-    // 移った先が素の `<a>` に戻っていても誰も落ちず、そのまま本番に出た
-    // （2026-09-24・押すたびに HTML を1本落とし直す）。
-    //
-    // **コードを移したら、守りも一緒に移す。** 4本の性質は
-    // `app/components/__tests__/DiscoverRail.test.tsx` が引き継いでいる。
 });
 
 // アプリ v2 の節の見出し（iOS の `JPSectionHeading`）: 眉＋消える線 → 明朝 22 の題 → 灰の「すべて見る」

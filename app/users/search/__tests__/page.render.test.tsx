@@ -16,7 +16,7 @@ vi.mock("../../../../lib/hooks/useUserSearch", async (importActual) => ({
     useUserSearch: () => ({ users: rows.users, loading: rows.loading, failed: rows.failed }),
 }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }), useSearchParams: () => new URLSearchParams("") }));
 vi.mock("../../../components/FollowButton", () => ({ FollowAction: () => null }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, userId: "me", loading: false }) }));
 

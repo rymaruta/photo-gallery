@@ -34,7 +34,8 @@ vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
 
 const PhotoPageClient = (await import("../PhotoPageClient")).default;
 /** 撮影情報は初期は畳まれている（中身は DOM に残るが、`getByRole` は hidden を拾わない）。開いてから見る */
-const expandExif = () => { const b = screen.queryByRole("button", { name: "詳しく見る" }); if (b) fireEvent.click(b); };
+// 2026-10-31 束 1 P8: 「詳しく見る」の字のボタンをやめ、「撮影情報」の行そのものが開け閉めのボタン
+const expandExif = () => { const b = screen.queryByRole("button", { name: /^撮影情報/ }); if (b && b.getAttribute("aria-expanded") !== "true") fireEvent.click(b); };
 // **同じ値が2か所に出る**（v2: 畳んだ見出しの要約「f/4」と機材の行「機種 · レンズ」が、下の升目と同じ値を
 // 言う）。「出ているか」は `findAllByText` で見る——二重のメーカー名が無いことは `queryByText(/…/)` が全体で見る
 

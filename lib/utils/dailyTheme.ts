@@ -48,3 +48,24 @@ export function readThemeTag(raw: string | null | undefined): string | null {
     if (!raw) return null;
     return DAILY_THEMES.some((t) => t.tag === raw) && TAG_CHOICES.includes(raw) ? raw : null;
 }
+
+/**
+ * 今日のテーマに**今日もう参加したか**（iOS の `DailyTheme.hasJoined`・2026-10-31 束 1 H2）。
+ * 自分の写真のうち、テーマのタグ（表記ゆれは `tagKey` で畳む）を持ち、**投稿日が端末の今日**の1枚があれば参加済み。
+ * 参加済みの日はホームの札の「参加する」を、押せない「参加済み」に替える（同じ日に何度も促さない）
+ */
+export function hasJoinedTheme(
+    theme: DailyThemeEntry,
+    myPhotos: ReadonlyArray<{ tags?: unknown; createdAt?: unknown }>,
+    tagKeyOf: (t: string) => string,
+    now: Date = new Date(),
+): boolean {
+    const key = tagKeyOf(theme.tag);
+    return myPhotos.some((p) => {
+        const tags = Array.isArray(p.tags) ? p.tags : [];
+        if (!tags.some((t) => typeof t === "string" && tagKeyOf(t) === key)) return false;
+        const at = typeof p.createdAt === "string" ? new Date(p.createdAt) : null;
+        return !!at && !Number.isNaN(at.getTime())
+            && at.getFullYear() === now.getFullYear() && at.getMonth() === now.getMonth() && at.getDate() === now.getDate();
+    });
+}

@@ -19,16 +19,14 @@ import { DISPLAY_MINCHO_STACK } from "@/lib/utils/headingFont";
  */
 // 2026-10-30 束 0b C5: 以前は 32・12 の小さいタグ。iOS のチップ（34・13・当たり 44）にそろえる
 const CHIP_CLASS = `${CHIP_HIT} inline-flex items-center rounded-full ${CHIP_OFF} transition-colors`;
-import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
-import { ShareIcon, ChatBubbleOvalLeftIcon, PaperAirplaneIcon, BookmarkIcon, MapIcon } from "@heroicons/react/24/outline";
+import { ChatBubbleOvalLeftIcon, ArrowUpOnSquareIcon, BookmarkIcon, BookOpenIcon } from "@heroicons/react/24/outline";
 import { BookmarkIcon as BookmarkSolidIcon } from "@heroicons/react/24/solid";
 import { usePhotoSave } from "../../../lib/hooks/usePhotoSave";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
 import { formatPhotoStamp } from "../../../lib/utils/photoDate";
 import { FollowAction } from "../../components/FollowButton";
-import { TAB_ON, TAB_OFF, TAB_BASE, TAB_ROW } from "../../components/tabStyles";
 import UserAvatar from "../../components/UserAvatar";
 import MoreMenu from "../../components/MoreMenu";
 import type { Photo } from "@/lib/data/photos";
@@ -61,15 +59,14 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
-import ExifSpecs, { buildExifSpecs } from "../../components/ExifSpecs";
-import { exifSettingsLine, exifGearLine } from "../../../lib/utils/exifDisplay";
+import { ExifRow, buildExifSpecs } from "../../components/ExifSpecs";
+import { exifSettingsLine, exifSettingsCells } from "../../../lib/utils/exifDisplay";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { sessionErrorMessage } from "../../../lib/utils/api";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
-import SpotLinkCard from "../../components/SpotLinkCard";
 import SpotRows, { type SpotRow } from "../../components/SpotRows";
 import InspiredByLine from "../../components/InspiredByLine";
 import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
@@ -82,15 +79,38 @@ import { LoadingState, ErrorState } from "@/app/components/StateViews";
 const PhotoViewer = dynamic(() => import("./PhotoViewer"), { ssr: false });
 import { photoLightZone, directionsTarget, offersInspiredShoot } from "@/lib/utils/photoTrip";
 import { MoreLink } from "@/app/components/SectionHead";
+import { ROW_TALL, CARD, ROW_TITLE, ROW_SUB, ROW_CHEVRON } from "@/app/components/rowStyles";
+import { GLASS_BTN, GLASS_ICON_STYLE } from "@/app/components/buttonStyles";
 
-/**
- * 写真ページの戻る・共有・「…」。**スマホは写真の上のガラスの丸**（黒 55%＋ぼかし・白・44px。
- * iOS の写真の詳細と同じ）、PC は2カラムの上の行に素の白で（今までの見た目）
- */
 /** 写真を押した／引いたの境目（px）。これより動いたら「送った」で、全画面は開かない */
 const HERO_TAP_SLOP = 10;
 
-const TOP_BUTTON = "pointer-events-auto inline-flex items-center justify-center rounded-full text-white bg-black/55 backdrop-blur-md hover:bg-black/70 transition-colors lg:bg-transparent lg:backdrop-blur-none lg:text-white/85 lg:hover:text-white lg:hover:bg-white/10";
+/**
+ * 写真ページの戻る・「…」。**スマホは写真の上のガラスの丸**（共通の `GLASS_BTN`・44・黒55%＋ぼかし 18＋白10%の縁）、
+ * PC は2カラムの上の行に素の白で（今までの見た目）。
+ * 2026-10-31 判断（束 1 P1）: 共有の丸は外し、「…」の中と写真の下の操作の段へ（iOS は戻る・「…」の2つだけ）
+ */
+const TOP_BUTTON = `pointer-events-auto ${GLASS_BTN} lg:bg-transparent lg:backdrop-blur-none lg:ring-0 lg:text-white/85 lg:hover:text-white lg:hover:bg-white/10`;
+
+/**
+ * **写真の上の道しるべの行**（iOS の `placeRow`・`spotGuideRow`・束 1 P2）。写真の上なので白だけ・12・
+ * 白60%の下線・影。当たりは 44（行の当たりどうしは重ねない）
+ */
+// 2026-10-31 束 1 の確かめの直し: 負の余白（-my-2）で2行の当たりが上下 8px ずつ重なっていたのを外した（行は 44 ずつ並ぶ）
+const FOOT_ROW = "flex items-center gap-1.5 min-w-0 max-w-full text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white rounded-sm";
+const FOOT_ROW_STYLE = { fontSize: "12px", lineHeight: "16px", minHeight: "44px", textShadow: "0 1px 3px rgb(0 0 0 / 0.6)", touchAction: "manipulation" } as const;
+/** 前後の写真の札（二行の行 64 を1つずつ札にしたもの・C11） */
+const ROW_CARD_TALL = `${ROW_TALL} ${CARD}`;
+const FOOT_UNDERLINE = "truncate underline decoration-white/60 underline-offset-2";
+
+/**
+ * **操作の段の1つ**（iOS の `actionLabel`・束 1 P6）: 白い線の細い印 24（線 1.25＝iOS の `.title2` light）、
+ * 数は 15 の等幅の数字・白。当たり 44（左右 6）。保存も白（以前は真鍮）——iOS は4つとも白
+ */
+const ACTION_BTN = "inline-flex items-center gap-[5px] px-1.5 text-white hover:text-white/80 transition-colors disabled:opacity-60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded-md";
+const ACTION_BTN_STYLE = { minHeight: "44px", minWidth: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as const;
+const ACTION_ICON_STYLE = { width: 24, height: 24, strokeWidth: 1.25 } as const;
+const ACTION_COUNT_STYLE = { fontSize: "15px", lineHeight: "20px" } as const;
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -540,9 +560,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     const reportBtnRef = React.useRef<HTMLButtonElement>(null);
     const { showToast } = useToast();
     // 最終版モックの並び: コメント／関連写真のタブ・コメント数・保存・ヒーローのスワイプ
-    const [activeTab, setActiveTab] = useState<"comments" | "related">("comments");
     const [commentCount, setCommentCount] = useState<number>(typeof photo?.commentCount === "number" ? photo.commentCount : 0);
-    const tabsRef = React.useRef<HTMLDivElement>(null);
+    // 吹き出しを押したら送る先（コメントの節）。2026-10-31 束 1 P11: コメントと関連写真のタブをやめ、縦に節で並べた
+    const commentsRef = React.useRef<HTMLElement>(null);
     const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(photo?.id ?? "", isAuthenticated, authLoading);
     const handleSave = useCallback(() => {
         hapticTap();
@@ -801,7 +821,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                             minHeight: "44px"
                         }}
                     >
-                        <ArrowLeftIcon className="w-4 h-4" />
+                        <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
                         <span>{locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}</span>
                     </Link>
                 </div>
@@ -914,7 +934,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
-            <main className="relative min-h-screen text-white bg-bg max-w-2xl lg:max-w-6xl mx-auto w-full pb-8">
+            <main className="relative min-h-screen text-white bg-bg max-w-2xl lg:max-w-6xl mx-auto w-full pb-8" data-chromeless-phone="">
             {/* **最終版モックの並び**（2026-09-21・owner「全く同じにしたい」）:
                 戻る/共有/⋯ の行 → 端までのヒーロー（撮影地チップ・地図）→ 題 →
                 作者行（枠線のフォロー）→ 撮影日 · 撮影地 → 本文 → チップ →
@@ -928,51 +948,51 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 上がり、写真がサイトの見出しのすぐ下から始まる。写真の上なので白だけ・
                 当たりは 44px。PC は2カラムの上に今までどおり行で置く（同じボタンを1組だけ
                 描き、位置だけを幅で切り替える——2組描くと読み上げにも2組出る） */}
-            <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-2 pt-2 pointer-events-none lg:static lg:z-auto lg:py-1.5 lg:pt-1.5"
+            {/* 2026-10-31 束 1 P1: **スマホではサイトの見出しを出さない**（`data-chromeless-phone`・`globals.css`）。
+                写真が画面の上端から始まり、戻る・「…」は写真の上のガラスの丸（iOS の板 02）。
+                ホーム画面から起動したときは時計の帯のぶん下げる（`safe-area-inset-top`） */}
+            <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-2 pt-[calc(8px+env(safe-area-inset-top,0px))] pointer-events-none lg:static lg:z-auto lg:py-1.5 lg:pt-1.5"
                  data-testid="photo-top-bar">
                 <Link
                     href="/"
                     prefetch={false}
                     aria-label={locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}
                     className={TOP_BUTTON}
-                    style={{ width: "44px", height: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 >
-                    <ArrowLeftIcon aria-hidden="true" style={{ width: "22px", height: "22px" }} />
+                    <ChevronLeftIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
                 </Link>
-                <div className="flex items-center gap-2 lg:gap-1">
-                    <button
-                        type="button"
-                        onClick={handleShare}
-                        aria-label={locale === "en" ? "Share" : "共有"}
-                        className={TOP_BUTTON}
-                        style={{ width: "44px", height: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                    >
-                        <ShareIcon aria-hidden="true" style={{ width: "22px", height: "22px" }} />
-                    </button>
-                    <MoreMenu
-                        label={locale === "en" ? "More" : "その他"}
-                        buttonRef={reportBtnRef}
-                        className="pointer-events-auto"
-                        buttonClassName={TOP_BUTTON}
-                        buttonSize={44}
-                        items={[
-                            { key: "copy", label: locale === "en" ? "Copy link" : "リンクをコピー", onSelect: () => void handleCopyLink() },
-                            { key: "x", label: locale === "en" ? "Share on X" : "Xで共有", onSelect: () => shareToTwitter(currentUrl, shareText) },
-                            ...(locale === "ja" ? [{ key: "line", label: "LINEで共有", onSelect: () => shareToLine(currentUrl, shareText) }] : []),
-                            // **通報。** 自分の投稿と未ログインには出さない（押しても断られるため）
-                            ...(isAuthenticated && !isOwnPhoto
-                                ? [{ key: "report", label: locale === "en" ? "Report this post" : "この投稿を通報する", onSelect: () => setReportOpen(true), danger: true }]
-                                : []),
-                        ]}
-                    />
-                </div>
+                <MoreMenu
+                    label={locale === "en" ? "More" : "その他"}
+                    buttonRef={reportBtnRef}
+                    className="pointer-events-auto"
+                    buttonClassName={TOP_BUTTON}
+                    buttonSize={44}
+                    items={[
+                        { key: "share", label: locale === "en" ? "Share" : "共有", onSelect: () => void handleShare() },
+                        { key: "copy", label: locale === "en" ? "Copy link" : "リンクをコピー", onSelect: () => void handleCopyLink() },
+                        { key: "x", label: locale === "en" ? "Share on X" : "Xで共有", onSelect: () => shareToTwitter(currentUrl, shareText) },
+                        ...(locale === "ja" ? [{ key: "line", label: "LINEで共有", onSelect: () => shareToLine(currentUrl, shareText) }] : []),
+                        // 撮影地マップのこの写真の位置（以前は写真の右下の丸。iOS は写真の上に地図の丸を置かない・束 1 P2）。
+                        // 「この近くで撮られた写真」の節の「地図で見る」と同じ行き先——近くに写真が無い写真でも行き先を消さない
+                        ...(mapHash ? [{ key: "map", label: locale === "en" ? "See on the map" : "撮影地マップで見る", href: `${ROUTES.MAP}${mapHash}` }] : []),
+                        // 正確な座標（または持ち主が付けた地図のリンク）の Google マップ。以前は本文の上の撮影地の字のリンク
+                        // （住所の全文の行は外した・束 1 P4）。おおよその座標では出さない（`href` が無い）
+                        ...(href ? [{ key: "gmap", label: locale === "en" ? "Open in Google Maps" : "Google マップで開く", href, external: true }] : []),
+                        // **通報。** 自分の投稿と未ログインには出さない（押しても断られるため）
+                        ...(isAuthenticated && !isOwnPhoto
+                            ? [{ key: "report", label: locale === "en" ? "Report this post" : "この投稿を通報する", onSelect: () => setReportOpen(true), danger: true }]
+                            : []),
+                    ]}
+                />
             </div>
 
             {/* **PC は2カラム**（owner の指示書 2026-09-22:「PCではスマホ画面を
                 そのまま横に引き伸ばさず、写真詳細は写真を大きく、撮影情報やコメントを
                 別カラムに」）。スマホ（1024px 未満）は最終版モックのまま縦に積む。
-                左は写真だけ・スクロールに追従、右に題から下を全部入れる */}
-            <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8 lg:px-4 lg:pt-3 lg:items-start">
+                左は写真だけ・スクロールに追従、右に題から下を全部入れる。
+                2026-10-31（束 1・PC の幅の決まり W5）: 右の文の列は 400 固定（以前は 3:2 で幅とともに伸びた）。中の並びと部品は電話の iOS の順 */}
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8 lg:px-4 lg:pt-3 lg:items-start">
             {/* ヒーロー。**スマホでは端まで**（左右の余白なし・角丸なし）。
                 複数枚は左右スワイプでも送れる */}
             <div
@@ -1032,12 +1052,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
 
                 {images.length > 1 && (
                     <>
-                        {/* 「N/M」。モックの「1/10」 */}
-                        <p className="absolute top-4 left-1/2 -translate-x-1/2 lg:top-3 lg:left-auto lg:right-3 lg:translate-x-0 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white tabular-nums pointer-events-none"
-                           style={{ fontSize: "12px", lineHeight: "14px" }}
-                           aria-hidden="true">
-                            {shown + 1}/{images.length}
-                        </p>
+                        {/* 何枚目かは写真の裾の点（白と白40%・6px）と、題の下の1行「… · 1/3枚」が言う
+                            （iOS の `pageDots`・`headline`・束 1 P4。以前は写真の上の「1/3」の札） */}
                         {/* **読み上げには別に伝える。** 上のバッジは
                             `aria-hidden`（送るたびに読み上げが割り込むと邪魔）。
                             こちらは操作の結果として伝わる */}
@@ -1067,79 +1083,130 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     </>
                 )}
 
-                {/* 撮影地のチップ（写真の左下）→ 同じ場所の集約ページ（内部リンク＝SEO・回遊）。
-                    右下は撮影地マップのその位置へ（座標が無ければ出さない。おおよその
-                    座標（geoApprox）でも出す——地図側が「おおよそ」と断ってピンを立てる） */}
-                {/* **道しるべ**「📍 撮影地 · この撮影地の写真 ›」（v2 の板 `PhotoDetail.dc.html`）。
-                    写真の上なので白（真鍮は写真の上では読めない）。押す的は 44px——見た目の札は
-                    28px のまま、外側の透明な余白（8px）で広げる。地名は長ければ切り、
-                    「この撮影地の写真 ›」は切らない（行き先が何かを言う部分） */}
-                {locationText && (
-                    <Link
-                        href={collectionPath("location", slugify(locationText, "location"))}
-                        prefetch={false}
-                        aria-label={locale === "en" ? `Photos taken in ${locationText}` : `${locationText} · この撮影地の写真`}
-                        className="group absolute left-1 bottom-1 flex items-center max-w-[78%] p-2"
-                        style={{ minHeight: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                    >
-                        <span className="inline-flex items-center gap-1.5 min-w-0 rounded-full bg-black/55 backdrop-blur-sm text-white group-hover:bg-black/70 transition-colors"
-                              style={{ fontSize: "12px", lineHeight: "16px", padding: "6px 10px" }}>
-                            <MapPinIcon aria-hidden="true" className="flex-shrink-0" style={{ width: "14px", height: "14px" }} />
-                            <span className="truncate">{locationText}</span>
-                            <span className="flex-shrink-0 whitespace-nowrap" aria-hidden="true">
-                                {locale === "en" ? " · Photos here ›" : " · この撮影地の写真 ›"}
-                            </span>
-                        </span>
-                    </Link>
-                )}
-                {mapHash && (
-                    <Link
-                        href={`${ROUTES.MAP}${mapHash}`}
-                        prefetch={false}
-                        aria-label={locale === "en" ? "See on the map" : "撮影地マップで見る"}
-                        // **当たりは 44px、見た目の丸は 36px**（写真の上に大きな丸を置かない）。
-                        // 丸の中心は前と同じ位置（端から 30px）
-                        className="group absolute inline-flex items-center justify-center rounded-full text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                        style={{ right: "8px", bottom: "8px", width: "44px", height: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                        data-testid="photo-map-button"
-                    >
-                        <span className="inline-flex items-center justify-center rounded-full bg-black/55 backdrop-blur-sm group-hover:bg-black/70 transition-colors"
-                              style={{ width: "36px", height: "36px" }}>
-                            <MapIcon aria-hidden="true" style={{ width: "18px", height: "18px" }} />
-                        </span>
-                    </Link>
+                {/* **写真の裾**（iOS の `photoFoot`・束 1 P2）: 黒 72% → 0 の暗がり（下 150・短い写真では 6 割まで）の上に、
+                    束の点と「📍 撮影地 · 撮影地の詳細」「📖 撮影スポット · 名前 ›」の行。**写真の上なので白だけ**。
+                    以前は住所の全文の黒い札と、右下の地図の丸（地図は「…」と「この近くで撮られた写真」の「地図で見る」へ） */}
+                {(locationText || spotLink || images.length > 1) && (
+                    <>
+                        <div aria-hidden="true" className="absolute inset-x-0 bottom-0 pointer-events-none"
+                             style={{ height: "min(150px, 60%)", background: "linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(0 0 0 / 0.72))" }} />
+                        <div className="absolute inset-x-0 bottom-0 px-4 pb-1 flex flex-col items-start pointer-events-none" data-testid="photo-foot">
+                            {images.length > 1 && (
+                                <span aria-hidden="true" className="self-center flex gap-1.5 pb-2" data-testid="photo-page-dots">
+                                    {images.map((_, i) => (
+                                        <span key={i} className={`block w-[6px] h-[6px] rounded-full ${i === shown ? "bg-white" : "bg-white/40"}`} />
+                                    ))}
+                                </span>
+                            )}
+                            {locationText && (
+                                <Link
+                                    href={collectionPath("location", slugify(locationText, "location"))}
+                                    prefetch={false}
+                                    aria-label={locale === "en" ? `${locationText} · Place details` : `${locationText} · 撮影地の詳細`}
+                                    className={`${FOOT_ROW} pointer-events-auto`}
+                                    style={FOOT_ROW_STYLE}
+                                    data-testid="photo-place-link"
+                                >
+                                    <MapPinIcon aria-hidden="true" className="flex-shrink-0" style={{ width: 13, height: 13, strokeWidth: 1.8 }} />
+                                    <span className={FOOT_UNDERLINE}>{locationText}</span>
+                                    <span className="flex-shrink-0 whitespace-nowrap text-white/80" aria-hidden="true">
+                                        {locale === "en" ? " · Place details" : " · 撮影地の詳細"}
+                                    </span>
+                                </Link>
+                            )}
+                            {/* 台帳の撮影スポット（写真が確かめ済みの `spotId` を持つときだけ）。以前は本文の下の札（`SpotLinkCard`） */}
+                            {spotLink && (
+                                <Link
+                                    href={`/spots/${spotLink.slug}`}
+                                    prefetch={false}
+                                    aria-label={locale === "en" ? `Photo spot: ${spotLink.name}` : `撮影スポット: ${spotLink.name}`}
+                                    className={`${FOOT_ROW} pointer-events-auto`}
+                                    style={FOOT_ROW_STYLE}
+                                    data-testid="photo-spot-guide"
+                                >
+                                    <BookOpenIcon aria-hidden="true" className="flex-shrink-0" style={{ width: 13, height: 13, strokeWidth: 1.8 }} />
+                                    <span className={FOOT_UNDERLINE}>{locale === "en" ? `Photo spot · ${spotLink.name}` : `撮影スポット · ${spotLink.name}`}</span>
+                                    <span className="flex-shrink-0" aria-hidden="true">›</span>
+                                </Link>
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
 
             <div className="min-w-0">
-            <div className="px-4 pt-3 lg:px-0 lg:pt-0 space-y-3">
-                {/* 題。`break-words`: 長い URL・連続文字でページごと横に流れるのを防ぐ
-                    （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
-                {/* 板（`PhotoDetail.dc.html`）の題は **明朝 32px / 行間1.2**。
-                    検索の着地点で、題を「作品の名前」として見せる形。
-                    字体は `lib/utils/headingFont.ts` の並び——先頭は自前で配る
-                    Shippori Mincho B1 Bold（板・アプリと同じ・2026-10-21）、落ちるまでは端末の明朝。 */}
-                {titleText
-                    ? <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: DISPLAY_MINCHO_STACK }}>{titleText}</h1>
-                    : <h1 className="sr-only">{fallbackHeading}</h1>}
+            {/* **iOS の写真の詳細の順**（`PhotoDetailView.details`・束 1 P4）: 題 → 日時 → カテゴリ → 本文 → 作者 →
+                「この写真を見て撮影」→ 操作の段 → 次の旅へ → 撮影情報 → タグ → 曲 → 近くの写真 → 近くの撮影スポット → 関連 → コメント。
+                節の間は 16（iOS の `VStack(spacing: 16)`）・写真との間 20。以前は 題 → 作者 → 日時と住所 → 本文 → タグ の順 */}
+            <div className="px-4 pt-5 lg:px-0 lg:pt-0 flex flex-col gap-4" data-testid="photo-details">
+                {/* 題（明朝 26・iOS `JPFont.screenTitle`・束 1 P3）と、その下の1行（日時 · 何枚目・13・text-3・等幅の数字）。
+                    `break-words`: 長い URL・連続文字でページごと横に流れるのを防ぐ。
+                    字体は `lib/utils/headingFont.ts` の並び（先頭は自前で配る Shippori Mincho B1 Bold） */}
+                <div className="flex flex-col gap-2">
+                    {titleText
+                        ? <h1 className="font-bold break-words m-0" style={{ fontSize: "26px", lineHeight: 1.3, fontFamily: DISPLAY_MINCHO_STACK }}>{titleText}</h1>
+                        : <h1 className="sr-only">{fallbackHeading}</h1>}
+                    {(shotDate || images.length > 1) && (
+                        <p className="m-0 text-text-3 tabular-nums" style={{ fontSize: "13px", lineHeight: "18px" }} data-testid="photo-headline">
+                            {shotDate && <span data-testid="photo-shot-stamp">{shotDate}</span>}
+                            {shotDate && images.length > 1 && <span aria-hidden="true"> · </span>}
+                            {images.length > 1 && <span>{locale === "en" ? `${shown + 1}/${images.length}` : `${shown + 1}/${images.length}枚`}</span>}
+                        </p>
+                    )}
+                </div>
 
-                {/* 作者行: アバター・名前（＋@名があれば）／右に枠線の「フォロー」 */}
+                {/* カテゴリ（iOS は題の下の小さな札・板に無く実装にだけある）。集約ページへの内部リンク＝SEO・回遊。**先読みしない** */}
+                {categoryDisplayName && photo.category && (
+                    <div className="flex flex-wrap gap-x-2 gap-y-2.5">
+                        <Link
+                            href={collectionPath("category", slugify(photo.category, "category"))}
+                            prefetch={false}
+                            className={CHIP_CLASS}
+                            style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
+                        >
+                            {categoryDisplayName}
+                        </Link>
+                    </div>
+                )}
+
+                {/* 本文（iOS: 15・text-2・行送り 1.8・段落の間 12）。以前は 14・白85%・行送り 22。
+                    撮影地の住所の全文は本文の上から外した——撮影地の頁と、写真の裾の行が持つ（束 1 P4） */}
+                {paragraphs.length > 0 && (
+                    <div className="text-text-2 break-words flex flex-col gap-3" style={{ fontSize: "15px", lineHeight: 1.8 }}>
+                        {paragraphs.map((line, i) => (
+                            <p key={i} className="m-0">
+                                {line}
+                            </p>
+                        ))}
+                    </div>
+                )}
+
+                {/* 撮影者とライセンス（Web だけ・残す） */}
+                {(photo.photographer || photo.license) && (
+                    <div className="text-text-3" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                        {photo.photographer && <span>{photo.photographer}</span>}
+                        {photo.photographer && photo.license && <span className="mx-2">·</span>}
+                        {photo.license && <span>{photo.license}</span>}
+                    </div>
+                )}
+
+                {/* 作者行（iOS の `authorRow`）: 顔 40（白8%の縁）・名前 15 semibold・@名 12 text-3 ／ 右にフォロー（C8） */}
                 {photo.userId && photo.displayName && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-[10px]" data-testid="photo-author">
                         <Link href={ROUTES.USER_PROFILE(photo.userId)} prefetch={false}
-                              className="flex-shrink-0 rounded-full"
+                              className="flex-shrink-0 rounded-full inline-flex items-center justify-center"
                               aria-label={locale === "en" ? `${photo.displayName}'s profile` : `${photo.displayName} のプロフィール`}
-                              style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>
-                            <UserAvatar userId={photo.userId} className="w-11 h-11" iconClassName="w-6 h-6" />
+                              style={{ minWidth: "44px", minHeight: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>
+                            <UserAvatar userId={photo.userId} className="w-10 h-10 ring-1 ring-line" iconClassName="w-6 h-6" />
                         </Link>
                         <div className="min-w-0 flex-1">
                             <Link href={ROUTES.USER_PROFILE(photo.userId)} prefetch={false}
-                                  className="block text-white font-semibold wrap-anywhere hover:text-white/80 transition-colors"
+                                  className="block text-white font-semibold truncate hover:text-white/80 transition-colors"
                                   style={{ fontSize: "15px", lineHeight: "20px", touchAction: "manipulation" }}>
                                 {photo.displayName}
                             </Link>
                             {photo.uploaderUsername && (
-                                <p className="m-0 text-white/50 truncate" style={{ fontSize: "12px", lineHeight: "16px" }}>@{photo.uploaderUsername}</p>
+                                <p className="m-0 mt-0.5 text-text-3 truncate" style={{ fontSize: "12px", lineHeight: "16px" }}>@{photo.uploaderUsername}</p>
                             )}
                         </div>
                         {!isOwnPhoto && (
@@ -1154,148 +1221,66 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     </div>
                 )}
 
-                {/* 撮影日 · 撮影地（薄い1行）。撮影地は正確な座標があれば Google の地図へ
-                    （おおよその座標では立てない: 街の中心のピンは「ここで撮った」と読まれる） */}
-                {(shotDate || locationText) && (
-                    <p className="m-0 text-white/60 flex flex-wrap items-center gap-x-2" style={{ fontSize: "12px", lineHeight: "16px" }}>
-                        {shotDate && <span className="tabular-nums" data-testid="photo-shot-stamp">{shotDate}</span>}
-                        {shotDate && locationText && <span aria-hidden="true">·</span>}
-                        {locationText && (href ? (
-                            <a href={href} target="_blank" rel="noopener noreferrer"
-                               // 押す的を**上へ**8px広げて24pxに（負の余白で打ち消し、行の高さは変えない）。
-                               // 下へ広げると、説明文の無い写真で真下のタグチップと4px重なり、
-                               // チップの上端を押すと地図が開いた（この行は下の余白が0）。
-                               // 字の高さ16pxのままだと target-size で落ちた
-                               className="hover:text-white underline decoration-white/20 underline-offset-2 pt-[8px] -mt-[8px]"
-                               title={locale === "ja" ? "地図で見る" : "View on map"}
-                               style={{ touchAction: "manipulation" }}>
-                                {locationText}
-                            </a>
-                        ) : <span>{locationText}</span>)}
-                    </p>
-                )}
-
-                {/* 本文 */}
-                {paragraphs.length > 0 && (
-                    <div className="text-white/85 break-words" style={{ fontSize: "14px", lineHeight: "22px" }}>
-                        {paragraphs.map((line, i) => (
-                            <p key={i} className={i === 0 ? "m-0" : "m-0 mt-3"}>
-                                {line}
-                            </p>
-                        ))}
-                    </div>
-                )}
-
-                {/* チップ: カテゴリ＋タグ（集約ページへの内部リンク）。
-                    **チップの間隔は 1.5 まで詰めない。** チップは `py-0.5`＝高さ18px で、
-                    `gap-1.5`（当時は root が 640px 未満で 14px だったので 5.25px）だと
-                    **行の間隔が22px**になり、24px の円が上下の行で重なる
-                    ＝WCAG 2.5.8 の「間隔の例外」にも当たらない。
-                    実測（本物のビルドを Chromium で開いた）: タグ8枚の写真ページで
-                    **320px のとき2件が重なる**（393px では行が減るので出ない）
-                    ——**いちばん小さいスマホでだけ、隣のタグを押してしまう**。
-                    `gap-2` で行の間隔が24pxになり0件（箱の高さは +2px だけ）。 */}
-                {(categoryDisplayName && photo.category) || (photo.tags?.length ?? 0) > 0 ? (
-                    <div className="flex flex-wrap gap-x-2 gap-y-2.5">
-                        {categoryDisplayName && photo.category && (
-                            // カテゴリの集約ページへ（内部リンク＝SEO・回遊）。**先読みしない**
-                            <Link
-                                href={collectionPath("category", slugify(photo.category, "category"))}
-                                prefetch={false}
-                                className={CHIP_CLASS}
-                                style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
-                            >
-                                {categoryDisplayName}
-                            </Link>
-                        )}
-                        {(photo.tags ?? []).map((tag) => (
-                            // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
-                            // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
-                            // `app/components/GalleryGrid.tsx` のカードのコメントに書いた
-                            <Link
-                                key={tag}
-                                href={collectionPath("tag", slugify(tag, "tag"))}
-                                prefetch={false}
-                                className={CHIP_CLASS}
-                                style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
-                            >
-                                #{tag}
-                            </Link>
-                        ))}
-                    </div>
-                ) : null}
-
-                {/* 撮影者とライセンス */}
-                {(photo.photographer || photo.license) && (
-                    <div className="text-sm text-white/50">
-                        {photo.photographer && <span>{photo.photographer}</span>}
-                        {photo.photographer && photo.license && <span className="mx-2">·</span>}
-                        {photo.license && <span>{photo.license}</span>}
-                    </div>
-                )}
-
-                {/* 公式撮影地ガイドへのカード。**写真が確認済みの `spotId` を
-                    持っているときだけ**出る（文字列では照合しない）。
-                    未登録なら何も描かない——撮影地ページへの導線は写真の
-                    左下のチップが持っているので、ここが空でも行き先は消えない */}
                 {/* 「この写真を見て撮影」。元の写真が公開の一覧に居るときだけ出る */}
                 <InspiredByLine source={inspired} locale={locale} />
 
-                <SpotLinkCard spot={spotLink ?? null} locale={locale} />
-
-                {/* アクション行: ♡（押せる・数）・💬（数・コメントのタブへ）・🔖 保存・⬆ シェア。
-                    失敗すると楽観更新が
-                    ロールバックしてハートが黙って戻るので、理由の文言を出す（SW-b4） */}
-                <div className="flex items-center gap-5 pt-1">
-                    <button
-                        type="button"
-                        onClick={handleLike}
-                        disabled={likePending}
-                        aria-pressed={isFav}
-                        // **見えている数を名前に含める**（画面は数字だけ・読み上げが「いいね」だけだと
-                        // Lighthouse の label-content-name-mismatch。コメントのボタンと同じ形）。
-                        // **名前は押しても変えない**——押した状態は `aria-pressed` が伝える
-                        // （「いいねを取り消す」＋「押されています」だと状態が二重で意味が逆に取れる）
-                        aria-label={locale === "en" ? `Like (${likeCount.toLocaleString()})` : `いいね ${likeCount.toLocaleString()}件`}
-                        className={`flex items-center gap-1.5 transition-colors disabled:opacity-60 ${isFav ? "text-white" : "text-white/85 hover:text-white"}`}
-                        style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px" }}
-                    >
-                        {isFav
-                            ? <HeartIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} />
-                            : <HeartIconOutline aria-hidden="true" style={{ width: "24px", height: "24px" }} />}
-                        <span className="tabular-nums" style={{ fontSize: "14px", lineHeight: "18px" }}>{likeCount.toLocaleString()}</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setActiveTab("comments"); tabsRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" }); }}
-                        aria-label={locale === "en" ? `${commentCount} comments. Show comments` : `コメント ${commentCount}件。コメントを見る`}
-                        className="flex items-center gap-1.5 text-white/85 hover:text-white transition-colors"
-                        style={{ touchAction: "manipulation", minHeight: "44px" }}
-                    >
-                        <ChatBubbleOvalLeftIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} />
-                        <span className="tabular-nums" style={{ fontSize: "14px", lineHeight: "18px" }}>{commentCount.toLocaleString()}</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        aria-pressed={saved}
-                        aria-disabled={savePending || undefined}
-                        aria-label={saved ? (locale === "en" ? "Remove from saved" : "保存を取り消す") : (locale === "en" ? "Save" : "保存")}
-                        className={`flex items-center gap-1.5 transition-colors ${saved ? "text-accent" : "text-white/85 hover:text-white"}`}
-                        style={{ touchAction: "manipulation", minHeight: "44px" }}
-                    >
-                        {saved ? <BookmarkSolidIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} /> : <BookmarkIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} />}
-                        <span style={{ fontSize: "14px", lineHeight: "18px" }}>{locale === "en" ? "Save" : "保存"}</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleShare}
-                        className="flex items-center gap-1.5 text-white/85 hover:text-white transition-colors ml-auto"
-                        style={{ touchAction: "manipulation", minHeight: "44px" }}
-                    >
-                        <PaperAirplaneIcon aria-hidden="true" style={{ width: "24px", height: "24px", transform: "rotate(-30deg)" }} />
-                        <span style={{ fontSize: "14px", lineHeight: "18px" }}>{locale === "en" ? "Share" : "シェア"}</span>
-                    </button>
+                {/* 操作の段（iOS の `socialBar`・束 1 P6）: 左に いいね・コメント、右に 保存・共有。**印だけ**（白・線の細い 24）、
+                    数は 0 より大きいときだけ（15・等幅の数字）。下に白8%の線。以前は「保存」「シェア」の字つき・保存は真鍮。
+                    読み上げの名前は残す（数があれば名前にも入れる＝見える字が名前に含まれる） */}
+                <div className="flex flex-col gap-2" data-testid="photo-actions">
+                    <div className="flex items-center gap-2 -mx-1.5">
+                        <button
+                            type="button"
+                            onClick={handleLike}
+                            disabled={likePending}
+                            aria-pressed={isFav}
+                            // **名前は押しても変えない**——押した状態は `aria-pressed` が伝える
+                            aria-label={likeCount > 0
+                                ? (locale === "en" ? `Like (${likeCount.toLocaleString()})` : `いいね ${likeCount.toLocaleString()}件`)
+                                : (locale === "en" ? "Like" : "いいね")}
+                            className={ACTION_BTN}
+                            style={ACTION_BTN_STYLE}
+                        >
+                            {isFav
+                                ? <HeartIcon aria-hidden="true" style={ACTION_ICON_STYLE} />
+                                : <HeartIconOutline aria-hidden="true" style={ACTION_ICON_STYLE} />}
+                            {likeCount > 0 && <span className="tabular-nums" style={ACTION_COUNT_STYLE}>{likeCount.toLocaleString()}</span>}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => commentsRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" })}
+                            aria-label={commentCount > 0
+                                ? (locale === "en" ? `${commentCount} comments. Show comments` : `コメント ${commentCount}件。コメントを見る`)
+                                : (locale === "en" ? "Show comments" : "コメントを見る")}
+                            className={ACTION_BTN}
+                            style={ACTION_BTN_STYLE}
+                        >
+                            <ChatBubbleOvalLeftIcon aria-hidden="true" style={ACTION_ICON_STYLE} />
+                            {commentCount > 0 && <span className="tabular-nums" style={ACTION_COUNT_STYLE}>{commentCount.toLocaleString()}</span>}
+                        </button>
+                        <span className="flex-1" aria-hidden="true" />
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            aria-pressed={saved}
+                            aria-disabled={savePending || undefined}
+                            aria-label={saved ? (locale === "en" ? "Remove from saved" : "保存を取り消す") : (locale === "en" ? "Save" : "保存")}
+                            className={ACTION_BTN}
+                            style={ACTION_BTN_STYLE}
+                        >
+                            {saved ? <BookmarkSolidIcon aria-hidden="true" style={ACTION_ICON_STYLE} /> : <BookmarkIcon aria-hidden="true" style={ACTION_ICON_STYLE} />}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleShare}
+                            aria-label={locale === "en" ? "Share" : "共有"}
+                            className={ACTION_BTN}
+                            style={ACTION_BTN_STYLE}
+                        >
+                            <ArrowUpOnSquareIcon aria-hidden="true" style={ACTION_ICON_STYLE} />
+                        </button>
+                    </div>
+                    <div aria-hidden="true" className="h-px bg-line" />
                 </div>
 
             {/* NEXT TRIP · 次の旅へ（行きたい・経路・次のゴールデンアワー・撮りに行く）。
@@ -1307,6 +1292,40 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 inspiredPhotoId={offersInspiredShoot(photo, authUserId) ? photo.id : null}
                 locale={locale}
             />
+
+            {/* 撮影情報（iOS の `ExifRow`・束 1 P8）: 札で囲まない1行（印・「撮影情報」15・要約 13・⌄）、開くと 4 つの升とカメラ・レンズの行。
+                **機種名からその機材の一覧へ**。リンクは「保存済みの値」から作る（表示は mergedExif のまま）——端末で抜いた値から
+                作ると、飛んだ先に自分が居ない・静的生成の対象外でハード404（`dynamicParams = false`）になる */}
+            {(() => {
+                const storedCamera = dedupeCameraName(photo.exif?.camera);
+                const cameraHref = storedCamera ? collectionPath("camera", slugify(storedCamera, "camera")) : undefined;
+                return (
+                    <ExifRow
+                        cells={exifSettingsCells(mergedExif, locale === "en" ? "en" : "ja")}
+                        specs={buildExifSpecs(mergedExif, locale, cameraHref)}
+                        settings={exifSettingsLine(mergedExif)}
+                        locale={locale}
+                    />
+                );
+            })()}
+
+            {/* タグ（iOS の `TagRow`: 撮影情報の下・折り返す・頭に「#」）。集約ページへの内部リンク。**先読みしない**
+                （一覧で何本も出るリンクなので、画面に入るたびに行き先の RSC の控えを落とし直す・`GalleryGrid` の注記） */}
+            {(photo.tags?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-x-2 gap-y-2.5" data-testid="photo-tags">
+                    {(photo.tags ?? []).map((tag) => (
+                        <Link
+                            key={tag}
+                            href={collectionPath("tag", slugify(tag, "tag"))}
+                            prefetch={false}
+                            className={CHIP_CLASS}
+                            style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
+                        >
+                            #{tag}
+                        </Link>
+                    ))}
+                </div>
+            )}
 
             {/* この写真のBGM */}
             {(photoSong || photoYtUrl || isOwnPhoto) && (
@@ -1484,40 +1503,6 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 </div>
             )}
 
-            {/* EXIF情報: カメラのスペックシート風カード（ラベル上・値下の2列グリッド）。
-                **組み立てと見た目は `ExifSpecs` に出した**——モーダルが同じ値を
-                中黒でつないだ1行で出していて、どの数字が何なのか読めなかった。
-                ここに直書きしたままだと、片方だけ直して静かにずれる */}
-            {(() => {
-                // **機種名からその機材の一覧へ行けるようにする。**
-                // 撮影地・カテゴリ・タグは前から集約ページへ繋いであるのに、
-                // カメラだけ行き止まりだった。sitemap に載せても内部リンクが
-                // 1本も無いページは辿ってもらえない。
-                //
-                // **リンクは「保存済みの値」から作る。表示は mergedExif のまま。**
-                // 最初 `mergedExif.camera` から作ったが、あれは端末で抽出した値を
-                // 含む——そして端末抽出が走るのは `extractExif={!hasStoredExif(...)}`
-                // ＝**保存済み exif が無いときだけ**。一方 `valuesFor(p,"camera")` は
-                // 保存済みの値しか見ない。つまり「リンクが抽出値から作られる」
-                // 状況と「その写真が集約に1件も数えられない」状況が**完全に一致**し、
-                //   - 他の写真が同じ機種を保存済み → **飛んだ先に自分が居ない**
-                //   - 誰も保存していない機種 → 静的生成の対象外で**ハード404**
-                // になる（`dynamicParams = false`）。実データで公開30枚中3枚が
-                // 保存済み exif を持たない。
-                const storedCamera = dedupeCameraName(photo.exif?.camera);
-                const cameraHref = storedCamera ? collectionPath("camera", slugify(storedCamera, "camera")) : undefined;
-                return (
-                    <ExifSpecs
-                        specs={buildExifSpecs(mergedExif, locale, cameraHref)}
-                        locale={locale}
-                        collapsible
-                        // v2 の Meta の形（「24mm · f/8 · 1/125 s · ISO 100」と 機種 · レンズ）。
-                        // 機種は `mergedExif.camera`（二重のメーカー名は畳んである）
-                        summary={{ settings: exifSettingsLine(mergedExif), gear: exifGearLine(mergedExif) }}
-                    />
-                );
-            })()}
-
                 {/* **この近くで撮られた写真 ／ 地図で見る ›**（v2 の板の末尾・アプリの `nearbySection`）。
                     正確な座標どうしで 5km 以内（`nearbyPhotos`）。**1枚も無ければ節ごと出さない**。
                     ビルド時に組んだもの（`initialRelated.nearby`）で静的HTMLにも焼く（写真から写真への内部リンク）。
@@ -1533,7 +1518,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                 <MoreLink href={`${ROUTES.MAP}${mapHash}`} label={locale === "en" ? "View on map" : "地図で見る"} />
                             )}
                         </div>
-                        <div className="grid grid-cols-4 gap-0.5 rounded-xl overflow-hidden">
+                        <div className="grid grid-cols-4 gap-0.5 rounded-field overflow-hidden">
                             {related.nearby.map((p) => {
                                 // alt は名前が要る。題（撮影地）→「撮影地の写真」（`photoAltText`・旧い「無題」も落とす）
                                 const t = relatedPhotoAlt(p, locale === "en" ? "en" : "ja");
@@ -1572,113 +1557,89 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 )}
             </div>
 
-            {/* タブ: コメント (N) ／ 関連写真。**両方の中身を描いて、見えない側は `hidden`**
-                ——関連写真の `/photo/<id>` リンクは静的HTMLに焼かれている必要がある
-                （回遊＝SEO。本番のスモークも「ほかの写真への導線」を数える） */}
-            {/* 「コメントを見る」で `scrollIntoView` する先。ヘッダーは sticky で
-                上に貼り付くので、その高さぶん手前で止める（止めないとタブが
-                ヘッダーの裏に入る） */}
-            <div ref={tabsRef} className="mt-5 px-4 lg:px-0" style={{ scrollMarginTop: "var(--header-h)" }}>
-                <div role="tablist" aria-label={locale === "en" ? "Comments and related photos" : "コメントと関連写真"}
-                     // 名前の幅で左から・間 24（2026-10-30 束 0b C4・iOS の札と同じ）。以前は 2 等分の札で下線も半分の幅
-                     className={TAB_ROW}>
-                    {([
-                        { key: "comments" as const, label: locale === "en" ? `Comments (${commentCount})` : `コメント (${commentCount})` },
-                        { key: "related" as const, label: locale === "en" ? "Related" : "関連写真" },
-                    ]).map((tab) => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            id={`photo-tab-${tab.key}`}
-                            aria-selected={activeTab === tab.key}
-                            aria-controls={`photo-panel-${tab.key}`}
-                            onClick={() => setActiveTab(tab.key)}
-                            className={`${TAB_BASE} ${activeTab === tab.key ? TAB_ON : TAB_OFF}`}
-                            style={{ touchAction: "manipulation" }}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+            {/* **関連写真とコメントは縦に節で並べる**（2026-10-31 束 1 P11・iOS は「この近くで撮られた写真」の下にコメントの節）。
+                以前は「コメント (N)」「関連写真」の切り替えで、片方は `hidden` だった。関連写真の `/photo/<id>` リンクは
+                静的 HTML に焼く（回遊＝SEO。本番のスモークも「ほかの写真への導線」を数える） */}
+            {(related.prev || related.next || related.author.length > 0 || related.location.length > 0) && (
+                <div className="mt-6 px-4 lg:px-0 flex flex-col gap-6" data-testid="photo-related">
+                    {/* 前後の写真（新しい順で隣接・Web だけ）。札の行（C11）を2つ並べる */}
+                    {(related.prev || related.next) && (
+                        <nav className="grid grid-cols-2 gap-2" aria-label={locale === "en" ? "Adjacent photos" : "前後の写真"}>
+                            {related.prev ? (
+                                <Link
+                                    href={ROUTES.PHOTO(related.prev.id)}
+                                    prefetch={false}
+                                    data-photo-id={related.prev.id}
+                                    className={`${ROW_CARD_TALL} min-w-0`}
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    <ChevronLeftIcon className={ROW_CHEVRON} aria-hidden="true" />
+                                    <span className="min-w-0 flex-1">
+                                        <span className={ROW_SUB}>{locale === "en" ? "Newer" : "新しい写真"}</span>
+                                        <span className={ROW_TITLE}>{photoOwnTitle(related.prev, locale === "en" ? "en" : "ja") || (locale === "en" ? "Photo" : "写真")}</span>
+                                    </span>
+                                </Link>
+                            ) : <span />}
+                            {related.next ? (
+                                <Link
+                                    href={ROUTES.PHOTO(related.next.id)}
+                                    prefetch={false}
+                                    data-photo-id={related.next.id}
+                                    className={`${ROW_CARD_TALL} min-w-0 text-right`}
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    <span className="min-w-0 flex-1">
+                                        <span className={ROW_SUB}>{locale === "en" ? "Older" : "古い写真"}</span>
+                                        <span className={ROW_TITLE}>{photoOwnTitle(related.next, locale === "en" ? "en" : "ja") || (locale === "en" ? "Photo" : "写真")}</span>
+                                    </span>
+                                    <ChevronRightIcon className={ROW_CHEVRON} aria-hidden="true" />
+                                </Link>
+                            ) : <span />}
+                        </nav>
+                    )}
 
-                <div id="photo-panel-comments" role="tabpanel" aria-labelledby="photo-tab-comments" hidden={activeTab !== "comments"} className="pt-4">
-                    <CommentSection
-                        photoId={photo.id}
-                        photoOwnerId={photo.userId}
+                    <RelatedPhotos
+                        title={photo.displayName
+                            ? (locale === "en" ? `More from ${photo.displayName}` : `${photo.displayName}さんの他の写真`)
+                            : (locale === "en" ? "More photos" : "他の写真")}
+                        photos={related.author}
                         locale={locale}
-                        initialCount={typeof photo.commentCount === "number" ? photo.commentCount : 0}
-                        hideHeading
-                        onCountChange={setCommentCount}
+                        fallbackAlt={photo.displayName
+                            ? (locale === "en" ? `Photo by ${photo.displayName}` : `${photo.displayName}さんの写真`)
+                            : undefined}
+                    />
+
+                    <RelatedPhotos
+                        title={locationText
+                            ? (locale === "en" ? `More in ${locationText}` : `「${locationText}」の他の写真`)
+                            : (locale === "en" ? "Nearby" : "同じ場所の写真")}
+                        photos={related.location}
+                        locale={locale}
+                        fallbackAlt={locationText
+                            ? (locale === "en" ? `Photo taken in ${locationText}` : `${locationText}の写真`)
+                            : undefined}
                     />
                 </div>
+            )}
 
-                <div id="photo-panel-related" role="tabpanel" aria-labelledby="photo-tab-related" hidden={activeTab !== "related"} className="pt-4">
-                    {(related.prev || related.next || related.author.length > 0 || related.location.length > 0) ? (
-                        <div className="space-y-6">
-                            {/* 前後の写真（新しい順で隣接） */}
-                            {(related.prev || related.next) && (
-                                <nav className="flex items-stretch gap-2.5" aria-label={locale === "en" ? "Adjacent photos" : "前後の写真"}>
-                                    {related.prev ? (
-                                        <Link
-                                            href={ROUTES.PHOTO(related.prev.id)}
-                                            prefetch={false}
-                                            data-photo-id={related.prev.id}
-                                            className="flex-1 inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-surface ring-1 ring-line hover:bg-surface-2 active:scale-[0.99] transition min-w-0"
-                                            style={{ touchAction: "manipulation" }}
-                                        >
-                                            <ChevronLeftIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
-                                            <span className="min-w-0">
-                                                <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
-                                                <span className="block text-sm text-white/85 truncate">{photoOwnTitle(related.prev, locale === "en" ? "en" : "ja") || (locale === "en" ? "Photo" : "写真")}</span>
-                                            </span>
-                                        </Link>
-                                    ) : <span className="flex-1" />}
-                                    {related.next ? (
-                                        <Link
-                                            href={ROUTES.PHOTO(related.next.id)}
-                                            prefetch={false}
-                                            data-photo-id={related.next.id}
-                                            className="flex-1 inline-flex items-center justify-end gap-2 px-4 py-3 rounded-2xl bg-surface ring-1 ring-line hover:bg-surface-2 active:scale-[0.99] transition min-w-0 text-right"
-                                            style={{ touchAction: "manipulation" }}
-                                        >
-                                            <span className="min-w-0">
-                                                <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
-                                                <span className="block text-sm text-white/85 truncate">{photoOwnTitle(related.next, locale === "en" ? "en" : "ja") || (locale === "en" ? "Photo" : "写真")}</span>
-                                            </span>
-                                            <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
-                                        </Link>
-                                    ) : <span className="flex-1" />}
-                                </nav>
-                            )}
-
-                            <RelatedPhotos
-                                title={photo.displayName
-                                    ? (locale === "en" ? `More from ${photo.displayName}` : `${photo.displayName}さんの他の写真`)
-                                    : (locale === "en" ? "More photos" : "他の写真")}
-                                photos={related.author}
-                                locale={locale}
-                                fallbackAlt={photo.displayName
-                                    ? (locale === "en" ? `Photo by ${photo.displayName}` : `${photo.displayName}さんの写真`)
-                                    : undefined}
-                            />
-
-                            <RelatedPhotos
-                                title={locationText
-                                    ? (locale === "en" ? `More in ${locationText}` : `「${locationText}」の他の写真`)
-                                    : (locale === "en" ? "Nearby" : "同じ場所の写真")}
-                                photos={related.location}
-                                locale={locale}
-                                fallbackAlt={locationText
-                                    ? (locale === "en" ? `Photo taken in ${locationText}` : `${locationText}の写真`)
-                                    : undefined}
-                            />
-                        </div>
-                    ) : (
-                        <p className="text-sm text-white/60 m-0">{locale === "en" ? "No related photos yet." : "関連する写真はまだありません。"}</p>
-                    )}
-                </div>
-            </div>
+            {/* **コメントの節**（iOS の `commentsBlock`）: 「コメント」15 semibold ＋ 数 15 text-3 の等幅数字、その下に一覧と入力欄（44・C6）。
+                吹き出しを押したらここへ送る。ヘッダーは sticky なので、その高さぶん手前で止める（PC。スマホは見出しが無いので 0） */}
+            <section ref={commentsRef} aria-labelledby="photo-comments-heading" className="mt-6 px-4 lg:px-0"
+                     style={{ scrollMarginTop: "var(--header-h)" }} data-testid="photo-comments">
+                <h2 id="photo-comments-heading" className="m-0 mb-2 flex items-baseline gap-1.5" style={{ fontSize: "15px", lineHeight: "20px" }}
+                    aria-label={locale === "en" ? `Comments (${commentCount})` : `コメント ${commentCount}件`}>
+                    <span className="font-semibold text-white">{locale === "en" ? "Comments" : "コメント"}</span>
+                    <span className="text-text-3 tabular-nums font-normal">{commentCount}</span>
+                </h2>
+                <CommentSection
+                    photoId={photo.id}
+                    photoOwnerId={photo.userId}
+                    locale={locale}
+                    initialCount={typeof photo.commentCount === "number" ? photo.commentCount : 0}
+                    hideHeading
+                    onCountChange={setCommentCount}
+                />
+            </section>
             </div>{/* /右カラム */}
             </div>{/* /2カラム（PC） */}
             </main>

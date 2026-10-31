@@ -6,10 +6,21 @@ import { publicImageUrl } from "@/lib/utils/seo";
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
-/** 板どおりの帯の高さ（MyPage 05c・UserProfile 31・iOS の `ProfileCover.height`） */
-export const COVER_HEIGHT_PX = 180;
-/** 帯の下端へアイコンを引き上げる量（板 50px・iOS の `avatarOverlap`） */
-export const COVER_AVATAR_OVERLAP_PX = 50;
+/**
+ * 帯の高さ（iOS の `ProfileCover.height` 240・2026-10-31 束 1 U1。以前は板の 180）。
+ * **PC（1024px 以上）は 320**（PC の幅の決まり W6）。どちらもクラス（`COVER_HEIGHT_CLASS`）で切り替える
+ */
+export const COVER_HEIGHT_PX = 240;
+export const COVER_HEIGHT_LG_PX = 320;
+/** 帯の下端へアイコンを引き上げる量（iOS の `avatarOverlap` 44・顔 88 の半分。以前は板の 50） */
+export const COVER_AVATAR_OVERLAP_PX = 44;
+/** 帯の高さのクラス（電話 240・PC 320） */
+export const COVER_HEIGHT_CLASS = "h-[240px] lg:h-[320px]";
+/**
+ * カバーのある人の顔の行の上の余白: 帯の高さ − 重なり 44 − 上の戻る・「…」の列（約 68＝上 12＋丸 44＋下 8・時計の帯は別）。
+ * 240 − 44 − 68 = 128・PC は 320 − 44 − 68 = 208
+ */
+export const COVER_HEADER_PAD = "pt-[128px] lg:pt-[208px]";
 
 /**
  * カバー写真の置き場（`profiles/<uid>/cover`・`api-user/src/profile.ts`）。**固定キーで中身が
@@ -66,8 +77,7 @@ export default function ProfileCover({ userId, onLoaded, className = "" }: {
             aria-hidden="true"
             data-testid="profile-cover"
             data-state={state}
-            className={`absolute inset-x-0 top-0 overflow-hidden pointer-events-none ${className}`}
-            style={{ height: state === "loaded" ? `${COVER_HEIGHT_PX}px` : 0 }}
+            className={`absolute inset-x-0 top-0 overflow-hidden pointer-events-none ${state === "loaded" ? COVER_HEIGHT_CLASS : "h-0"} ${className}`}
         >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

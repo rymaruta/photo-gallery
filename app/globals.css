@@ -213,6 +213,20 @@
   }
 }
 
+/* **スマホではサイトの見出しを出さない頁**（2026-10-31 束 1 P1・U1）。写真の詳細と人のページは、iOS と同じく
+   写真（カバー）を画面の上端から敷き、戻る・「…」を写真の上のガラスの丸に置く。頁の側が
+   `data-chromeless-phone` を持つときだけ、1024px 未満で見出し（`layout.tsx` の `data-site-header`）を外す。
+   下の札（`BottomNav`）は残すので、どの頁へも行ける。見出しの高さの変数も 0（貼る面・送る先の余白が見出しのぶん空かない）。
+   PC（1024px 以上）は今までどおり見出しを出す（PC の幅の決まり W8） */
+@media (max-width: 1023.98px) {
+  body:has([data-chromeless-phone]) [data-site-header] {
+    display: none;
+  }
+  :root:has([data-chromeless-phone]) {
+    --header-h: 0px;
+  }
+}
+
 /* 四辺の安全領域ぶんの内側の余白。`sm:` などの幅の条件と組み合わせて使う
    （写真モーダルは、スマホでは黒い内枠に、それより広い画面では外枠に持たせる）。 */
 @utility pad-safe {

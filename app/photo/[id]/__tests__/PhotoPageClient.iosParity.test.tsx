@@ -71,23 +71,26 @@ afterEach(() => {
     else delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalWidth;
 });
 
-describe("写真ページ: 写真の上の戻る・共有・「…」（A1）", () => {
-    it("3つとも上の列にあり、当たりは 44px・写真の上ではガラスの丸（黒 55%＋ぼかし）", async () => {
-        render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
+// 2026-10-31 束 1 P1: iOS は写真の上に戻る・「…」の2つだけ（共有は「…」の中と操作の段へ）。共通の `GLASS_BTN`。
+// スマホではサイトの見出しを外し、写真を画面の上端から（`data-chromeless-phone`・globals.css）
+describe("写真ページ: 写真の上の戻る・「…」（A1・束 1 P1）", () => {
+    it("2つとも上の列にあり、当たりは 44px・写真の上ではガラスの丸（黒 55%＋ぼかし）。共有の丸は置かない", async () => {
+        const { container } = render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
         await screen.findByText("朝の湖");
         const bar = screen.getByTestId("photo-top-bar");
         // スマホは写真に重ねる（行のぶん写真を下げない）、PC は今までどおり行
         expect(bar.className).toMatch(/(^| )absolute( |$)/);
         expect(bar.className).toContain("lg:static");
-        for (const name of ["ギャラリーに戻る", "共有", "その他"]) {
-            const el = screen.getByRole(name === "ギャラリーに戻る" ? "link" : "button", { name });
-            expect(bar.contains(el), name).toBe(true);
-            expect(el.style.width, name).toBe("44px");
-            expect(el.style.height, name).toBe("44px");
-            expect(el.className, name).toContain("bg-black/55");
-            expect(el.className, name).toContain("backdrop-blur");
-            expect(el.className, name).toContain("pointer-events-auto");
+        for (const el of [screen.getByRole("link", { name: "ギャラリーに戻る" }), screen.getByRole("button", { name: "その他" })]) {
+            expect(bar.contains(el)).toBe(true);
+            expect(el.className).toContain("w-[44px]");
+            expect(el.className).toContain("h-[44px]");
+            expect(el.className).toContain("bg-black/55");
+            expect(el.className).toContain("backdrop-blur");
+            expect(el.className).toContain("pointer-events-auto");
         }
+        expect(bar.querySelector("button[aria-label='共有']"), "共有の丸は「…」の中へ").toBeNull();
+        expect(container.querySelector("main[data-chromeless-phone]"), "スマホでサイトの見出しを外す印").toBeTruthy();
     });
 
     it("写真の上の端に黒のぼかしを敷く（スマホだけ・押せない飾り）", async () => {
@@ -105,7 +108,11 @@ describe("写真ページ: 撮影日の1行（A6）", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
         const stamp = await screen.findByTestId("photo-shot-stamp");
         expect(stamp.textContent).toBe("2024.05.12");
-        expect(stamp.className).toContain("tabular-nums");
+        // 題の下の1行（13・text-3・等幅の数字・束 1 P4）
+        const line = stamp.closest("p")!;
+        expect(line.className).toContain("tabular-nums");
+        expect(line.className).toContain("text-text-3");
+        expect(line.style.fontSize).toBe("13px");
     });
 
     it("EXIF の撮影時刻が同じ日なら「 · 18:24」を足す", async () => {

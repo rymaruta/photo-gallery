@@ -21,13 +21,11 @@ describe("C4 切り替え（文字の札）", () => {
         expect(TAB_ROW).toContain("border-line");
         expect(TAB_ROW).not.toContain("flex-1");
     });
-    it("写真の詳細のコメント／関連写真は 2 等分の札ではなく共通の札", () => {
+    // 2026-10-31 束 1 P11: 写真の詳細はコメントと関連写真の切り替えそのものをやめ、縦に節で並べた（iOS と同じ）
+    it("写真の詳細はコメント／関連写真の切り替えを持たない（2 等分の札にも戻さない）", () => {
         const src = read("app/photo/[id]/PhotoPageClient.tsx");
-        const at = src.indexOf('id={`photo-tab-${tab.key}`}');
-        const block = src.slice(at - 300, at + 700);
-        expect(block).toContain("TAB_BASE");
-        expect(block).not.toContain("flex-1 pb-2.5");
-        expect(src).toMatch(/className=\{TAB_ROW\}/);
+        expect(src).not.toContain('role="tablist"');
+        expect(src).not.toContain("flex-1 pb-2.5");
     });
     it("ホームと人のページの札も共通の字（TAB_BASE）を使う", () => {
         expect(read("app/GalleryPageClient.tsx")).toContain("${TAB_BASE} ${active ? TAB_ON : TAB_OFF}");
@@ -56,7 +54,7 @@ describe("C5 チップ", () => {
     });
     it.each([
         "app/components/FilterBar.tsx", "app/components/SpotIndexClient.tsx", "app/components/DiscoverRail.tsx",
-        "app/components/SpotAreaIndexClient.tsx", "app/search/DiscoverSections.tsx", "app/photo/[id]/PhotoPageClient.tsx",
+        "app/components/SpotAreaIndexClient.tsx", "app/photo/[id]/PhotoPageClient.tsx",
         "app/components/NotificationsBell.tsx",
     ])("%s のチップは当たり 44（CHIP_HIT）を持つ", (f) => {
         expect(read(f)).toContain("${CHIP_HIT}");

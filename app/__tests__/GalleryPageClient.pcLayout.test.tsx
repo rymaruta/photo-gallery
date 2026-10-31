@@ -136,19 +136,23 @@ describe("PC の設計（指示書 4・11・17）", () => {
     });
 
     describe("さがす", () => {
-        it("🔴 PC では絞り込みが左の柱になり、画面に貼り付く", () => {
+        // 2026-10-31 束 1 W7（PC の幅の決まり）: 左の絞り込みの柱をやめ、電話と同じ 1 列の順（検索欄 → 対象 → 節 → 結果）
+        it("🔴 PC でも左の柱を置かず、電話と同じ 1 列の順（検索欄 → 対象のチップ → 結果）", () => {
             const { container } = render(<GalleryPageClient surface="search" />);
-            const bar = container.querySelector("main section")!;      // FilterBar
-            const rail = bar.parentElement!;
-            expect(rail.className, "絞り込みが貼り付かない＝結果を送ると画面から消える").toContain("lg:sticky");
-            expect(rail.parentElement!.className, "PC の2カラムになっていない").toContain("lg:grid");
+            const surface = screen.getByTestId("search-surface");
+            expect(surface.className).not.toMatch(/lg:grid/);
+            expect(container.querySelector(".lg\\:sticky")).toBeNull();
+            const field = screen.getByRole("searchbox");
+            const scope = screen.getByTestId("search-scope");
+            const head = screen.getByTestId("search-results-head");
+            expect(field.compareDocumentPosition(scope) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(scope.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
 
-        it("🔴 グリッドの `sizes` と列数は対で「さがす」用のものを渡す", () => {
+        it("🔴 グリッドの `sizes` と列数は対で「さがす」用のものを渡す（電話 2 列 → 768 で 3 → 1024 で 4・W3）", () => {
             render(<GalleryPageClient surface="search" />);
-            // 柱のぶん PC でも3列のまま（4列にすると 1024px で1セルがスマホより小さくなる）
-            expect(gridProps.columns, "列数を渡していない").toBe("grid-cols-2 sm:grid-cols-3");
-            expect(gridProps.sizes, "容器が変わったのに `sizes` が据え置き").toContain("16.58333rem");
+            expect(gridProps.columns, "列数を渡していない").toBe("grid-cols-2 md:grid-cols-3 lg:grid-cols-4");
+            expect(gridProps.sizes, "容器が変わったのに `sizes` が据え置き").toContain("264.5px");
         });
 
         it("🔴 PC だけ箱を広げる（ヘッダーとずらしすぎない）", () => {

@@ -57,6 +57,11 @@ type Props = {
      */
     priorityCount?: number;
     /**
+     * **「さがす」の写真の札**（iOS の `SearchGrid`・2026-10-31 束 1 S9）: 縦 3:4・角 14・隙間 10。
+     * 題・撮影地の帯はそのまま。既定（4:3・角なし・隙間 4/6）は他の画面の形
+     */
+    searchTiles?: boolean;
+    /**
      * `<picture>` の `sizes`。**画面の容器ごとに違うので呼ぶ側が必ず渡す。**
      *
      * **既定値は置かない。** 置くと、容器の違う画面に足したときに黙って
@@ -128,6 +133,7 @@ export default function GalleryGrid({
     columnsClassName = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
     layout = "grid",
     heroSizes,
+    searchTiles = false,
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
@@ -170,13 +176,15 @@ export default function GalleryGrid({
         <>
         {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更）。
             `editorial` は iOS の `PhotoGrid`: 端の余白 10（本文の 16 から 6 戻す）・隙間 10。
-            768px 以上は4列で、大きい1枚（2×2）の右に2枚の段を2つ詰める（`grid-flow-dense`） */}
+            768px 以上は4列で、大きい1枚（2×2）の右に2枚の段を2つ詰める（`grid-flow-dense`）。
+            「さがす」（`searchTiles`）は隙間 10 の格子（束 1 S9） */}
         <div
             className={editorial
                 ? "grid grid-cols-2 md:grid-cols-4 md:grid-flow-dense -mx-[6px] md:mx-0"
-                : `grid ${columnsClassName} gap-1 sm:gap-1.5`}
+                : `grid ${columnsClassName} ${searchTiles ? "gap-2.5" : "gap-1 sm:gap-1.5"}`}
             style={editorial ? { gap: EDITORIAL_GAP } : undefined}
             data-layout={layout}
+            data-tiles={searchTiles ? "search" : undefined}
         >
             {shown.map((p, idx) => {
                 // 題が無ければ空。サーバーが入れていた「無題」も題として扱わない（`photoTitle.ts`）
@@ -204,6 +212,7 @@ export default function GalleryGrid({
                         openInPlace={openInPlace}
                         priorityCount={priorityCount}
                         sizes={large?.has(idx) ? (heroSizes ?? sizes) : sizes}
+                        searchTiles={searchTiles}
                         tile={large ? (large.has(idx) ? "hero" : "pair") : "grid"}
                         lead={editorial && idx === 0}
                         locale={locale}
@@ -231,6 +240,7 @@ const GalleryItem = React.memo(function GalleryItem({
     openInPlace,
     priorityCount,
     sizes,
+    searchTiles = false,
     tile = "grid",
     lead = false,
     locale = "ja",
@@ -246,6 +256,7 @@ const GalleryItem = React.memo(function GalleryItem({
     openInPlace?: boolean;
     priorityCount?: number;
     sizes: string;
+    searchTiles?: boolean;
     /** 札の形: `grid` … 4:3 の格子、`hero` … 大きい1枚（16:10・PC は 2×2）、`pair` … 2枚の段の1枚（1:1） */
     tile?: "grid" | "hero" | "pair";
     /** 先頭の1枚に撮影地・@撮った人・いいねを重ねる（iOS の `LeadCaption`・板 12） */
@@ -344,8 +355,8 @@ const GalleryItem = React.memo(function GalleryItem({
                 data-photo-id={photo.id}
             >
                 <div
-                    className="relative w-full overflow-hidden"
-                    style={{ paddingTop: "75%", backgroundColor: placeholderColor, fontSize: 0, lineHeight: 0 }}
+                    className={`relative w-full overflow-hidden ${searchTiles ? "rounded-xl" : ""}`}
+                    style={{ paddingTop: searchTiles ? "133.333%" : "75%", backgroundColor: placeholderColor, fontSize: 0, lineHeight: 0 }}
                 >
                     <div className="absolute inset-0" aria-hidden={true} />
 
@@ -357,7 +368,7 @@ const GalleryItem = React.memo(function GalleryItem({
                         priority={isPriority}
                         objectPosition={objectPosition}
                         // マスは 4:3（上の paddingTop: 75%）
-                        cellAspect={4 / 3}
+                        cellAspect={searchTiles ? 3 / 4 : 4 / 3}
                     />
 
                                 {/* お気に入りアイコン */}
