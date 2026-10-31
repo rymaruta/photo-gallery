@@ -35,16 +35,21 @@ const SEASON_LABEL = {
  * 読めば数千件の JSON がトップの JS に乗る。並べる数件は**ビルド時にサーバーが選んで**
  * （`homeSeasonalSpots`・`app/page.tsx`）名前・場所・写真の場所だけを props で渡す。
  */
-export default function SpotsEntry({ locale, seasonal = null }: { locale: "ja" | "en"; seasonal?: HomeSeasonal | null }) {
+export default function SpotsEntry({ locale, seasonal = null, showRow = true }: {
+    locale: "ja" | "en";
+    seasonal?: HomeSeasonal | null;
+    /** 入口の行を出すか。ホームは上段の札（`HomeTopCards`）が撮影スポットの入口を持つので false（2026-10-31 束 1 H2） */
+    showRow?: boolean;
+}) {
     const en = locale === "en";
     return (
         <>
-            <HomeEntryRow
+            {showRow && <HomeEntryRow
                 href={ROUTES.SPOTS}
                 testId="home-spots-entry"
                 eyebrow={en ? "Photo spots" : "撮影スポット"}
                 text={en ? "Guides to places worth shooting" : "撮りに行ける場所のガイド"}
-            />
+            />}
             {seasonal && seasonal.spots.length > 0 && (
                 <section className="mb-3" aria-labelledby="home-season-spots" data-testid="home-season-spots">
                     {/* 見出しの行は置かない（高さを食う）。見出しは読み上げ用に残し、見た目は並びの先頭の札が兼ねる */}

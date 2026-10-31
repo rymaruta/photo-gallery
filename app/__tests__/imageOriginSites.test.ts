@@ -127,6 +127,10 @@ const EXEMPT: Array<[string, string, string]> = [
      "切り口の頁（国・テーマ・季節・2026-10-11）のカードの代表写真。`SpotGuideClient` と同じ値"
      + "（`spotCoverImage`）のサイト内のパスかそのサムネ（`/images/spots/thumb/…`）。"
      + "利用者が上げた写真ではない。サーバー側（`lib/data/spotTopics.ts`）で解いた形から受け取る"],
+    ["app/components/HomeTopCards.tsx", "imageUrl",
+     "ホームの上段の札（2026-10-31 束 1 H2）の写真。今日の一問の写真（`quiz.photo.thumbUrl`／`url`＝下の "
+     + "`DailyQuizClient` と同じ値）と、いまの季節の撮影スポットの1件目（`SpotsEntry` の `s.src` と同じ値）だけ。"
+     + "**利用者が上げた写真ではない**（テーマの札の写真は `Thumb` を通す）"],
     ["app/components/SpotsEntry.tsx", "s.src",
      "ホームの「いまの季節の撮影スポット」の写真。上と同じ値（`homeSeasonalSpots`）で、"
      + "ビルド時にサーバーが選んで props で渡す。利用者が上げた写真ではない"],

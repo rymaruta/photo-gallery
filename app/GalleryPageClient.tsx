@@ -22,8 +22,7 @@ import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
 import HomeMosaic from "./components/HomeMosaic";
 import { EmptyState } from "./components/StateViews";
-import QuizEntry from "./components/QuizEntry";
-import ThemeEntry from "./components/ThemeEntry";
+import HomeTopCards from "./components/HomeTopCards";
 import SpotsEntry from "./components/SpotsEntry";
 import type { HomeSeasonal } from "../lib/data/spotTopics";
 import { useMySaves } from "../lib/hooks/useMySaves";
@@ -655,12 +654,11 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
         </div>
       )}
 
-      {/* 今日の一問への入口（1行・タブの直下＝どのタブでも同じ位置）。`QuizEntry` の注記 */}
-      {surface === "home" && <QuizEntry locale={locale === "en" ? "en" : "ja"} />}
-      {/* 撮影スポットのガイドへの入口（同じ1行の形・一問の直下）。`SpotsEntry` の注記 */}
-      {surface === "home" && <SpotsEntry locale={locale === "en" ? "en" : "ja"} seasonal={seasonalSpots} />}
-      {/* 今日のテーマ（同じ1行の形・撮影スポットの直下）。`ThemeEntry` の注記 */}
-      {surface === "home" && <ThemeEntry locale={locale === "en" ? "en" : "ja"} />}
+      {/* **上段のめくる札**（今日のテーマ・今日の一問・撮影スポット・2026-10-31 束 1 H2・iOS の `HomeTopCardView`）。
+          タブの直下＝どのタブでも同じ位置。以前は文字だけの帯 3 本（`QuizEntry`・`SpotsEntry`・`ThemeEntry`） */}
+      {surface === "home" && <HomeTopCards locale={locale === "en" ? "en" : "ja"} photos={PHOTOS} seasonal={seasonalSpots} />}
+      {/* いまの季節の撮影スポットの段（iOS の #417 ④⑤⑥ が出るまで今の形・束 5）。帯の行は上の札へ移した */}
+      {surface === "home" && <SpotsEntry locale={locale === "en" ? "en" : "ja"} seasonal={seasonalSpots} showRow={false} />}
 
       {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
