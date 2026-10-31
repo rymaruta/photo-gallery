@@ -88,6 +88,10 @@ describe("GA4 は描画のあと", () => {
         expect(seen.length).toBe(2);
         expect(seen.map((s) => s.strategy)).toEqual(["lazyOnload", "lazyOnload"]);
         expect(seen[0].src).toContain("googletagmanager.com/gtag/js?id=G-TEST");
+        // 初期化の行は、読み込み前に押された「行きたい」・登録のイベントも送る（#432・`lib/utils/analytics.ts`）
+        const init = String((seen[1] as { children?: unknown }).children);
+        expect(init).toContain("gtag('config','G-TEST')");
+        expect(init.indexOf("__jpq")).toBeGreaterThan(init.indexOf("gtag('config'"));
     });
 });
 

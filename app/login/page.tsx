@@ -9,6 +9,7 @@ import { forgotPassword, confirmForgotPassword, PASSWORD_RULE_MESSAGE } from "..
 import { userFetch } from "../../lib/utils/api";
 import { ROUTES, safeNextPath } from "../../lib/routes";
 import { pendingNameKey } from "../../lib/utils/pendingName";
+import { WISH_VIA } from "../../lib/utils/analytics";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { BTN_FILL } from "../components/buttonStyles";
 
@@ -24,6 +25,14 @@ function LoginForm() {
     // 受け取るのはサイト内の絶対パスだけ（safeNextPath がオープン
     // リダイレクトを塞ぐ）。無ければ従来どおり自分のプロフィールへ。
     const nextPath = safeNextPath(searchParams?.get("next"));
+    // 「行きたい」から来た印（`via=wish`）を新規登録へ運ぶ（登録までの数え方・#432）。
+    // 決まった値だけ通す
+    const viaWish = searchParams?.get("via") === WISH_VIA;
+    const signupQuery = [
+        nextPath ? `next=${encodeURIComponent(nextPath)}` : "",
+        viaWish ? `via=${WISH_VIA}` : "",
+    ].filter(Boolean).join("&");
+    const signupHref = signupQuery ? `/signup?${signupQuery}` : "/signup";
     const { login, isAuthenticated, loading, userId } = useAuth();
     const { showToast } = useToast();
 
@@ -283,7 +292,7 @@ function LoginForm() {
                                 共有リンクから来た未登録の人は、ここを押した
                                 時点で行き先を失う（登録を終えると自分の空
                                 プロフィールに着地する） */}
-                            <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} prefetch={false} className="text-white/60 hover:text-white underline transition-colors">
+                            <Link href={signupHref} prefetch={false} className="text-white/60 hover:text-white underline transition-colors">
                                 新規登録
                             </Link>
                         </p>

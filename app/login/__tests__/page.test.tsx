@@ -110,6 +110,18 @@ describe("LoginPage - 基本フロー", () => {
         expect(screen.getByRole("link", { name: "新規登録" })).toHaveAttribute("href", "/signup");
     });
 
+    // 「行きたい」から来た印を登録の画面へ運ぶ（登録までの数え方・journey.photo-ios#432）
+    it("via=wish は新規登録のリンクにも付ける。決まった値以外は運ばない", () => {
+        mockSearchParams = new URLSearchParams("next=%2Fspots%2Fa&via=wish");
+        const { unmount } = render(<LoginPage />);
+        expect(screen.getByRole("link", { name: "新規登録" }))
+            .toHaveAttribute("href", `/signup?next=${encodeURIComponent("/spots/a")}&via=wish`);
+        unmount();
+        mockSearchParams = new URLSearchParams("via=%3Cx%3E");
+        render(<LoginPage />);
+        expect(screen.getByRole("link", { name: "新規登録" })).toHaveAttribute("href", "/signup");
+    });
+
     it("verifiedパラメータがないときバナーは表示されない", () => {
         render(<LoginPage />);
         expect(screen.queryByText(/メールアドレスの確認が完了しました/)).not.toBeInTheDocument();

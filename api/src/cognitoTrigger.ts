@@ -13,8 +13,30 @@ type PostConfirmationEvent = {
     userPoolId: string;
     userName: string;
     region: string;
-    request?: { userAttributes?: Record<string, string> };
+    request?: { userAttributes?: Record<string, string>; clientMetadata?: Record<string, string> };
 };
+
+/** ログに出してよい値（決まった値だけ。ClientMetadata は利用者の端末が送るので、そのまま出さない） */
+const SIGNUP_PLATFORMS = new Set(["web", "ios"]);
+const SIGNUP_FROMS = new Set(["wish", "other"]);
+
+/**
+ * 登録が1件済んだことを、JSON 1行でログに出す（登録までの数え方・journey.photo-ios#432・2026-10-31）。
+ *
+ * 数え方（CloudWatch Logs Insights）は `docs/signup-funnel.md`。
+ * **uid・メール・userName は出さない。** 出すのは出どころ（platform・from）だけ。
+ * 値は上の決まった値に丸める——知らない値は `unknown`（iOS は今 ClientMetadata を渡していない）。
+ * Web の GA4 の `sign_up` は広告の遮断などで漏れるので、正しい数はこちら
+ */
+export function signupMetricLine(clientMetadata: Record<string, string> | undefined): string {
+    const platform = clientMetadata?.platform;
+    const from = clientMetadata?.from;
+    return JSON.stringify({
+        metric: "signup",
+        platform: platform && SIGNUP_PLATFORMS.has(platform) ? platform : "unknown",
+        from: from && SIGNUP_FROMS.has(from) ? from : "unknown",
+    });
+}
 
 /**
  * 登録完了と同時にプロフィール行を作る。
@@ -107,6 +129,11 @@ export const postConfirmation = async (event: PostConfirmationEvent): Promise<Po
     if (event.triggerSource !== "PostConfirmation_ConfirmSignUp") {
         return event;
     }
+
+    // 登録の数（この回だけ＝パスワードの再設定 `PostConfirmation_ConfirmForgotPassword` は数えない）
+    try {
+        console.log(signupMetricLine(event.request?.clientMetadata));
+    } catch { /* 数えるのに失敗しても登録は止めない（下の注記） */ }
 
     // グループ追加もプロフィール作成も、失敗してもトリガーは成功させる。
     //
