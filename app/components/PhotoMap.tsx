@@ -41,16 +41,25 @@ type Point = GeoPoint & { photo: MapPhoto };
  * 直径より大きく取る**——小さいと隣り合うピンの絵が重なって、下のピンが
  * 押せなくなる。
  */
-const PIN_PX = 40;
-const PIN_H = 50;
+// 2026-10-31 束 2 M3: iOS の写真のピン（v2 の板 Map の `.pin`）= **44 の角丸 12 の白い札に、2 の余白で写真（角 10）**。
+// 尖りは無い（下端が座標・iOS の `Annotation` の既定）。撮影スポット（真鍮の丸）と形で見分ける
+const PIN_PX = 44;
+const PIN_H = 44;
+/** 札の中の写真（44 − 余白 2×2） */
+const PIN_IMG_PX = 40;
+/** 束の札（後ろに1枚ずらして重ねる・iOS の束）。ずらし 3 のぶん大きい */
+const CLUSTER_PX = PIN_PX + 3;
 /**
  * 公式スポットのピン。**写真のピンより小さくする**——写真が主役のサイトで、
  * 運営が置いた印が写真より大きいと主客が入れ替わる。
  * 指で押す的は Leaflet の当たり判定がアイコン全体なので、28×36 で足りる
  * （WCAG 2.5.8 の24px を超え、隣のピンとは升で離れている）。
  */
-const SPOT_PIN_PX = 28;
-const SPOT_PIN_H = 36;
+// 2026-10-31 束 2 M3: iOS の `SpotMapMarker`。写真の無いスポットは **真鍮の丸 32 に墨のカメラの印・白92%の縁 2**、
+// 代表写真があれば **写真の丸 40・真鍮の縁 3**。下端が座標（尖りは無い）
+const SPOT_PIN_PX = 32;
+const SPOT_PIN_H = 32;
+const SPOT_PHOTO_PIN_PX = 40;
 const CELL_PX = 56;
 /**
  * 公式スポットの束の升（px）。**束の丸（36px）の2倍ほど**にする——束は升の中の重心に
@@ -58,6 +67,9 @@ const CELL_PX = 56;
  * 数字が重なって読めなかった・実ブラウザの絵で確認）
  */
 const SPOT_CELL_PX = 72;
+
+/** 撮影スポットのピンのカメラの印（墨・14・飾りなので読み上げから外す）。固定の文字列で、利用者の入力は入らない */
+const SPOT_CAMERA_SVG = '<svg class="spot-map-pin__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 9a3.75 3.75 0 1 0 0 7.5A3.75 3.75 0 0 0 12 9Z"/><path fill-rule="evenodd" d="M9.344 3.071a49.52 49.52 0 0 1 5.312 0c.967.052 1.83.585 2.332 1.39l.821 1.317c.24.383.645.643 1.11.71.386.054.77.113 1.152.177 1.432.239 2.429 1.493 2.429 2.909V18a3 3 0 0 1-3 3h-15a3 3 0 0 1-3-3V9.574c0-1.416.997-2.67 2.429-2.909.382-.064.766-.123 1.151-.178a1.56 1.56 0 0 0 1.11-.71l.822-1.315a2.942 2.942 0 0 1 2.332-1.39ZM6.75 12.75a5.25 5.25 0 1 1 10.5 0 5.25 5.25 0 0 1-10.5 0Zm12-1.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd"/></svg>';
 
 /** 「現在地」で寄るズーム。写真の座標は約1km に丸めてあるので、これ以上寄せない */
 const LOCATE_ZOOM = 12;
@@ -259,15 +271,32 @@ export default function PhotoMap({
                     img.decoding = "async";
                     // **px を書く。** Leaflet の `width: auto` が効くと、読み込み前は
                     // 幅0・読み込み後は元画像の幅（256px）になり、ピンが化ける
-                    img.width = PIN_PX;
-                    img.height = PIN_PX;
-                    // 読めなかったら壊れた画像の枠を出さない（丸だけ残す）
+                    img.width = PIN_IMG_PX;
+                    img.height = PIN_IMG_PX;
+                    // 読めなかったら壊れた画像の枠を出さない（白い札だけ残す）
                     img.addEventListener("error", () => { img.remove(); }, { once: true });
                     wrap.appendChild(img);
                 }
-                const tail = document.createElement("span");
-                tail.className = "photo-map-pin__tail";
-                wrap.appendChild(tail);
+                return wrap;
+            };
+
+            /**
+             * 束（同じ升にまとまった写真）の DOM（iOS の束: 後ろに白55%の札をもう1枚ずらし、
+             * 前の札に先頭の1枚、右上に件数のバッジ＝真鍮＋墨＋黒 2 の縁）。数字だけで利用者の入力は入らない
+             */
+            const clusterElement = (cover: MapPhoto, count: number): HTMLElement => {
+                const wrap = document.createElement("span");
+                wrap.className = "photo-map-cluster__stack";
+                const back = document.createElement("span");
+                back.className = "photo-map-cluster__back";
+                wrap.appendChild(back);
+                const front = pinElement(cover);
+                wrap.appendChild(front);
+                const badge = document.createElement("span");
+                badge.className = "map-count-badge";
+                badge.textContent = String(count);
+                badge.setAttribute("aria-hidden", "true");
+                wrap.appendChild(badge);
                 return wrap;
             };
 
@@ -303,9 +332,9 @@ export default function PhotoMap({
                         marker.addTo(layer);
                     } else {
                         const icon = L.divIcon({
-                            html: `<span>${c.items.length}</span>`,   // 数字だけ（利用者の入力は入らない）
+                            html: clusterElement(c.items[0].photo, c.items.length),
                             className: "photo-map-cluster",
-                            iconSize: [34, 34],
+                            iconSize: [CLUSTER_PX, CLUSTER_PX],
                         });
                         const marker = L.marker([c.lat, c.lng], {
                             icon,
@@ -361,23 +390,37 @@ export default function PhotoMap({
                     const el = document.createElement("span");
                     el.className = "spot-map-pin";
                     if (sp.slug === selectedSpotRef.current) el.classList.add("is-selected");
-                    // **中身は印だけ。** 利用者の入力は入らない（名前は
+                    // **中身は写真か印だけ。** 利用者の入力は入らない（名前は
                     // marker の `title` / `alt` が持つ＝読み上げにも届く）
-                    const dot = document.createElement("span");
-                    dot.className = "spot-map-pin__dot";
-                    dot.setAttribute("aria-hidden", "true");
-                    el.appendChild(dot);
+                    const coverSrc = sp.cover?.src;
+                    if (coverSrc) {
+                        el.classList.add("has-photo");
+                        const img = document.createElement("img");
+                        img.className = "spot-map-pin__img";
+                        img.src = coverSrc;
+                        img.alt = "";
+                        img.decoding = "async";
+                        img.loading = "lazy";
+                        img.width = SPOT_PHOTO_PIN_PX;
+                        img.height = SPOT_PHOTO_PIN_PX;
+                        // 読めなかったら真鍮の地だけ残す（iOS も読めなければ真鍮の地が見える）
+                        img.addEventListener("error", () => { img.remove(); }, { once: true });
+                        el.appendChild(img);
+                    } else {
+                        // カメラの印（iOS の `camera.fill`）。線ではなく塗りの絵
+                        el.insertAdjacentHTML("beforeend", SPOT_CAMERA_SVG);
+                    }
                     spotElsRef.current.set(sp.slug, el);
                     // 「公式」は人が確かめた行だけ（`stage`）。下書きはそう名乗る
                     const label = sp.stage === "published"
-                        ? (en ? `${sp.name} (official spot)` : `${sp.name}（公式撮影スポット）`)
+                        ? (en ? `${sp.name} (photo spot)` : `${sp.name}（撮影スポット）`)
                         : (en ? `${sp.name} (spot, draft)` : `${sp.name}（撮影スポット・下書き）`);
                     const marker = L.marker([sp.lat, sp.lng], {
                         icon: L.divIcon({
                             html: el,
                             className: "spot-map-pin-icon",
-                            iconSize: [SPOT_PIN_PX, SPOT_PIN_H],
-                            iconAnchor: [SPOT_PIN_PX / 2, SPOT_PIN_H],
+                            iconSize: coverSrc ? [SPOT_PHOTO_PIN_PX, SPOT_PHOTO_PIN_PX] : [SPOT_PIN_PX, SPOT_PIN_H],
+                            iconAnchor: coverSrc ? [SPOT_PHOTO_PIN_PX / 2, SPOT_PHOTO_PIN_PX] : [SPOT_PIN_PX / 2, SPOT_PIN_H],
                         }),
                         title: label,
                         alt: label,

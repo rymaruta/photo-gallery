@@ -123,6 +123,9 @@ const EXEMPT: Array<[string, string, string]> = [
      + "（`topicCardCover`＝`spotCoverImage` のサイト内のパスかそのサムネ・2026-10-22）。"
      + "利用者が上げた写真ではない。台帳をクライアントに載せないため"
      + "サーバー側（`lib/data/spotLink.ts` の `spotIndexItemsForArea`）で解いた形から受け取る"],
+    ["app/components/PhotoMap.tsx", "coverSrc",
+     "地図の撮影スポットのピンの写真の丸（iOS の `SpotMapMarker`・2026-10-31 束 2）。`MapSpotList` の行と同じ値"
+     + "（`SpotPin.cover.src`）で、利用者が上げた写真ではない。サーバー側（`lib/data/spotLink.ts` の `spotPins`）で解いた形から受け取る"],
     ["app/components/SpotTopicLists.tsx", "c.cover.src",
      "切り口の頁（国・テーマ・季節・2026-10-11）のカードの代表写真。`SpotGuideClient` と同じ値"
      + "（`spotCoverImage`）のサイト内のパスかそのサムネ（`/images/spots/thumb/…`）。"

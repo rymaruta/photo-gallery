@@ -63,16 +63,19 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
                 const secondary = location ? title : "";
                 const thumb = p.thumbSm || p.thumbSrc || p.src;
                 return (
-                    <li key={p.id} style={{ marginBottom: "8px" }}>
+                    <li key={p.id}>
+                        {/* 行の形は撮影スポットの行と同じ（iOS の板 MapList: 黒地に直に・下に白8%の線・高さ 64・2026-10-31 束 2 M2）。
+                            写真は地図の写真のピンと同じ角丸の四角（角 10）。以前は面の札（角 16）に 56 の写真 */}
                         <Link
                             href={ROUTES.PHOTO(p.id)}
                             prefetch={false}
-                            className="flex items-center rounded-2xl bg-surface-2/70 ring-1 ring-line hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                            style={{ gap: "12px", padding: "8px" }}
+                            className="flex items-center min-h-[64px] py-3 border-b border-line hover:bg-white/5 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                            style={{ gap: "12px" }}
+                            data-testid="map-photo-row"
                         >
                             <span
-                                className="flex-shrink-0 block overflow-hidden rounded-xl bg-surface"
-                                style={{ width: "56px", height: "56px" }}
+                                className="flex-shrink-0 block overflow-hidden bg-surface"
+                                style={{ width: "48px", height: "48px", borderRadius: "10px" }}
                             >
                                 {thumb && (
                                     // 出す URL はサイトのドメインに揃える（`Thumb` と同じ理由）。
@@ -81,8 +84,8 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
                                     <img
                                         src={publicImageUrl(thumb)}
                                         alt=""
-                                        width={56}
-                                        height={56}
+                                        width={48}
+                                        height={48}
                                         loading="lazy"
                                         decoding="async"
                                         className="w-full h-full object-cover"
@@ -90,7 +93,7 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
                                 )}
                             </span>
                             <span className="min-w-0 flex-1">
-                                <span className="flex items-center text-white truncate" style={{ gap: "4px", fontSize: "14px", lineHeight: "20px" }}>
+                                <span className="flex items-center text-white font-semibold truncate" style={{ gap: "4px", fontSize: "15px", lineHeight: "20px" }}>
                                     {location && <MapPinIcon aria-hidden="true" className="flex-shrink-0 text-accent" style={{ width: "14px", height: "14px" }} />}
                                     <span className="truncate">{primary}</span>
                                 </span>
@@ -107,7 +110,7 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
                                     </span>
                                 )}
                             </span>
-                            <ChevronRightIcon aria-hidden="true" className="flex-shrink-0 text-white/50" style={{ width: "18px", height: "18px" }} />
+                            <ChevronRightIcon aria-hidden="true" className="flex-shrink-0 text-text-3" style={{ width: "14px", height: "14px", strokeWidth: 2 }} />
                         </Link>
                     </li>
                 );
