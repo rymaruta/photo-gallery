@@ -65,10 +65,11 @@ describe("下線の札（v2）", () => {
         const want = await screen.findByRole("link", { name: "行きたい場所" });
         expect(want.getAttribute("href")).toBe("/saved-spots");
         expect(screen.getByRole("link", { name: "保存" }).getAttribute("href")).toBe("/saves");
-        // tablist の中に入れない＝タブは 投稿・年表・旅 の3つのまま（旅は 2026-10-21）
+        // tablist の中に入れない＝タブは 投稿・マップ・年表・旅（旅は 2026-10-21・マップは 2026-10-31 束 1 の確かめ:
+        // 訪れた場所のチップを外したので、本人が自分の撮影地を見る手立てを残す）
         const tablist = screen.getByRole("tablist");
         expect(tablist.contains(want)).toBe(false);
-        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["投稿", "年表", "旅"]);
+        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["投稿", "マップ", "年表", "旅"]);
         // 押せる高さ 44
         expect(want.style.height).toBe("44px");
     });
@@ -94,14 +95,16 @@ describe("下線の札（v2）", () => {
 });
 
 describe("写真の格子（v2）", () => {
-    it("3列・すき間 2px・縦長 4:5（広い画面でも4列にしない）", async () => {
+    // 2026-10-31 束 1 W3: PC の幅の決まり（1024 以上 4 列・1440 以上 5 列）。字・隙間・4:5 は電話と同じ
+    it("3列・すき間 2px・縦長 4:5、PC は 4 列（1024〜）・5 列（1440〜）", async () => {
         render(<UserProfileClient userId={OWNER} />);
         const panel = document.getElementById("profile-panel-posts")!;
         await screen.findAllByRole("link", { name: /^a/ });
         const grid = panel.querySelector(".grid") as HTMLElement;
         expect(grid.className).toContain("grid-cols-3");
         expect(grid.className).toContain("gap-[2px]");
-        expect(grid.className).not.toMatch(/lg:grid-cols-4/);
+        expect(grid.className).toContain("lg:grid-cols-4");
+        expect(grid.className).toContain("min-[1440px]:grid-cols-5");
         const tile = grid.firstElementChild as HTMLElement;
         expect(tile.style.paddingTop, "4:5 になっていない").toBe("125%");
     });

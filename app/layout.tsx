@@ -250,6 +250,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   以前は 70% の地＋ぼかし＋上からの白いにじみだったが、iOS は透けない黒 */}
               <header
                 className="sticky top-0 z-50 bg-bar"
+                // 写真の詳細・人のページはスマホでこの見出しを外す（`globals.css` の `data-chromeless-phone`）
+                data-site-header=""
                 // 下の線は引かない（2026-10-30 束 0b C2・iOS のバーは線なし）
                 // **ホーム画面から起動したとき、時計・電池の帯のぶんを上に空ける。**
                 // `statusBarStyle: "black-translucent"` でページが帯の下まで広がるので、

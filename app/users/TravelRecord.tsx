@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { arcControls, countriesLine, routeShape, type LatLng } from "../../lib/utils/travelRoute";
 import { STAT_FIGURE_LARGE_PX } from "../components/statCellStyle";
 
@@ -196,74 +197,92 @@ export default function TravelRecord({ distanceKm, countries, coordinates, first
         href ? (isJa ? "撮影地マップを開く" : "Open the photo map") : null,
     ].filter(Boolean).join(isJa ? "。" : ". ");
 
-    const body = (
-        <>
-            {/* 眉ラベル（`eyebrow`）。右へ消える真鍮の線（55% → 0）の後ろに「◯年から」を置くので、線は `eyebrow-line` ではなく手で置く */}
-            <span className="flex items-center gap-2.5 eyebrow text-accent">
-                <span className="flex-shrink-0">{isJa ? "旅の記録" : "TRAVEL LOG"}</span>
-                <span aria-hidden="true" className="flex-1 h-px"
-                      style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 55%, transparent), transparent)" }} />
-                {firstYear !== null && (
-                    <span className="flex-shrink-0 normal-case text-white/60 tabular-nums" style={{ fontSize: "12px", fontWeight: 500, letterSpacing: "0.04em" }}>
-                        {isJa ? `${firstYear} 年から` : `Since ${firstYear}`}
-                    </span>
-                )}
-            </span>
+    // 束 1 U5（iOS の `TravelRecordSection.routeStartsFolded`）: **線の絵は畳んで始める**。眉の右の「線を見る ⌄」で開く。
+    // 以前は開いたまま（高さ約 120）で、写真の格子が 2 画面目まで下がっていた
+    const [routeOpen, setRouteOpen] = useState(false);
+    const hasRoute = km !== null && coordinates.length >= 2;
 
-            <span className="mt-3 flex items-start justify-between gap-3">
-                {km !== null ? (
-                    <span className="min-w-0" data-testid="travel-distance">
-                        <span className="block leading-none whitespace-nowrap">
-                            <span className="tabular-nums" style={{ fontSize: `${STAT_FIGURE_LARGE_PX}px`, fontWeight: 600, letterSpacing: "-0.02em" }}>{km}</span>
-                            <span className="text-white/60" style={{ fontSize: "13px", marginLeft: "3px" }}>km</span>
-                        </span>
-                        <span className="block mt-1.5 text-white/60" style={{ fontSize: "12px" }}>
-                            {isJa ? "写真をつないだ距離" : "Distance between photos"}
-                        </span>
-                    </span>
-                ) : <span />}
-                {countries.length > 0 && (
-                    <span className="min-w-0 text-right" data-testid="travel-countries">
-                        <span className="block leading-none tabular-nums" style={{ fontSize: "20px", fontWeight: 600, paddingTop: "8px" }}>{countries.length}</span>
-                        <span className="block mt-1.5 text-white/60" style={{ fontSize: "12px" }}>
-                            {isJa ? "か国・地域" : countries.length === 1 ? "country or region" : "countries & regions"}
-                        </span>
-                        <span className="block truncate text-white/60" style={{ fontSize: "12px", maxWidth: "12rem" }}>
-                            {countriesLine(countries, isJa)}
-                        </span>
-                    </span>
-                )}
-            </span>
-
-            {km !== null && (
-                <span className="block mt-3">
-                    <TravelRoute coordinates={coordinates} />
+    // 眉ラベル（`eyebrow`）。右へ消える真鍮の線（55% → 0）の後ろに「◯年から」と開け閉めを置くので、線は手で置く
+    const eyebrow = (
+        <span className="flex items-center gap-2.5">
+            <span aria-hidden="true" className="flex-shrink-0 eyebrow text-accent">{isJa ? "旅の記録" : "TRAVEL LOG"}</span>
+            <span aria-hidden="true" className="flex-1 h-px"
+                  style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 55%, transparent), transparent)" }} />
+            {firstYear !== null && (
+                <span aria-hidden="true" className="flex-shrink-0 text-text-3 tabular-nums" style={{ fontSize: "12px", fontWeight: 500 }}>
+                    {isJa ? `${firstYear} 年から` : `Since ${firstYear}`}
                 </span>
             )}
-        </>
+            {hasRoute && (
+                // 開け閉め（見た目は「すべて見る ›」と同じ・13・text-2・当たり 44）。真鍮にしない（合図ではなく操作）
+                <button
+                    type="button"
+                    onClick={() => setRouteOpen((v) => !v)}
+                    aria-expanded={routeOpen}
+                    aria-controls="travel-route-box"
+                    data-testid="travel-route-toggle"
+                    className="flex-shrink-0 inline-flex items-center justify-end gap-1 text-text-2 hover:text-white transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                    style={{ minHeight: "44px", minWidth: "44px", fontSize: "13px", lineHeight: "18px", touchAction: "manipulation" }}
+                >
+                    {routeOpen ? (isJa ? "畳む" : "Hide") : (isJa ? "線を見る" : "Show route")}
+                    <ChevronDownIcon aria-hidden="true" className={routeOpen ? "rotate-180" : ""} style={{ width: 12, height: 12, strokeWidth: 2 }} />
+                </button>
+            )}
+        </span>
     );
 
-    if (!href) {
-        // 押せない塊。**読み上げは1回だけ**——`role="group"` に名前を付けて中身も読ませると、
-        // 「旅の記録、写真をつないだ距離 …」の後に同じ数と字をもう一度読む（2026-10-21 判断）。
-        // まとめた1文を読ませ、見た目の字は読ませない（押せる形の Link と同じ読み方）
-        return (
-            <div data-testid="travel-record" className="block mb-5 pt-1 pb-2">
-                <span className="sr-only">{label}</span>
-                <span aria-hidden="true" className="block">{body}</span>
-            </div>
-        );
-    }
+    const figures = (
+        <span className="mt-1 flex items-start justify-between gap-3">
+            {km !== null ? (
+                <span className="min-w-0" data-testid="travel-distance">
+                    <span className="block leading-none whitespace-nowrap">
+                        <span className="tabular-nums" style={{ fontSize: `${STAT_FIGURE_LARGE_PX}px`, fontWeight: 600, letterSpacing: "-0.02em" }}>{km}</span>
+                        <span className="text-text-2" style={{ fontSize: "13px", marginLeft: "3px" }}>km</span>
+                    </span>
+                    <span className="block mt-1.5 text-text-3" style={{ fontSize: "12px" }}>
+                        {isJa ? "写真をつないだ距離" : "Distance between photos"}
+                    </span>
+                </span>
+            ) : <span />}
+            {countries.length > 0 && (
+                <span className="min-w-0 text-right" data-testid="travel-countries">
+                    <span className="block leading-none tabular-nums" style={{ fontSize: "20px", fontWeight: 600, paddingTop: "8px" }}>{countries.length}</span>
+                    <span className="block mt-1.5 text-text-3" style={{ fontSize: "12px" }}>
+                        {isJa ? "か国・地域" : countries.length === 1 ? "country or region" : "countries & regions"}
+                    </span>
+                    <span className="block truncate text-text-3" style={{ fontSize: "12px", maxWidth: "12rem" }}>
+                        {countriesLine(countries, isJa)}
+                    </span>
+                </span>
+            )}
+        </span>
+    );
+
     return (
-        <Link
-            href={href}
-            prefetch={false}
-            aria-label={label}
-            data-testid="travel-record"
-            className="block mb-5 pt-1 pb-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            style={{ touchAction: "manipulation", minHeight: "44px" }}
-        >
-            {body}
-        </Link>
+        <div data-testid="travel-record" className="block mb-5 pt-1 pb-2">
+            {eyebrow}
+            {href ? (
+                <Link
+                    href={href}
+                    prefetch={false}
+                    aria-label={label}
+                    className="block rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    style={{ touchAction: "manipulation", minHeight: "44px" }}
+                >
+                    {figures}
+                </Link>
+            ) : (
+                // 押せない塊。**読み上げは1回だけ**——まとめた1文を読ませ、見た目の字は読ませない（2026-10-21 判断）
+                <span className="block">
+                    <span className="sr-only">{label}</span>
+                    <span aria-hidden="true" className="block">{figures}</span>
+                </span>
+            )}
+            {hasRoute && (
+                <span id="travel-route-box" className="block mt-3" hidden={!routeOpen}>
+                    {routeOpen && <TravelRoute coordinates={coordinates} />}
+                </span>
+            )}
+        </div>
     );
 }

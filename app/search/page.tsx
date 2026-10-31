@@ -12,9 +12,8 @@ import GalleryPageClient from "../GalleryPageClient";
  * 無限にあり、どれも集約ページ（`/tag/*` など）と中身が重なる。
  * 構造化データも置かない（索引に入れないページなので機械向けの申告は要らない）。
  *
- * 色でさがす（Color Journey）は `GalleryPageClient` の「さがす」面の中に
- * 在る（`app/components/ColorJourney.tsx`）。以前はここで上に重ねていたが、
- * それだと写真の取得が2つ動き、モーダルも絞り込みも下と食い違っていた。
+ * 色から探す・機材から探すは発見の面（`app/search/DiscoverSections.tsx`）の中に在る
+ * （2026-10-31 束 1 で iOS の「色から探す」の形にし、以前の `ColorJourney` を外した）。
  */
 export default function SearchPage() {
     return <GalleryPageClient surface="search" />;

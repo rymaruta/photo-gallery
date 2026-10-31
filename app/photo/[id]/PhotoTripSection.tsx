@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { ArrowTurnUpRightIcon, SunIcon, CameraIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import SaveSpotButton, { TILE, TILE_TEXT, TILE_ICON, TILE_MIN_H } from "../../components/SaveSpotButton";
+import SaveSpotButton, { TRIP_TILE, TRIP_OFF, TRIP_TEXT, TRIP_ICON, TRIP_MIN_H } from "../../components/SaveSpotButton";
 import { ROW_CARD, ROW_ICON_BOX, ROW_ICON, ROW_TITLE, ROW_CHEVRON } from "../../components/rowStyles";
 import type { SpotLink } from "@/lib/data/spotLink";
 import {
@@ -29,7 +29,9 @@ import {
  *    投稿画面が元の写真を読んで「この写真を見て撮影」の欄に出し、保存に載せる（`inspiredPickFrom`）
  *
  * 見た目: 写真の下の黒地の段なので、印（旗・経路・太陽・カメラ）は真鍮、字は白。眉ラベルは
- * 真鍮 11px（本文の最小 12px の例外は眉ラベルだけ）。押せるものは 48px（タイル）・44px（行）。
+ * 真鍮 11px（本文の最小 12px の例外は眉ラベルだけ）。押せるものは 48px（札）・44px（行）。
+ * 2026-10-31 判断（束 1 P7）: 「行きたい」「経路」は iOS の `PhotoTripSection.chip` と同じ横の札
+ * （48・角 14・印を左・字 15・`TRIP_TILE`）。以前は撮影スポットの頁の行動の札（64・印を字の上）を借りていた
  */
 export default function PhotoTripSection({
     spot, directionsTo, zone, inspiredPhotoId, locale,
@@ -71,27 +73,26 @@ export default function PhotoTripSection({
                 // **格子で等分**（`flex-1` だと包んだ側だけ狭くなる・`SaveSpotButton` の注記）
                 <div className={`grid gap-2 ${tiles === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
                     {spot && (
-                        <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" variant="tile" />
+                        <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" variant="trip" />
                     )}
                     {routeHref && (
                         <a href={routeHref} target="_blank" rel="noopener noreferrer"
-                           // **字も印も真鍮**（外へ出るリンク）。`TILE_OFF` は字が白なので使わない
-                           // （同じ性質の utility を2つ並べると、どちらが勝つかが候補名の順で決まる）
-                           className={`${TILE} bg-chip hover:bg-white/15 text-accent min-w-0`}
+                           // 印は真鍮・字は白（iOS の札と同じ。外へ出ることは印と読み上げの名前が言う）
+                           className={`${TRIP_TILE} ${TRIP_OFF} min-w-0`}
                            aria-label={routeName
                                ? (isJa ? `${routeName}への経路（Google マップ）` : `Directions to ${routeName} (Google Maps)`)
                                : (isJa ? "撮影地への経路（Google マップ）" : "Directions to where this was taken (Google Maps)")}
                            data-testid="photo-trip-directions"
-                           style={{ minHeight: TILE_MIN_H, touchAction: "manipulation" }}>
-                            <ArrowTurnUpRightIcon className={TILE_ICON} aria-hidden />
-                            <span className={TILE_TEXT}>{isJa ? "経路" : "Directions"}</span>
+                           style={{ minHeight: TRIP_MIN_H, touchAction: "manipulation" }}>
+                            <ArrowTurnUpRightIcon className={TRIP_ICON} aria-hidden />
+                            <span className={TRIP_TEXT}>{isJa ? "経路" : "Directions"}</span>
                         </a>
                     )}
                 </div>
             )}
 
             {line && (
-                <p className="m-0 flex items-center gap-2 text-white/70" data-testid="photo-trip-golden"
+                <p className="m-0 flex items-center gap-2 text-text-2 tabular-nums" data-testid="photo-trip-golden"
                    style={{ fontSize: "13px", lineHeight: "18px" }}>
                     <SunIcon className="w-4 h-4 flex-shrink-0 text-accent" aria-hidden />
                     <span>{line.label}</span>
