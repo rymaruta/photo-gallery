@@ -395,6 +395,12 @@ async function api(base, params) {
             await sleep((Number(res.headers.get("retry-after")) || 5) * 1000);
             continue;
         }
+        // 検索（CirrusSearch）の混雑は 429 ではなく HTTP 200 の本文で返る（2026-10-31 に 162 か所中 39 か所が落ちた）
+        if (body?.error?.code === "cirrussearch-too-busy-error") {
+            console.log(`  検索が混んでいる・${30 * (attempt + 1)}秒待つ`);
+            await sleep(30000 * (attempt + 1));
+            continue;
+        }
         if (body?.error) throw new Error(`${body.error.code}: ${body.error.info}`);
         return body;
     }
