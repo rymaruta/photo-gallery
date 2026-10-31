@@ -56,18 +56,20 @@ export default function SpotIndexClient({ spots, area }: Props) {
         <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
             {/* **戻り道を必ず出す。** 区画のページは `/spots` からしか辿れない */}
             <p className="m-0 mb-2" style={{ fontSize: "13px", lineHeight: "18px" }}>
+                {/* 戻り道は当たり 44（押せる所の決まり・2026-10-31 束 2 P5）。以前は 13 の字の高さだけ */}
                 <Link href={ROUTES.SPOTS} prefetch={false}
-                      className="text-white/60 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">
+                      className="inline-flex items-center min-h-[44px] text-text-2 hover:text-white transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded"
+                      data-testid="spots-back">
                     {isJa ? "← 撮影スポットをさがす" : "← Find a place to shoot"}
                 </Link>
             </p>
-            <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight">
+            <h1 className="font-serif text-4xl font-bold m-0 wrap-anywhere" data-testid="spots-title">
                 {area
                     ? (isJa ? `${area.name}の撮影スポット` : `Photo spots in ${area.nameEn}`)
                     : (isJa ? "撮影スポットをさがす" : "Find a place to shoot")}
             </h1>
             {spots.length > 0 && (
-            <p className="m-0 mt-2 mb-5 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
+            <p className="m-0 mt-2 mb-5 text-text-2" style={{ fontSize: "15px", lineHeight: "24px" }}>
                 {/* **「運営が調べた」と言えるのは、人が確かめた行だけ**（`stage`）。
                     全部が下書きならそう言う
                     2026-10-11: 公開の行も人が確かめたのは数件で、多くは AI 照合。「運営が調べた」は
@@ -128,7 +130,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                                 <div className="h-full flex flex-col rounded-2xl overflow-hidden bg-surface ring-1 ring-line">
                                 <Link href={`/spots/${s.slug}`} prefetch={false}
                                       className="group block flex-1 hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
-                                    <div className="relative w-full aspect-[3/2] overflow-hidden bg-surface-2">
+                                    <div className="relative w-full aspect-[16/10] overflow-hidden bg-surface-2">
                                         {!cover ? (
                                             /* 代表写真が無いときは**名前**（無関係な写真で埋めない） */
                                             <div className="absolute inset-0 flex items-center justify-center px-4">
@@ -143,7 +145,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                                     </div>
                                     <div className="p-3 pb-2">
                                         <p className="m-0 font-serif font-bold text-white wrap-anywhere"
-                                           style={{ fontSize: "16px", lineHeight: "22px" }}>{s.name}</p>
+                                           style={{ fontSize: "18px", lineHeight: "24px" }}>{s.name}</p>
                                         {(where || s.stage === "review") && (
                                             <p className="m-0 mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
                                                 {s.stage === "review" && (isJa ? "下書き" : "Draft")}

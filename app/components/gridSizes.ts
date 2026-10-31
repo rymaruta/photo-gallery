@@ -151,6 +151,31 @@ export const MOSAIC_PAIR_SIZES = [
 ].join(", ");
 
 /**
+ * **集約の頁（タグ・カテゴリ・機材）の並び**（`GalleryGrid` の `layout="editorial"`・iOS の `PhotoGrid`・板 12・2026-10-31 束 2）。
+ *
+ * iOS と同じく **大きく1枚（16:10）→ 2枚（1:1）→ 2枚**、隙間 10・端の余白 10（本文の 16 から `-mx-[6px]`）・角 18。
+ * 768px 以上は4列で、大きい1枚を 2×2 に置く（PC の幅の決まり W3: 並べる数だけ増やす）。容器は `max-w-6xl`（72rem）＋`px-4`。
+ *
+ *   767px まで       大きい1枚 = 画面 − 20、2枚の段 = (画面 − 30) / 2
+ *   768〜1151px      4列（容器 = 画面 − 32）: 1枚 = (画面 − 62) / 4、大きい1枚 = 2枚 + 10
+ *   1152px 以上      容器 1120 で頭打ち: 1枚 272.5、大きい1枚 555
+ *
+ * 大きい1枚の 555px は派生の上限（512w）を少し超えるが、`MOSAIC_HERO_SIZES` の 640px より小さい。
+ * Chromium で実測（`gridSizes.test.tsx` の `MEASURED_EDITORIAL_*`）
+ */
+export const EDITORIAL_HERO_SIZES = [
+    "(max-width:767px) calc(100vw - 20px)",
+    "(max-width:1151px) calc(50vw - 21px)",
+    "555px",
+].join(", ");
+
+export const EDITORIAL_PAIR_SIZES = [
+    "(max-width:767px) calc(50vw - 15px)",
+    "(max-width:1151px) calc(25vw - 15.5px)",
+    "272.5px",
+].join(", ");
+
+/**
  * 撮影スポット詳細（`/location/*`）の代表画像（ヒーロー）。
  *
  * **640px 未満は左右いっぱい**（`-mx-4`）なので `100vw`。
@@ -177,15 +202,12 @@ export const SPOT_HERO_SIZES = [
 ].join(", ");
 
 /**
- * 「周辺のスポット」のカード（モック⑨）。容器は `max-w-6xl` ＋ `px-4`、
- * 2列（640px 未満）→ 3列（sm）→ 4列（lg）。隙間は `gap-3`。
- *
- * 全部 rem で書いて Tailwind のメディアクエリに追随させる（`GRID_SIZES_*` と同じ理由。
- * 640px 未満の px の行は root 14px を外したので消した・2026-10-30 束 0a）。
+ * 「近くの撮影地」の札（iOS の `SpotDetailParts.nearbyCard`: 幅 180 の横に流す札・2026-10-31 束 2）。
+ * 幅は画面によらず 180 なので式は持たない。以前は 2〜4列の格子だった
  */
-export const SPOT_NEARBY_SIZES = [
-    "(max-width:39.99rem) calc(50vw - 1.375rem)",    // 2列: (100vw - 1rem*2 - 0.75rem) / 2
-    "(max-width:63.99rem) calc(33.33vw - 1.1667rem)",// 3列: (100vw - 2rem - 1.5rem) / 3
-    "(max-width:71.99rem) calc(25vw - 1.0625rem)",   // 4列: (100vw - 2rem - 2.25rem) / 4
-    "16.9375rem",                                    // 容器 72rem で頭打ち: (72 - 2 - 2.25) / 4
-].join(", ");
+export const SPOT_NEARBY_SIZES = "180px";
+
+/**
+ * 「この撮影地の写真」の帯の1枚（iOS の `SpotDetailView.spotPhotos`: 幅 118・3:4・角 12・横に流す・2026-10-31 束 2）
+ */
+export const SPOT_STRIP_SIZES = "118px";

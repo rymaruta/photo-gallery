@@ -8,6 +8,7 @@ import { spotAreaItemList } from "@/lib/data/spotSeo";
 import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 import { spotIndexTopics, firstSpotOgImage, spotTwitterMeta } from "@/lib/data/spotTopics";
 import { TopicChips, Lang } from "@/app/components/SpotTopicLists";
+import SectionHead, { SectionTitle } from "@/app/components/SectionHead";
 
 /**
  * **撮影地ガイドの入口。**
@@ -86,16 +87,16 @@ function SpotIndexTopicSections() {
         <div data-testid="spots-topic-index">
             {seasons.length > 0 && (
                 <section className="mb-7">
-                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}><Lang ja="季節でさがす" en="By season" /></h2>
+                    <SectionHead id="spots-by-season" eyebrow="SEASON" title={<Lang ja="季節でさがす" en="By season" />} />
                     <TopicChips links={seasons} />
                 </section>
             )}
             {themes.length > 0 && (
                 <section className="mb-7">
-                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}><Lang ja="テーマでさがす" en="By theme" /></h2>
+                    <SectionHead id="spots-by-theme" eyebrow="THEME" title={<Lang ja="テーマでさがす" en="By theme" />} />
                     {themes.map((g) => (
                         <div key={g.category} className="mb-3">
-                            <h3 className="m-0 mb-1.5 text-white/70" style={{ fontSize: "13px", lineHeight: "18px" }}><Lang ja={g.category} en={g.categoryEn} /></h3>
+                            <SectionTitle as="h3"><Lang ja={g.category} en={g.categoryEn} /></SectionTitle>
                             <TopicChips links={g.links} />
                         </div>
                     ))}

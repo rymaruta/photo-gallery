@@ -113,7 +113,7 @@ function Card({ c }: { c: TopicCard }) {
         <div className="h-full flex flex-col rounded-2xl overflow-hidden bg-surface ring-1 ring-line">
             <Link href={`/spots/${c.slug}`} prefetch={false}
                   className="group block flex-1 hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
-                <div className="relative w-full aspect-[3/2] overflow-hidden bg-surface-2">
+                <div className="relative w-full aspect-[16/10] overflow-hidden bg-surface-2">
                     {c.cover ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={c.cover.src} alt={c.cover.alt} loading="lazy" decoding="async"
@@ -126,7 +126,7 @@ function Card({ c }: { c: TopicCard }) {
                     )}
                 </div>
                 <div className="p-3 pb-2">
-                    <p className="m-0 font-serif font-bold text-white wrap-anywhere" style={{ fontSize: "16px", lineHeight: "22px" }}>{c.name}</p>
+                    <p className="m-0 font-serif font-bold text-white wrap-anywhere" style={{ fontSize: "18px", lineHeight: "24px" }}>{c.name}</p>
                     {c.region && (
                         <p className="m-0 mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>{c.region}</p>
                     )}

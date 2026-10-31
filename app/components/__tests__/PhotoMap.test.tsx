@@ -322,6 +322,8 @@ describe("押されたピンを親へ渡す", () => {
         // 読み込み後は元画像の 256px になってピンが化ける）
         expect(img!.getAttribute("width")).toBe("40");
         expect(img!.getAttribute("height")).toBe("40");
+        // 札は 44（iOS の写真のピン: 44 の白い札に 2 の余白で写真 40・2026-10-31 束 2）
+        expect(icon.iconSize).toEqual([44, 44]);
         // 尖りの先が座標（下端を合わせる）
         expect(icon.iconAnchor).toEqual([icon.iconSize[0] / 2, icon.iconSize[1]]);
     });
@@ -337,7 +339,8 @@ describe("押されたピンを親へ渡す", () => {
         await draw([photo("a", { src: "" } as Partial<Photo>)]);
         const icon = state.markers[0].opts.icon as { html: HTMLElement };
         expect(icon.html.querySelector("img")).toBeNull();
-        expect(icon.html.querySelector(".photo-map-pin__tail")).toBeTruthy();
+        // 白い札（iOS の写真のピン）だけ残す。尖りは無い（2026-10-31 束 2）
+        expect(icon.html.className).toBe("photo-map-pin");
     });
 
     // 束のピンは `keyboard: true` で Tab で来られるが、Leaflet は Enter を
@@ -559,8 +562,8 @@ describe("公式撮影地ガイドのピン", () => {
     /// 名前は読み上げにも届く（ピンの中身は印だけ＝文字を持たない）
     it("名前と「公式」を読み上げに渡す", async () => {
         await drawWithSpot([]);
-        expect(spotMarker()?.opts.title).toBe("高屋神社（公式撮影スポット）");
-        expect(spotMarker()?.opts.alt).toBe("高屋神社（公式撮影スポット）");
+        expect(spotMarker()?.opts.title).toBe("高屋神社（撮影スポット）");
+        expect(spotMarker()?.opts.alt).toBe("高屋神社（撮影スポット）");
         const html = (spotMarker()?.opts.icon as { html?: HTMLElement }).html;
         expect(html?.textContent, "ピンの中に文字を入れない").toBe("");
     });
@@ -677,5 +680,63 @@ describe("地図のピンの名前: 題が無い写真", () => {
     it("撮影地が無く題があれば題", async () => {
         await draw([photo("a", { location: "" })]);
         expect(pinName()).toEqual(["写真a", "写真a"]);
+    });
+});
+
+/**
+ * **iOS の地図のピンの形**（2026-10-31 束 2 M3・iOS の `PhotoMapView.pinMarkers`／`SpotMapMarker`）。直しを戻すと落ちる
+ */
+describe("ピンの形（iOS にそろえた）", () => {
+    it("束は白い札を2枚重ね、先頭の1枚と件数のバッジ（真鍮）を出す", async () => {
+        await draw([photo("a"), photo("b"), photo("c")]);
+        const cluster = state.markers.find((m) => String(m.opts.title ?? "").includes("枚"))!;
+        const icon = cluster.opts.icon as { html: HTMLElement; className: string; iconSize: number[] };
+        expect(icon.className).toBe("photo-map-cluster");
+        expect(typeof icon.html).not.toBe("string");
+        expect(icon.html.querySelector(".photo-map-cluster__back")).toBeTruthy();
+        expect(icon.html.querySelector(".photo-map-pin img")).toBeTruthy();
+        expect(icon.html.querySelector(".map-count-badge")!.textContent).toBe("3");
+        expect(icon.iconSize).toEqual([47, 47]);
+    });
+
+    const SPOT = { slug: "takaya-jinja", name: "高屋神社", region: "香川県", lat: 34.1, lng: 133.6, cover: null, stage: "published" as const };
+    const spotIcon = () => state.markers.find((m) => String(m.opts.title ?? "").includes("高屋神社"))!.opts.icon as
+        { html: HTMLElement; iconSize: number[]; iconAnchor: number[] };
+
+    it("写真の無い撮影スポットは真鍮の丸 32 にカメラの印", async () => {
+        render(<PhotoMap photos={[]} locale="ja" spots={[SPOT]} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        const icon = spotIcon();
+        // 見た目は 32、押せる範囲は 44（iOS の `officialMarker`・束 2 の確かめ）。座標は 44 の枠の下端
+        expect(icon.iconSize).toEqual([44, 44]);
+        expect(icon.iconAnchor).toEqual([22, 44]);
+        expect(icon.html.querySelector("svg.spot-map-pin__icon")).toBeTruthy();
+        expect(icon.html.classList.contains("has-photo")).toBe(false);
+    });
+
+    it("代表写真があれば写真の丸 40（真鍮の縁）", async () => {
+        const withCover = { ...SPOT, cover: { src: "/images/spots/thumb/takaya.jpg", alt: "高屋神社", credit: "x" } } as never;
+        render(<PhotoMap photos={[]} locale="ja" spots={[withCover]} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        const icon = spotIcon();
+        expect(icon.iconSize).toEqual([44, 44]);
+        expect(icon.html.classList.contains("has-photo")).toBe(true);
+        expect(icon.html.querySelector("img")!.getAttribute("src")).toBe("/images/spots/thumb/takaya.jpg");
+    });
+
+    it("撮影スポットのピンの枠は、見た目の丸を真ん中に置く（Leaflet の display: block に負けない2クラス）", async () => {
+        const { readFileSync } = await import("fs");
+        const css = readFileSync(`${process.cwd()}/app/globals.css`, "utf8");
+        const rule = css.slice(css.indexOf(".spot-map-pin-icon.leaflet-marker-icon"));
+        const body = rule.slice(rule.indexOf("{"), rule.indexOf("}"));
+        expect(body).toContain("display: flex");
+        expect(body).toContain("justify-content: center");
+    });
+
+    it("地図の地は暗くする（タイルの層だけに絵の反転）", async () => {
+        const { readFileSync } = await import("fs");
+        const css = readFileSync(`${process.cwd()}/app/globals.css`, "utf8");
+        const rule = css.slice(css.indexOf(".photo-map-shell .leaflet-tile-pane"));
+        expect(rule.slice(0, rule.indexOf("}"))).toContain("invert(1)");
     });
 });

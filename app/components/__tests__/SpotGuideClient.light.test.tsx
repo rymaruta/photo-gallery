@@ -113,8 +113,8 @@ describe("光の時刻", () => {
         expect(blocks[0].textContent).toContain("朝霧の川");
         expect(blocks[1].textContent).toContain("日没後の残照");
         expect(section.textContent).not.toContain("ガス灯の夜景");
-        expect(screen.getByRole("heading", { name: "撮影ガイド" }).parentElement!.textContent).toContain("ガス灯の夜景");
-        expect(screen.getByRole("heading", { name: "撮影ガイド" }).parentElement!.textContent).not.toContain("朝霧の川");
+        expect(screen.getByRole("heading", { name: "撮影ガイド" }).closest("section")!.textContent).toContain("ガス灯の夜景");
+        expect(screen.getByRole("heading", { name: "撮影ガイド" }).closest("section")!.textContent).not.toContain("朝霧の川");
     });
 
     it("前後の日へ送れる・今日に戻せる", () => {
@@ -133,7 +133,7 @@ describe("光の時刻", () => {
     it("時刻帯が引けない国は節を出さず、台帳の文は全部撮影ガイドに残す", () => {
         viewSpot({ ...GUIDED, region: { country: "アメリカ" }, coords: { lat: 40.7, lng: -74.0 } } as Spot);
         expect(screen.queryByTestId("spot-today-light")).toBeNull();
-        const guide = screen.getByRole("heading", { name: "撮影ガイド" }).parentElement!.textContent;
+        const guide = screen.getByRole("heading", { name: "撮影ガイド" }).closest("section")!.textContent;
         expect(guide).toContain("朝霧の川");
         expect(guide).toContain("日没後の残照");
     });
