@@ -1,5 +1,6 @@
 "use client";
 
+import SearchParamWatcher from "../../components/SearchParamWatcher";
 import { SEARCH_FIELD, SEARCH_FIELD_STYLE, SEARCH_ICON, SEARCH_ICON_STYLE } from "../../components/fieldStyles";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { isImeKey } from "../../../lib/utils/ime";
@@ -42,6 +43,16 @@ export default function UserSearchPage() {
         if (!composingRef.current) setQuery(v);
     }, []);
 
+    // **「さがす」の対象「人」から来たら、その語で初めから探す**（`/users/search?q=<語>`・2026-10-31 束 1）。
+    // 打ち始めたあとに URL が変わることは無いので、最初に一度だけ入れる（あとから来た値で打った語を消さない）
+    const seededRef = useRef(false);
+    const onQueryParam = useCallback((v: string | null) => {
+        if (seededRef.current) return;
+        seededRef.current = true;
+        const q = (v ?? "").trim();
+        if (q) { setInput(q); setQuery(q); }
+    }, []);
+
     // 「見つかりませんでした」は、実際に検索した語（query）を基準に出す。
     // input を見ていた頃は、日本語入力の変換中（composing）は query が
     // 空のまま＝検索が走っていないのに、1文字目から
@@ -55,6 +66,7 @@ export default function UserSearchPage() {
 
     return (
         <main className="min-h-screen bg-bg text-white max-w-2xl mx-auto w-full px-4 pb-16">
+            <SearchParamWatcher name="q" onChange={onQueryParam} />
             <div className="flex items-center gap-2 py-3">
                 <button
                     onClick={() => {

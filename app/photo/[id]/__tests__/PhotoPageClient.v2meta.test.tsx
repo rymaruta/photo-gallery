@@ -94,6 +94,8 @@ describe("写真ページ: 道しるべ", () => {
         const row = screen.getByTestId("photo-spot-guide");
         expect(row.getAttribute("href")).toBe("/spots/ginzan-onsen");
         expect(row.textContent).toContain("撮影スポット · 銀山温泉");
+        // 2行の当たり（44 ずつ）を負の余白で重ねない（束 1 の確かめの直し）
+        for (const a of [row, screen.getByTestId("photo-place-link")]) expect(a.className).not.toMatch(/-my-/);
     });
 });
 

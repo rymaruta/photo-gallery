@@ -779,8 +779,12 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
         categoryDisplayMap={categoryDisplayMap}
         tagCounts={tagCounts}
         layout="search"
-        showCategories={!searchDiscovering && searchScope !== "tags" && searchScope !== "places"}
-        showTags={!searchDiscovering && (searchScope === "all" || searchScope === "photos" || searchScope === "tags")}
+        // カテゴリは「人」以外で出す（iOS の `SearchView`: `showsPhotos`）。「人」は頁へのリンクなので選ばれた状態にならない。
+        // 2026-10-31 束 1 の確かめの直し: 以前は「タグ」「撮影地」でカテゴリのチップを消し、選んだカテゴリが
+        // 見えないまま効いていた（外す手立てが無かった）
+        showCategories={!searchDiscovering}
+        // タグは「撮影地」では出さない（iOS の `showsTagChips`）。撮影地へ切り替えるときに選んだタグを外す（下の onClick）
+        showTags={!searchDiscovering && searchScope !== "places"}
         scopeRow={
           // 対象のチップ（iOS の `SearchScope`・C5 の形）。「人」は人を探す頁へ（Web は別の頁で同じことができる）
           <div role="group" aria-label={locale === "en" ? "Search in" : "探す対象"}
@@ -789,8 +793,10 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
               const label = locale === "en" ? sc.en : sc.ja;
               const cls = `${CHIP_HIT} inline-flex items-center justify-center rounded-full text-[13px] transition-colors flex-shrink-0`;
               if (sc.key === "people") {
+                // 打った語を人を探す頁へ運ぶ（あちらが `q` を読んで初めから探す）
+                const q = filters.query.trim();
                 return (
-                  <Link key={sc.key} href={ROUTES.USER_SEARCH} prefetch={false}
+                  <Link key={sc.key} href={q ? `${ROUTES.USER_SEARCH}?q=${encodeURIComponent(q)}` : ROUTES.USER_SEARCH} prefetch={false}
                         className={`${cls} ${CHIP_OFF}`} style={{ ...CHIP_SIZE, touchAction: "manipulation" }} data-scope="people">
                     {label}
                   </Link>
@@ -798,7 +804,12 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
               }
               const on = searchScope === sc.key;
               return (
-                <button key={sc.key} type="button" aria-pressed={on} onClick={() => setSearchScope(sc.key as SearchScopeKey)} data-scope={sc.key}
+                <button key={sc.key} type="button" aria-pressed={on} onClick={() => {
+                          const next = sc.key as SearchScopeKey;
+                          // タグの段が消える対象へ移るとき、選んだタグを残さない（見えないまま絞り込みが効かないように）
+                          if (next === "places" && (filters.selectedTags?.length ?? 0) > 0) setFilters({ selectedTags: [] });
+                          setSearchScope(next);
+                        }} data-scope={sc.key}
                         className={`${cls} ${on ? CHIP_ON : CHIP_OFF}`} style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                   {label}
                 </button>
