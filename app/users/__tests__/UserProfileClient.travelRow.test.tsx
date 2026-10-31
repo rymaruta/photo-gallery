@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 /**
  * **旅の記録**（v2 の板 MyPage・案 H1「星図」。iOS の `TravelRecordView` と同じ形）。
@@ -72,19 +72,28 @@ async function show(viewer: string | null) {
 }
 
 describe("旅の記録", () => {
-    it("本人のページでは、眉ラベル・距離・国・線を出し、撮影地マップへのリンクになる", async () => {
+    // 2026-10-31 束 1 U5: 線の絵は畳んで始め、眉の右の「線を見る ⌄」で開く（iOS の `routeStartsFolded`）。
+    // 開け閉めのボタンをリンクの中に入れないよう、リンクは数字の塊だけ
+    it("本人のページでは、眉ラベル・距離・国を出して撮影地マップへのリンク。線は畳んで始め「線を見る」で開く", async () => {
         await show(OWNER);
         const block = await screen.findByTestId("travel-record");
-
-        expect(block.tagName, "リンクになっていない").toBe("A");
-        expect(block.getAttribute("href")).toBe("/map");
+        const link = block.querySelector("a")!;
+        expect(link, "リンクになっていない").toBeTruthy();
+        expect(link.getAttribute("href")).toBe("/map");
         // 名前に数え方と行き先を入れる（中の字は読ませない）
-        expect(block.getAttribute("aria-label")).toMatch(/^旅の記録。写真をつないだ距離 \d[\d,]* キロメートル。訪れた国・地域 1、日本。撮影地マップを開く$/);
+        expect(link.getAttribute("aria-label")).toMatch(/^旅の記録。写真をつないだ距離 \d[\d,]* キロメートル。訪れた国・地域 1、日本。撮影地マップを開く$/);
         expect(block.textContent).toContain("旅の記録");
         expect(block.textContent, "一番古い写真の年が無い").toContain("2024 年から");
         expect(screen.getByTestId("travel-distance").textContent).toMatch(/^\d[\d,]*km写真をつないだ距離$/);
         // 国は撮影地に国名が書かれた写真だけ（「大阪」からは日本を当てない＝1のまま）
         expect(screen.getByTestId("travel-countries").textContent).toBe("1か国・地域日本");
+        expect(screen.queryByTestId("travel-route"), "線は畳んで始める").toBeNull();
+        const toggle = screen.getByTestId("travel-route-toggle");
+        expect(toggle.textContent).toBe("線を見る");
+        expect(toggle.getAttribute("aria-expanded")).toBe("false");
+        expect(link.contains(toggle), "開け閉めはリンクの外").toBe(false);
+        fireEvent.click(toggle);
+        expect(toggle.textContent).toBe("畳む");
         // 線は区間の数だけ（東京 → 大阪の1本）
         const route = screen.getByTestId("travel-route");
         expect(route.getAttribute("aria-hidden")).toBe("true");
@@ -98,7 +107,7 @@ describe("旅の記録", () => {
         expect(value.style.fontWeight).toBe("600");
         const km = value.nextElementSibling as HTMLElement;
         expect(km.textContent).toBe("km");
-        expect(km.className).toContain("text-white/60");
+        expect(km.className).toContain("text-text-2");
     });
 
     // 2026-10-21: 人のページにも出す（iOS の `ProfileTravelRecord`）。ただし押せない
@@ -107,14 +116,13 @@ describe("旅の記録", () => {
     it("他人のページにも出すが、全員の地図へは連れて行かない（押せない）", async () => {
         await show("55555555-5555-4555-8555-555555555555");
         const block = await screen.findByTestId("travel-record");
-        expect(block.tagName).not.toBe("A");
+        expect(block.querySelector("a")).toBeNull();
         expect(screen.queryByRole("link", { name: /撮影地マップを開く/ })).toBeNull();
     });
 
     it("未ログインでも同じ（出すが押せない）", async () => {
         await show(null);
         const block = await screen.findByTestId("travel-record");
-        expect(block.tagName).not.toBe("A");
         expect(block.querySelector("a")).toBeNull();
     });
 });

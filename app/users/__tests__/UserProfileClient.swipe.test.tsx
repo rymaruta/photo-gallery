@@ -77,26 +77,31 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(gradients).toEqual([]);
     });
 
-    it("廃止したタブ（足あと・旅）は存在しない", () => {
+    it("廃止したタブ（足あと）は存在しない", () => {
         render(<UserProfileClient userId="nobody" />);
-        expect(screen.queryByRole("button", { name: /Map/ })).toBeNull();
-        expect(screen.queryByRole("button", { name: /Trips/ })).toBeNull();
+        expect(screen.queryByRole("tab", { name: /Footprints|足あと/ })).toBeNull();
     });
 
-    it("左スワイプで 投稿 → 年表 に切り替わる", () => {
+    // 2026-10-31 束 1 U9: 人のページの札は 投稿・マップ・年表（iOS の `ProfileTab.tabs(isMe: false)` ＋ Web だけの年表）
+    it("人のページの札は 投稿・マップ・年表（旅は札にしない）", () => {
         render(<UserProfileClient userId="nobody" />);
+        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Posts", "Map", "Timeline"]);
+    });
+
+    it("左スワイプで 投稿 → マップ → 年表 に切り替わる", () => {
+        render(<UserProfileClient userId="nobody" />);
+        swipe("left");
+        expect(activeTab()).toContain("Map");
         swipe("left");
         expect(activeTab()).toContain("Timeline");
     });
 
-    // 2026-10-21: 右端は3つ目の「旅」（旅の一冊の棚）になった
-    it("右端で左スワイプしてもクランプされ、旅のまま", () => {
+    it("右端（年表）で左スワイプしてもクランプされ、年表のまま", () => {
         render(<UserProfileClient userId="nobody" />);
         swipe("left");
         swipe("left");
-        expect(activeTab()).toContain("Trips");
         swipe("left");
-        expect(activeTab()).toContain("Trips");
+        expect(activeTab()).toContain("Timeline");
     });
 
     it("左端で右スワイプしてもクランプされ、投稿のまま", () => {
@@ -105,19 +110,24 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("年表タブから右スワイプで 投稿 に戻る（前方向スワイプ）", () => {
+    it("年表タブから右スワイプで マップ に戻る（前方向スワイプ）", () => {
         render(<UserProfileClient userId="nobody" />);
         fireEvent.click(tabButton("Timeline"));
         expect(activeTab()).toContain("Timeline");
         swipe("right");
-        expect(activeTab()).toContain("Posts");
+        expect(activeTab()).toContain("Map");
     });
 
-    it("右端（旅）で左スワイプしてもクランプされる", () => {
-        render(<UserProfileClient userId="nobody" />);
-        fireEvent.click(tabButton("Trips"));
-        swipe("left");
-        expect(activeTab()).toContain("Trips");
+    it("地図の中で始まる横の操作では札を替えない（地図を動かしている）", () => {
+        const { container } = render(<UserProfileClient userId="nobody" />);
+        const area = screen.getByTestId("tab-swipe-area");
+        const fake = document.createElement("div");
+        fake.className = "leaflet-container";
+        area.appendChild(fake);
+        fireEvent.pointerDown(fake, { clientX: 240, clientY: 100 });
+        fireEvent.pointerUp(fake, { clientX: 60, clientY: 108 });
+        expect(activeTab()).toContain("Posts");
+        expect(container).toBeTruthy();
     });
 
     it("縦方向の動きではタブが変わらない（縦スクロールを奪わない）", () => {

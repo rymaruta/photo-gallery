@@ -15,7 +15,7 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
@@ -197,11 +197,14 @@ export function MedalsButton({ badges, ownerName, locale }: {
                 onClick={() => setOpen(true)}
                 aria-haspopup="dialog"
                 aria-expanded={open}
-                className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors tabular-nums"
-                style={{ minHeight: 44, touchAction: "manipulation" }}
+                // 2026-10-31 束 1 U9: 人のページの切り替えの札の右端の字のボタン（13・text-3・右に ›・当たり 44）。
+                // 以前は名前の下の中央に「メダル N →」（14・白60%）
+                className="inline-flex items-center justify-end gap-1 text-text-3 hover:text-white transition-colors tabular-nums whitespace-nowrap"
+                style={{ minHeight: 44, minWidth: 44, fontSize: "13px", lineHeight: "18px", touchAction: "manipulation" }}
                 data-testid="medals-button"
             >
-                {locale === "en" ? `Medals ${n} →` : `メダル ${n} →`}
+                {locale === "en" ? `Medals ${n}` : `メダル ${n}`}
+                <ChevronRightIcon aria-hidden="true" style={{ width: 12, height: 12, strokeWidth: 2 }} />
             </button>
             {open && typeof document !== "undefined" && createPortal(
                 <MedalListDialog

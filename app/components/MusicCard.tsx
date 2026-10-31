@@ -21,9 +21,15 @@ type Props = {
     autoPlay?: boolean;
     /** 最終版モックの写真ページ用: 見出し行なし・幅いっぱいの1行（既定はプロフィールと同じ） */
     compact?: boolean;
+    /**
+     * 札の行 64（人のページのマイ BGM・2026-10-31 束 1 U8・比較の板 ProfileCompare の 8）。
+     * 左に 44 のジャケット、眉（真鍮 11）・題 15 semibold・歌い手 12 text-2、右に再生 44（真鍮の塗り＋墨）。
+     * 曲が2つ以上なら左右に払って送る（前・次の小さな ‹ › も残す——払えない人の操作）
+     */
+    row?: boolean;
 };
 
-export default function MusicCard({ queueKey, songs, label, locale, autoPlay = false, compact = false }: Props) {
+export default function MusicCard({ queueKey, songs, label, locale, autoPlay = false, compact = false, row = false }: Props) {
     const music = useMusic();
     const active = music.queueKey === queueKey;
     const index = active ? music.index : 0;
@@ -41,6 +47,27 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
     }, []);
 
     if (!cur) return null;
+
+    const prev = () => { if (active) music.prev(); else music.play(queueKey, songs, Math.max(0, songs.length - 1), label); };
+    const next = () => { if (active) music.next(); else music.play(queueKey, songs, Math.min(1, songs.length - 1), label); };
+
+    if (row) {
+        return (
+            <MusicRow
+                title={cur.title}
+                trackUrl={cur.trackUrl ? safeSongTrackUrl(cur.trackUrl) : undefined}
+                artist={cur.artist ?? ""}
+                artwork={artwork}
+                eyebrow={`${label}${songs.length > 1 ? ` · ${index + 1}/${songs.length}` : ""}`}
+                many={songs.length > 1}
+                playing={playing}
+                locale={locale}
+                onPlay={() => music.play(queueKey, songs, index, label)}
+                onPrev={prev}
+                onNext={next}
+            />
+        );
+    }
 
     return (
         <div className={`rounded-2xl bg-surface ring-1 ring-line overflow-hidden ${compact ? "" : "max-w-md"}`}>
@@ -105,6 +132,66 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
                         ›
                     </button>
                 </div>
+            )}
+        </div>
+    );
+}
+
+/** 札の行 64 のマイ BGM（上の `row`）。払う判定は横 40px 以上・縦の 1.5 倍より横 */
+function MusicRow({ title, trackUrl, artist, artwork, eyebrow, many, playing, locale, onPlay, onPrev, onNext }: {
+    title: string; trackUrl?: string; artist: string; artwork?: string; eyebrow: string; many: boolean; playing: boolean;
+    locale: string; onPlay: () => void; onPrev: () => void; onNext: () => void;
+}) {
+    const en = locale === "en";
+    const start = React.useRef<{ x: number; y: number } | null>(null);
+    const step = "inline-flex items-center justify-center flex-shrink-0 w-[28px] min-h-[44px] text-text-3 hover:text-white transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded-sm";
+    return (
+        <div
+            className="flex items-center gap-3 min-h-[64px] px-3.5 py-2 rounded-xl bg-surface ring-1 ring-inset ring-line"
+            data-testid="music-row"
+            onPointerDown={many ? (e) => { start.current = { x: e.clientX, y: e.clientY }; } : undefined}
+            onPointerUp={many ? (e) => {
+                const s0 = start.current; start.current = null;
+                if (!s0) return;
+                const dx = e.clientX - s0.x; const dy = e.clientY - s0.y;
+                if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.5) (dx < 0 ? onNext : onPrev)();
+            } : undefined}
+            style={many ? { touchAction: "pan-y" } : undefined}
+        >
+            <span className="relative w-11 h-11 rounded-md overflow-hidden bg-white/10 flex-shrink-0">
+                {artwork ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={artwork} alt="" className="w-full h-full object-cover" />
+                ) : (
+                    <span className="w-full h-full flex items-center justify-center">
+                        <MusicalNoteIcon aria-hidden="true" className="w-5 h-5 text-text-3" />
+                    </span>
+                )}
+            </span>
+            <span className="min-w-0 flex-1 flex flex-col gap-0.5">
+                <span className="eyebrow text-accent truncate">{eyebrow}</span>
+                {trackUrl
+                    ? <a href={trackUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-white font-semibold hover:underline" style={{ fontSize: "15px", lineHeight: "20px" }}>{title}</a>
+                    : <span className="block truncate text-white font-semibold" style={{ fontSize: "15px", lineHeight: "20px" }}>{title}</span>}
+                <span className="block truncate text-text-2" style={{ fontSize: "12px", lineHeight: "16px" }}>{artist}</span>
+            </span>
+            {many && (
+                <button type="button" onClick={onPrev} aria-label={en ? "Previous song" : "前の曲"} className={step}>
+                    <span aria-hidden="true" style={{ fontSize: "18px" }}>‹</span>
+                </button>
+            )}
+            <button
+                type="button"
+                onClick={onPlay}
+                aria-label={playing ? (en ? "Pause" : "一時停止") : (en ? "Play" : "再生")}
+                className="w-11 h-11 rounded-full bg-accent-fill text-ink flex items-center justify-center hover:brightness-110 active:scale-95 transition flex-shrink-0"
+            >
+                {playing ? <PauseIcon aria-hidden="true" className="w-4 h-4" /> : <PlayIcon aria-hidden="true" className="w-4 h-4 ml-0.5" />}
+            </button>
+            {many && (
+                <button type="button" onClick={onNext} aria-label={en ? "Next song" : "次の曲"} className={step}>
+                    <span aria-hidden="true" style={{ fontSize: "18px" }}>›</span>
+                </button>
             )}
         </div>
     );

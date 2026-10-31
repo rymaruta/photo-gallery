@@ -454,7 +454,7 @@ async function runChecks(browser, eng) {
             ).then(() => true).catch(() => false);
             check(`[${eng}] プロフィールのタブが切り替わる`, switched);
         }
-        await expectMenuWorks(page, `[${eng}] プロフィール`);
+        await expectChromelessPhone(page, `[${eng}] プロフィール`, "main[data-chromeless-phone] a[href='/'][aria-label]");
     }
 
     // 撮影地マップ（`/map`）。**このスモークが一度も開いていなかった**のに、

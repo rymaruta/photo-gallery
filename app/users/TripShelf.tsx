@@ -130,37 +130,39 @@ export function ProfileTripsLine({ trips, userId, isJa, onShowAll }: {
     const cover = coverOf(latest);
     const title = tripName(latest, isJa);
     const facts = `${daysLabel(tripDays(latest), isJa)} · ${photoCountLabel(latest.photos.length, isJa)}`;
+    // 2026-10-31 束 1 U7（iOS の `ProfileTripsLine`）: 静かな見出し「旅」（12・白60%）、その下に幅いっぱいの札 1 枚
+    // （44・角 12・地 surface・白8% の縁（色の段の決まり `designTokens.test.ts`）・左に 44 の表紙・題は明朝 18・日数と枚数 12 白72%・›）、2冊以上なら「すべての旅 · N冊 ›」。
+    // 以前は真鍮の眉「旅の一冊」と、字の大きさ 14 の小さな札を横に並べていた
     return (
-        <section aria-labelledby="profile-trips-heading" className="mb-4" data-testid="profile-trips">
-            <h2 id="profile-trips-heading" className="eyebrow eyebrow-line text-accent">{isJa ? "旅の一冊" : "TRIP BOOKS"}</h2>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3">
-                <Link
-                    href={tripBookPath(userId, latest)}
-                    prefetch={false}
-                    data-testid="profile-trip"
-                    aria-label={isJa ? `旅 ${title}、${facts}` : `Trip ${title}, ${facts}`}
-                    className="inline-flex items-center gap-2.5 max-w-full rounded-xl bg-chip ring-1 ring-inset ring-line overflow-hidden pr-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                    style={{ height: "44px", touchAction: "manipulation" }}
+        <section aria-labelledby="profile-trips-heading" className="mb-4 flex flex-col gap-2" data-testid="profile-trips">
+            <h2 id="profile-trips-heading" className="m-0 font-medium text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>{isJa ? "旅" : "Trips"}</h2>
+            <Link
+                href={tripBookPath(userId, latest)}
+                prefetch={false}
+                data-testid="profile-trip"
+                aria-label={isJa ? `旅 ${title}、${facts}` : `Trip ${title}, ${facts}`}
+                className="flex items-center gap-2.5 w-full rounded-field bg-surface ring-1 ring-inset ring-line overflow-hidden pr-3 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                style={{ minHeight: "44px", touchAction: "manipulation" }}
+            >
+                <span className="relative flex-shrink-0 overflow-hidden bg-surface" style={{ width: "44px", height: "44px" }}>
+                    {cover && <Thumb photo={cover} alt="" sizes="44px" cellAspect={1} />}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-serif font-bold text-white" style={{ fontSize: "18px", lineHeight: "24px" }}>{title}</span>
+                <span className="flex-shrink-0 text-white/72 tabular-nums" style={{ fontSize: "12px" }}>{facts}</span>
+                <ChevronRightIcon aria-hidden="true" className="flex-shrink-0 text-text-3" style={{ width: "13px", height: "13px", strokeWidth: 2 }} />
+            </Link>
+            {trips.length > 1 && (
+                <button
+                    type="button"
+                    onClick={onShowAll}
+                    data-testid="profile-trips-all"
+                    className="self-start inline-flex items-center gap-1.5 text-text-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
+                    style={{ minHeight: "44px", fontSize: "13px", touchAction: "manipulation" }}
                 >
-                    <span className="relative flex-shrink-0 overflow-hidden bg-surface" style={{ width: "44px", height: "44px" }}>
-                        {cover && <Thumb photo={cover} alt="" sizes="44px" cellAspect={1} />}
-                    </span>
-                    <span className="min-w-0 truncate font-semibold text-white" style={{ fontSize: "14px" }}>{title}</span>
-                    <span className="flex-shrink-0 text-text-3 tabular-nums" style={{ fontSize: "12px" }}>{facts}</span>
-                </Link>
-                {trips.length > 1 && (
-                    <button
-                        type="button"
-                        onClick={onShowAll}
-                        data-testid="profile-trips-all"
-                        className="inline-flex items-center gap-1 text-text-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
-                        style={{ minHeight: "44px", fontSize: "13px", touchAction: "manipulation" }}
-                    >
-                        <span className="tabular-nums">{isJa ? `すべての旅 · ${trips.length}冊` : `All trips · ${trips.length}`}</span>
-                        <ChevronRightIcon aria-hidden="true" className="text-text-3" style={{ width: "12px", height: "12px" }} />
-                    </button>
-                )}
-            </div>
+                    <span className="tabular-nums">{isJa ? `すべての旅 · ${trips.length}冊` : `All trips · ${trips.length}`}</span>
+                    <ChevronRightIcon aria-hidden="true" className="text-text-3" style={{ width: "11px", height: "11px", strokeWidth: 2 }} />
+                </button>
+            )}
         </section>
     );
 }
