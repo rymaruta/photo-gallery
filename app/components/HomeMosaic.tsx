@@ -7,7 +7,7 @@ import type { Photo, Locale } from "@/lib/data/photos";
 import { ROUTES } from "@/lib/routes";
 import { photoAltText } from "@/lib/utils/photoAlt";
 import { timeAgo } from "@/lib/stories";
-import { editorialRows, shortPlace } from "@/lib/utils/editorialLayout";
+import { editorialLargeIndexes, shortPlace } from "@/lib/utils/editorialLayout";
 import Thumb from "./Thumb";
 import { MOSAIC_HERO_SIZES, MOSAIC_PAIR_SIZES } from "./gridSizes";
 
@@ -39,18 +39,8 @@ type Props = {
 const GAP = 4;
 
 export default function HomeMosaic({ photos, locale, priorityCount = 3 }: Props) {
-    const rows = React.useMemo(() => editorialRows(photos), [photos]);
-    // 大きい段かどうかを**何番目か**で引く（並びそのものは `editorialRows` が決める）。
-    // id で引くと、同じ写真が2回入ったときに両方とも大きく出て、2枚の段に穴が空く
-    const large = React.useMemo(() => {
-        const at = new Set<number>();
-        let i = 0;
-        for (const r of rows) {
-            if (r.kind === "hero") at.add(i);
-            i += r.kind === "hero" ? 1 : 2;
-        }
-        return at;
-    }, [rows]);
+    // 大きい段かどうかを**何番目か**で引く（並びそのものは `editorialRows` が決める・`editorialLargeIndexes`）
+    const large = React.useMemo(() => editorialLargeIndexes(photos), [photos]);
     return (
         // **写真1枚ごとに `<li>`**（大きい1枚は2列ぶん）。段ごとに作ると、一覧が1枚ずれただけで
         // 全部の段の組み合わせが変わり、全部の写真が作り直される（読み込み途中の画像が一度消える）。

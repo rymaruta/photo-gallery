@@ -5,10 +5,13 @@ import type { Photo, Locale } from "@/lib/data/photos";
 import { getLabels } from "../i18n/labels";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { HeartIcon } from "@heroicons/react/24/solid";
+import { HeartIcon as HeartOutlineIcon, Square2StackIcon } from "@heroicons/react/24/outline";
 import { ROUTES } from "../../lib/routes";
 import Thumb from "./Thumb";
 import { photoAltText } from "../../lib/utils/photoAlt";
 import { photoOwnTitle } from "../../lib/utils/photoTitle";
+import { editorialLargeIndexes, shortPlace } from "../../lib/utils/editorialLayout";
+import { categoryLabel as categoryNameOf } from "../../lib/utils/collections";
 
 type Props = {
     photos: Photo[];
@@ -75,7 +78,21 @@ type Props = {
      * 申告と実寸がずれてブラウザが違う候補を落とす（`gridSizes.ts` の doc）。
      */
     columnsClassName?: string;
+    /**
+     * **並べ方**（2026-10-31 束 2）。既定の `grid` は今までの 4:3 の格子。
+     * `editorial` は iOS の `PhotoGrid`（板 12・タグ・カテゴリ・機材の頁）と同じ
+     * **大きく1枚（16:10）→ 2枚（1:1）→ 2枚**・隙間 10・角 18・白8%の縁。768px 以上は4列で大きい1枚を 2×2 に置く。
+     * 列は自分で決めるので `columnsClassName` は読まない。`sizes` は2枚の段の1枚、`heroSizes` は大きい1枚
+     * （`EDITORIAL_PAIR_SIZES` / `EDITORIAL_HERO_SIZES`）
+     */
+    layout?: "grid" | "editorial";
+    /** `editorial` の大きい1枚の `sizes`（`layout="editorial"` のときは必ず渡す） */
+    heroSizes?: string;
 };
+
+/** iOS の `PhotoGrid` の隙間（段どうし・段の中）と札の角 */
+const EDITORIAL_GAP = 10;
+const EDITORIAL_RADIUS = 18;
 
 
 /**
@@ -109,6 +126,8 @@ export default function GalleryGrid({
     sizes,
     // 既定は `GRID_SIZES_5XL` / `GRID_SIZES_6XL` が前提にしている列数
     columnsClassName = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
+    layout = "grid",
+    heroSizes,
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
@@ -143,11 +162,22 @@ export default function GalleryGrid({
     }
 
     const shown = photos.slice(0, visible);
+    const editorial = layout === "editorial";
+    // 大きく出す番号（並び全体で数える＝続きを読み込んでもリズムが崩れない）
+    const large = editorial ? editorialLargeIndexes(shown) : null;
 
     return (
         <>
-        {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更） */}
-        <div className={`grid ${columnsClassName} gap-1 sm:gap-1.5`}>
+        {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更）。
+            `editorial` は iOS の `PhotoGrid`: 端の余白 10（本文の 16 から 6 戻す）・隙間 10。
+            768px 以上は4列で、大きい1枚（2×2）の右に2枚の段を2つ詰める（`grid-flow-dense`） */}
+        <div
+            className={editorial
+                ? "grid grid-cols-2 md:grid-cols-4 md:grid-flow-dense -mx-[6px] md:mx-0"
+                : `grid ${columnsClassName} gap-1 sm:gap-1.5`}
+            style={editorial ? { gap: EDITORIAL_GAP } : undefined}
+            data-layout={layout}
+        >
             {shown.map((p, idx) => {
                 // 題が無ければ空。サーバーが入れていた「無題」も題として扱わない（`photoTitle.ts`）
                 // 言語ごとに「無題」を落とす（`photoOwnTitle`。写真ページの h1 と同じ判定）
@@ -173,7 +203,10 @@ export default function GalleryGrid({
                         onOpenPhoto={onOpenPhoto}
                         openInPlace={openInPlace}
                         priorityCount={priorityCount}
-                        sizes={sizes}
+                        sizes={large?.has(idx) ? (heroSizes ?? sizes) : sizes}
+                        tile={large ? (large.has(idx) ? "hero" : "pair") : "grid"}
+                        lead={editorial && idx === 0}
+                        locale={locale}
                     />
                 );
             })}
@@ -198,6 +231,9 @@ const GalleryItem = React.memo(function GalleryItem({
     openInPlace,
     priorityCount,
     sizes,
+    tile = "grid",
+    lead = false,
+    locale = "ja",
 }: {
     photo: Photo;
     index: number;
@@ -210,6 +246,11 @@ const GalleryItem = React.memo(function GalleryItem({
     openInPlace?: boolean;
     priorityCount?: number;
     sizes: string;
+    /** 札の形: `grid` … 4:3 の格子、`hero` … 大きい1枚（16:10・PC は 2×2）、`pair` … 2枚の段の1枚（1:1） */
+    tile?: "grid" | "hero" | "pair";
+    /** 先頭の1枚に撮影地・@撮った人・いいねを重ねる（iOS の `LeadCaption`・板 12） */
+    lead?: boolean;
+    locale?: Locale;
 }) {
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
@@ -234,6 +275,19 @@ const GalleryItem = React.memo(function GalleryItem({
     // (2) 呼ぶ側が `openInPlace` を立てた画面（撮影スポット詳細のモック⑧）。
     // どちらでも `<Link href>` は残るので、内部リンクは消えない
     const opensHere = !!onOpenPhoto && (openInPlace || href.startsWith("/?photo="));
+
+    if (tile !== "grid") {
+        return (
+            <EditorialTile
+                photo={photo} tile={tile} lead={lead} locale={locale}
+                localizedTitle={localizedTitle} localizedAlt={localizedAlt}
+                placeholderColor={placeholderColor} objectPosition={objectPosition}
+                category={categoryDisplayMap?.[photo.category ?? ""] || categoryNameOf(photo.category, getLabels(locale).category?.names ?? {})}
+                href={href} opensHere={opensHere} onOpenPhoto={onOpenPhoto}
+                isPriority={isPriority} sizes={sizes} isFav={isFav} extraCount={extraCount}
+            />
+        );
+    }
 
     return (
         <div className="w-full m-0 p-0">
@@ -373,3 +427,96 @@ const GalleryItem = React.memo(function GalleryItem({
                     </div>
                 );
 });
+
+/**
+ * **集約の頁の1枚**（iOS の `PhotoTile`／先頭は `LeadCaption`・板 12・2026-10-31 束 2）。
+ *
+ *   形     大きい1枚 16:10（768px 以上は 2×2 のマスいっぱい）・2枚の段 1:1・角 18・白8%の縁
+ *   字     先頭の1枚: 撮影地（明朝 22）・@撮った人（12）・右にいいね（印＋等幅 12、0 のときは出さない）
+ *          ほか: 分類（眉 11・白75%）・題（17 semibold・2行まで）。どちらも写真の上なので白だけ
+ *   印     複数枚は右上の重なった四角（iOS の `square.on.square`）。お気に入りは左上の黒い丸の白いハート
+ *
+ * リンク・その場で開く・先読みしないの決まりは格子の札（`GalleryItem`）と同じ。題も分類も無ければ帯を出さない
+ */
+function EditorialTile({
+    photo, tile, lead, locale, localizedTitle, localizedAlt, placeholderColor, objectPosition, category,
+    href, opensHere, onOpenPhoto, isPriority, sizes, isFav, extraCount,
+}: {
+    photo: Photo; tile: "hero" | "pair"; lead: boolean; locale: Locale;
+    localizedTitle: string; localizedAlt: string; placeholderColor: string; objectPosition?: string; category: string;
+    href: string; opensHere: boolean; onOpenPhoto?: (photoId: string) => boolean;
+    isPriority: boolean; sizes: string; isFav: boolean; extraCount: number;
+}) {
+    const hero = tile === "hero";
+    const isJa = locale !== "en";
+    // 先頭の1枚の大きい字は撮影地（無ければ題）・@は名前があるときだけ（iOS の `CollectionScreen.leadHeadline`／`leadAuthor`）
+    const headline = lead ? (shortPlace(photo.location) || localizedTitle) : "";
+    const author = lead && photo.displayName?.trim() ? `@${photo.displayName.trim()}` : "";
+    const likes = lead ? (photo.likes ?? 0) : 0;
+    const showLead = lead && (!!headline || !!author || likes > 0);
+    const showCaption = !lead && (!!localizedTitle || !!category);
+    return (
+        <div className={`m-0 p-0 ${hero ? "col-span-2 md:row-span-2" : ""}`} data-tile={tile}>
+            <Link
+                href={href}
+                prefetch={false}
+                onClick={opensHere ? (e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    if (onOpenPhoto?.(photo.id)) e.preventDefault();
+                } : undefined}
+                className={`relative block w-full overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${hero ? "aspect-[16/10] md:aspect-auto md:h-full" : "aspect-square"}`}
+                aria-label={localizedTitle ? `${localizedTitle} を開く` : "写真を開く"}
+                title={localizedTitle}
+                style={{ borderRadius: EDITORIAL_RADIUS, backgroundColor: placeholderColor, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
+                data-photo-id={photo.id}
+            >
+                <Thumb photo={photo} alt={localizedAlt} sizes={sizes} priority={isPriority}
+                       objectPosition={objectPosition} cellAspect={hero ? 16 / 10 : 1} />
+                {/* 白8%の縁（iOS の `strokeBorder(white 0.08)`）。写真の上に内側で描く */}
+                <span aria-hidden="true" className="absolute inset-0 ring-1 ring-inset ring-line pointer-events-none" style={{ borderRadius: EDITORIAL_RADIUS }} />
+
+                {isFav && (
+                    <span className="absolute top-2.5 left-2.5 z-10 inline-flex rounded-full bg-black/60 p-1">
+                        <HeartIcon aria-hidden="true" className="w-4 h-4 text-white" />
+                    </span>
+                )}
+                {extraCount > 0 && (
+                    <>
+                        <Square2StackIcon aria-hidden="true" className="absolute text-white pointer-events-none"
+                                          style={{ top: 10, right: 10, width: 18, height: 18, filter: "drop-shadow(0 0 3px rgba(0,0,0,0.5))" }} />
+                        <span className="sr-only">{isJa ? "、複数枚の投稿" : ", Multiple photos"}</span>
+                    </>
+                )}
+
+                {showLead && (
+                    <div aria-hidden="true" data-testid="lead-caption"
+                         className="absolute inset-x-0 bottom-0 flex items-end gap-2 pointer-events-none"
+                         style={{ padding: "48px 14px 12px", background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.78) 100%)" }}>
+                        <div className="min-w-0 flex-1">
+                            {headline && (
+                                <p className="m-0 font-serif font-bold text-white line-clamp-2" style={{ fontSize: "22px", lineHeight: 1.3 }}>{headline}</p>
+                            )}
+                            {author && <p className="m-0 text-white/70 truncate" style={{ fontSize: "12px", lineHeight: "16px", marginTop: 2 }}>{author}</p>}
+                        </div>
+                        {likes > 0 && (
+                            <span className="flex-shrink-0 inline-flex items-center gap-1 text-white tabular-nums" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                                <HeartOutlineIcon style={{ width: 14, height: 14, strokeWidth: 2 }} />
+                                {likes.toLocaleString()}
+                            </span>
+                        )}
+                    </div>
+                )}
+                {showCaption && (
+                    <div aria-hidden="true"
+                         className="absolute inset-x-0 bottom-0 pointer-events-none"
+                         style={{ padding: 14, background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }}>
+                        {category && <p className="m-0 eyebrow text-white/75 truncate">{category}</p>}
+                        {localizedTitle && (
+                            <p className="m-0 font-semibold text-white line-clamp-2" style={{ fontSize: "17px", lineHeight: "22px", marginTop: category ? 3 : 0 }}>{localizedTitle}</p>
+                        )}
+                    </div>
+                )}
+            </Link>
+        </div>
+    );
+}

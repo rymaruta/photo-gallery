@@ -166,6 +166,31 @@ export const MOSAIC_PAIR_SIZES = [
 ].join(", ");
 
 /**
+ * **集約の頁（タグ・カテゴリ・機材）の並び**（`GalleryGrid` の `layout="editorial"`・iOS の `PhotoGrid`・板 12・2026-10-31 束 2）。
+ *
+ * iOS と同じく **大きく1枚（16:10）→ 2枚（1:1）→ 2枚**、隙間 10・端の余白 10（本文の 16 から `-mx-[6px]`）・角 18。
+ * 768px 以上は4列で、大きい1枚を 2×2 に置く（PC の幅の決まり W3: 並べる数だけ増やす）。容器は `max-w-6xl`（72rem）＋`px-4`。
+ *
+ *   767px まで       大きい1枚 = 画面 − 20、2枚の段 = (画面 − 30) / 2
+ *   768〜1151px      4列（容器 = 画面 − 32）: 1枚 = (画面 − 62) / 4、大きい1枚 = 2枚 + 10
+ *   1152px 以上      容器 1120 で頭打ち: 1枚 272.5、大きい1枚 555
+ *
+ * 大きい1枚の 555px は派生の上限（512w）を少し超えるが、`MOSAIC_HERO_SIZES` の 640px より小さい。
+ * Chromium で実測（`gridSizes.test.tsx` の `MEASURED_EDITORIAL_*`）
+ */
+export const EDITORIAL_HERO_SIZES = [
+    "(max-width:767px) calc(100vw - 20px)",
+    "(max-width:1151px) calc(50vw - 21px)",
+    "555px",
+].join(", ");
+
+export const EDITORIAL_PAIR_SIZES = [
+    "(max-width:767px) calc(50vw - 15px)",
+    "(max-width:1151px) calc(25vw - 15.5px)",
+    "272.5px",
+].join(", ");
+
+/**
  * 撮影スポット詳細（`/location/*`）の代表画像（ヒーロー）。
  *
  * **640px 未満は左右いっぱい**（`-mx-4`）なので `100vw`。

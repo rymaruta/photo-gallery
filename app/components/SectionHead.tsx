@@ -22,7 +22,8 @@ export default function SectionHead({
     id, eyebrow, title, href, moreLabel, testId = "section-head", className = "mb-3",
 }: {
     id: string;
-    eyebrow: string;
+    /** 眉。**無ければ明朝 22 の題だけ**（iOS の `JPSectionHeading(eyebrow: nil)`・撮影地の頁の節・2026-10-31 束 2） */
+    eyebrow?: string;
     title: string;
     href?: string;
     moreLabel?: string;
@@ -32,7 +33,7 @@ export default function SectionHead({
     return (
         <div className={`flex items-end justify-between gap-3 ${className}`} data-testid={testId}>
             <div className="min-w-0 flex-1 flex flex-col gap-1.5">
-                <p aria-hidden="true" className="m-0 eyebrow eyebrow-line text-accent">{eyebrow}</p>
+                {eyebrow && <p aria-hidden="true" className="m-0 eyebrow eyebrow-line text-accent">{eyebrow}</p>}
                 <h2 id={id} className="m-0 font-serif font-bold text-white" style={{ fontSize: "22px", lineHeight: "1.3" }}>{title}</h2>
             </div>
             {href && moreLabel && <MoreLink href={href} label={moreLabel} />}
