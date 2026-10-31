@@ -40,7 +40,7 @@ import UserAvatar from "../components/UserAvatar";
 import { EmptyState, LoadingState } from "../components/StateViews";
 import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX, CoverFrame, coverIsMissing, profileCoverUrl } from "../components/ProfileCover";
 import ProfileHandleLine from "../components/ProfileHandleLine";
-import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "../components/statCellStyle";
+import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_NUMBER_CLASS, STAT_LABEL_CLASS, STAT_CELL_CLASS } from "../components/statCellStyle";
 import PostSheet from "../components/PostSheet";
 import dynamic from "next/dynamic";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
@@ -51,8 +51,9 @@ import EarlyMemberMark from "../components/EarlyMemberMark";
 import { ProMark, NameBadge, MedalsButton } from "../components/ProfileNameMarks";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "../../lib/data/badges";
 import { readAudience } from "../../lib/utils/audience";
-import { TAB_ON, TAB_OFF } from "../components/tabStyles";
+import { TAB_ON, TAB_OFF, TAB_BASE } from "../components/tabStyles";
 import { useSignedImageRefetch } from "../../lib/hooks/useSignedImageRefetch";
+import { GLASS_BTN, GLASS_ICON_STYLE } from "../components/buttonStyles";
 
 type SongEntry = {
     title: string;
@@ -1293,9 +1294,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             href="/"
                             prefetch={false}
                             aria-label={locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/15 text-white/90 hover:bg-black/60 active:scale-95 transition shadow-lg shadow-black/30"
+                            // 写真の上のガラスの丸（44・2026-10-30 束 0b C12）。以前は 36・黒40%
+                            className={GLASS_BTN}
                         >
-                            <ArrowLeftIcon className="w-5 h-5" />
+                            <ArrowLeftIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
                         </Link>
                         {/* 共有: 戻ると対になる単一のガラスボタン。タップでメニューを開く */}
                         <div className="relative">
@@ -1304,11 +1306,11 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setShareOpen((v) => !v)}
                                 aria-haspopup="menu"
                                 aria-expanded={shareOpen}
-                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 transition shadow-lg shadow-black/30 active:scale-95 ${shareOpen ? "bg-primary text-ink ring-primary" : "bg-black/40 text-white/90 ring-white/15 hover:bg-black/60"}`}
+                                className={`${GLASS_BTN} ${shareOpen ? "!bg-primary !text-ink" : ""}`}
                                 title={locale === "en" ? "Share" : "共有"}
                                 aria-label={locale === "en" ? "Share profile" : "プロフィールを共有"}
                             >
-                                <ShareIcon className="w-4 h-4" />
+                                <ShareIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
                             </button>
 
                             {shareOpen && (
@@ -1508,17 +1510,16 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         **届く前に「0投稿」と言い切らない**——実測で応答を保持すると
                         5秒・20秒・45秒のいずれでも「0投稿」だった。ビルド後に登録した
                         人（定期ビルドは週1なので最大7日）のプロフィールが該当する */}
-                    <div className="flex items-center py-4 border-b border-line">
-                        <div className="flex-1 text-center">
-                            <span className="block font-bold tabular-nums leading-none" style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{photosResolved ? postCount : "…"}</span>
-                            <span className="block text-white/60 mt-1 leading-none" style={{ fontSize: `${STAT_LABEL_PX}px` }}>{locale === "en" ? "posts" : "投稿"}</span>
+                    <div className="flex items-start gap-2 py-4 border-b border-line">
+                        <div className={STAT_CELL_CLASS}>
+                            <span className={STAT_NUMBER_CLASS} style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{photosResolved ? postCount : "…"}</span>
+                            <span className={STAT_LABEL_CLASS} style={{ fontSize: `${STAT_LABEL_PX}px` }}>{locale === "en" ? "posts" : "投稿"}</span>
                             {photosResolved && hiddenCount > 0 && (
                                 <span className="block text-white/50 mt-1" style={{ fontSize: "12px" }}>
                                     {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
                                 </span>
                             )}
                         </div>
-                        <span aria-hidden="true" className="w-px self-center bg-white/10" style={{ height: `${STAT_DIVIDER_PX}px` }} />
                         <FollowButton
                             targetUserId={userId}
                             isOwner={isOwner}
@@ -1801,8 +1802,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 // 選んでいるタブは真鍮＋太字＋2px の下線（`tabStyles.ts`・iOS v2・ホームのタブと同じ定数）。
                                 // 並びと寸法は v2 の板の下線の札（字だけ・高さ 44・15px）。以前はアイコン付きで
                                 // その人のテーマ色の線を上辺に引いていた（白字のまま・`text-xs`）
-                                className={`flex items-center whitespace-nowrap transition-colors ${active ? TAB_ON : TAB_OFF}`}
-                                style={{ height: "44px", fontSize: "15px", touchAction: "manipulation" }}
+                                className={`${TAB_BASE} ${active ? TAB_ON : TAB_OFF}`}
+                                style={{ height: "44px", touchAction: "manipulation" }}
                             >
                                 {label}
                             </button>
@@ -1819,8 +1820,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         prefetch={false}
                         data-profile-link={href}
                         // 選んでいないタブと同じ見た目（`TAB_OFF`）——札の並びの中で色が割れないように
-                        className={`flex items-center whitespace-nowrap transition-colors ${TAB_OFF}`}
-                        style={{ height: "44px", fontSize: "15px", touchAction: "manipulation" }}
+                        className={`${TAB_BASE} ${TAB_OFF}`}
+                        style={{ height: "44px", touchAction: "manipulation" }}
                     >
                         {label}
                     </Link>

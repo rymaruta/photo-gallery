@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ROW_CARD, ROW_CHEVRON } from "./rowStyles";
 
 /**
  * ホームのタブの直下に置く**1行の入口**（今日の一問・撮影スポット）。
@@ -21,16 +22,17 @@ export default function HomeEntryRow({ href, eyebrow, text, testId }: {
             href={href}
             prefetch={false}
             data-testid={testId}
-            className="mb-3 flex items-center gap-3 min-h-[44px] px-4 rounded-xl bg-surface hover:bg-surface-2 text-white transition-colors"
+            // 2026-10-30 束 0b C11: 共通の札の行（1行の行 52・白8%の縁・角 16・字 15）。以前は 44・縁なし・字 14
+            className={`mb-3 ${ROW_CARD}`}
             style={{ touchAction: "manipulation" }}
         >
             <span className="shrink-0 eyebrow text-accent">
                 {eyebrow}
             </span>
-            <span className="min-w-0 flex-1 truncate" style={{ fontSize: "14px" }}>
+            <span className="min-w-0 flex-1 truncate text-[15px] leading-[20px]">
                 {text}
             </span>
-            <ChevronRightIcon className="w-4 h-4 shrink-0 text-white/60" aria-hidden />
+            <ChevronRightIcon className={ROW_CHEVRON} aria-hidden />
         </Link>
     );
 }

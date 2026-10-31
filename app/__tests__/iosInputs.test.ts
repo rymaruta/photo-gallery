@@ -73,7 +73,9 @@ describe("#33 検索欄", () => {
                 // 自前の ✕ = 欄の後ろ（同じ入れ物の中）に「消す／クリア」のボタンがある
                 const after = src.slice(i, i + 3000);
                 const hasOwnClear = /aria-label=\{[^}]*(Clear|クリア|消す)/.test(after);
-                expect(tag.includes("search-own-clear"), `${rel}: 自前の ✕ ${hasOwnClear ? "あり" : "なし"}`).toBe(hasOwnClear);
+                // 共通の検索欄の定数（`fieldStyles.ts` の SEARCH_FIELD）は印を持つ（2026-10-30 束 0b C6）
+                const marked = tag.includes("search-own-clear") || /\{SEARCH_FIELD\}|\$\{SEARCH_FIELD\}/.test(tag);
+                expect(marked, `${rel}: 自前の ✕ ${hasOwnClear ? "あり" : "なし"}`).toBe(hasOwnClear);
                 i = src.indexOf('type="search"', i + 1);
             }
         }

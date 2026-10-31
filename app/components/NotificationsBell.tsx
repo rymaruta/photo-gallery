@@ -12,6 +12,7 @@ import { useAuth } from "../auth/context";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 import { FollowAction } from "./FollowButton";
+import { CHIP_ON, CHIP_OFF, CHIP_SIZE, CHIP_HIT } from "./chipStyles";
 import { publicImageUrl } from "@/lib/utils/seo";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./headerIcon";
@@ -722,15 +723,11 @@ export default function NotificationsBell() {
                         // **選択中は白の塗り（`primary`）に墨。** デザインシステムの
                         // 「白＝位置と選択」。真鍮は合図の色で、選択状態は担わない
                         // 非選択は `/70`（`/46` が下限・`textContrast.test.ts`）
-                        className={`flex-shrink-0 rounded-full transition ${selected
-                            ? "bg-primary text-ink font-semibold"
-                            : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
-                        // **px で書く**（以前は 640px 未満で root が 14px に落ちて rem 系が縮んでいた（2026-10-30 束 0a で外した））
+                        // 2026-10-30 束 0b C5: 共通のチップ（34・白8%の縁・選ぶと ✓・当たり 44）にそろえる。
+                        // 並びは上下 8 の余白を持つので、当たりの上下 5 は並びの中に収まる
+                        className={`${CHIP_HIT} flex-shrink-0 inline-flex items-center rounded-full transition ${selected ? CHIP_ON : CHIP_OFF}`}
                         style={{
-                            fontSize: 13,
-                            minHeight: 36,
-                            paddingLeft: 14,
-                            paddingRight: 14,
+                            ...CHIP_SIZE,
                             touchAction: "manipulation",
                             WebkitTapHighlightColor: "transparent",
                         }}

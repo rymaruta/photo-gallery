@@ -1,5 +1,6 @@
 "use client";
 
+import { SEARCH_FIELD, SEARCH_FIELD_STYLE, SEARCH_ICON, SEARCH_ICON_STYLE } from "../components/fieldStyles";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isImeKey } from "../../lib/utils/ime";
 import debounce from "lodash.debounce";
@@ -98,11 +99,7 @@ export default function MapControls({
                 **当たるのは撮影地と題だけ**（`matchesMapQuery`）。持っていない
                 「スポット」の台帳を名乗らない言葉にする */}
             <div className="relative">
-                <MagnifyingGlassIcon
-                    aria-hidden="true"
-                    className="pointer-events-none absolute left-0 top-0 text-white/60"
-                    style={{ width: "20px", height: "20px", marginLeft: "16px", marginTop: "14px" }}
-                />
+                <MagnifyingGlassIcon aria-hidden="true" className={SEARCH_ICON} style={SEARCH_ICON_STYLE} />
                 <input
                     type="search"
                     value={local}
@@ -121,11 +118,9 @@ export default function MapControls({
                     enterKeyHint="search"
                     placeholder={en ? "Search places, spots and titles" : "撮影地・スポット・写真の題で検索"}
                     aria-label={en ? "Search places, spots and titles" : "撮影地・スポット・写真の題で検索"}
-                    className="search-own-clear w-full rounded-[20px] bg-surface-2/90 text-white placeholder:text-white/50 ring-1 ring-white/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                    style={{
-                        height: "48px", fontSize: "15px",
-                        paddingLeft: "44px", paddingRight: local ? "44px" : "16px",
-                    }}
+                    // 共通の検索欄（2026-10-30 束 0b C6・44・角 12・白8%の縁）。地図の上なので地だけ 90% に透かす
+                    className={`${SEARCH_FIELD} !bg-surface-2/90`}
+                    style={{ ...SEARCH_FIELD_STYLE, height: "44px", paddingRight: local ? "44px" : "14px" }}
                     data-testid="map-search-input"
                 />
                 {local && (
@@ -133,7 +128,7 @@ export default function MapControls({
                         type="button" onClick={clear}
                         aria-label={en ? "Clear search" : "検索を消す"}
                         className="absolute right-0 top-0 flex items-center justify-center text-white/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-full"
-                        style={{ width: "44px", height: "48px", touchAction: "manipulation" }}
+                        style={{ width: "44px", height: "44px", touchAction: "manipulation" }}
                     >
                         <XMarkIcon aria-hidden="true" style={{ width: "20px", height: "20px" }} />
                     </button>

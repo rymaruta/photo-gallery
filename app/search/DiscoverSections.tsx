@@ -7,7 +7,7 @@ import { collectEntries, collectionPath, collectionIndexPath, slugify, type Coll
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "../components/Thumb";
 import SharedSectionHead from "../components/SectionHead";
-import { CHIP_OFF, CHIP_SIZE } from "@/app/components/chipStyles";
+import { CHIP_OFF, CHIP_SIZE, CHIP_HIT, CHIP_ROW } from "@/app/components/chipStyles";
 import { placeLine, placeParts } from "@/lib/utils/placeName";
 
 /**
@@ -156,7 +156,8 @@ function SectionHead(props: { id: string; eyebrow: string; title: string; href: 
 
 export default function DiscoverSections({ photos, locale, categoryDisplayMap }: Props) {
     const isJa = locale !== "en";
-    const more = isJa ? "すべて見る ›" : "See all ›";
+    // › は `MoreLink` が印で付ける（字に書くと二重になる・2026-10-30 束 0b C10）
+    const more = isJa ? "すべて見る" : "See all";
     const shown = SHOWN;
     /**
      * 溢れの逃がし方。⚠️ **`overflow-x-auto` と `flex-wrap` は共存できない**
@@ -250,11 +251,11 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                         存在しない限り表示しない） */}
                     <SectionHead id="discover-cameras" eyebrow="GEAR" title={isJa ? "機材からさがす" : "Browse by camera"}
                                  href={collectionIndexPath("camera")} moreLabel={more} />
-                    <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
+                    <ul className={CHIP_ROW} style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
                             <li key={c.slug}>
                                 <ItemLink href={linkTo("camera", c.slug)}
-                                      className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
+                                      className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
                                       style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     {dedupeCameraName(c.label)}
                                     <span className="text-white/60" style={{ fontSize: "12px" }}>{c.count}</span>

@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { MINCHO_STACK as MINCHO } from "@/lib/utils/storyText";
 import { DISPLAY_MINCHO_STACK } from "@/lib/utils/headingFont";
 
 /**
@@ -18,7 +17,8 @@ import { DISPLAY_MINCHO_STACK } from "@/lib/utils/headingFont";
  * 640px 未満（当時の root 14px）で縮んでいたため。指で押す的としても、読む字としても
  * 小さすぎた。**px で書く。**
  */
-const CHIP_CLASS = `inline-flex items-center min-h-[32px] px-3 rounded-full ${CHIP_OFF} text-[12px] transition-colors`;
+// 2026-10-30 束 0b C5: 以前は 32・12 の小さいタグ。iOS のチップ（34・13・当たり 44）にそろえる
+const CHIP_CLASS = `${CHIP_HIT} inline-flex items-center rounded-full ${CHIP_OFF} transition-colors`;
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
@@ -28,6 +28,7 @@ import { usePhotoSave } from "../../../lib/hooks/usePhotoSave";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
 import { formatPhotoStamp } from "../../../lib/utils/photoDate";
 import { FollowAction } from "../../components/FollowButton";
+import { TAB_ON, TAB_OFF, TAB_BASE, TAB_ROW } from "../../components/tabStyles";
 import UserAvatar from "../../components/UserAvatar";
 import MoreMenu from "../../components/MoreMenu";
 import type { Photo } from "@/lib/data/photos";
@@ -73,12 +74,14 @@ import SpotRows, { type SpotRow } from "../../components/SpotRows";
 import InspiredByLine from "../../components/InspiredByLine";
 import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
-import { CHIP_OFF } from "@/app/components/chipStyles";
+import { CHIP_OFF, CHIP_SIZE, CHIP_HIT } from "@/app/components/chipStyles";
 import PhotoTripSection from "./PhotoTripSection";
+import { LoadingState, ErrorState } from "@/app/components/StateViews";
 // **全画面は押したときに読む**（写真ページの最初の JS に載せない。検索の着地点で、
 // 押さずに去る人が大半）。静的書き出しでは描かないので ssr: false
 const PhotoViewer = dynamic(() => import("./PhotoViewer"), { ssr: false });
 import { photoLightZone, directionsTarget, offersInspiredShoot } from "@/lib/utils/photoTrip";
+import { MoreLink } from "@/app/components/SectionHead";
 
 /**
  * 写真ページの戻る・共有・「…」。**スマホは写真の上のガラスの丸**（黒 55%＋ぼかし・白・44px。
@@ -258,7 +261,7 @@ function PhotoImage({
             <div className="flex items-center justify-center bg-black min-h-[400px] rounded-lg">
                 <div className="text-white/60 text-center px-4">
                     <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <p className="text-sm">画像を読み込めません</p>
                 </div>
@@ -288,9 +291,8 @@ function PhotoImage({
             {/* 回転は「まだ」と分かってから。分からないうちに黒で覆うと、
                 届いている写真まで隠す */}
             {phase === "pending" && !blurDataURL && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
-                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
+                // 2026-10-30 束 0b C17: 回る輪ではなく iOS の骨組みの灰（surface-4 #1C1C1E）。光は流さない
+                <div aria-hidden="true" className="absolute inset-0 bg-surface-4 z-10" data-testid="photo-skeleton" />
             )}
             <div className="relative w-full" style={{ minHeight: reserve, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {/* AVIF があれば優先（詳細=LCP を軽く）、無ければ従来 src(WebP) にフォールバック。
@@ -752,9 +754,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     if (loading) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
+                {/* 2026-10-30 束 0b C17: 回る輪ではなく iOS と同じ灰の骨組み（`StateViews`） */}
+                <LoadingState kind="rows" locale={locale === "en" ? "en" : "ja"} className="min-h-[60vh]" />
             </main>
         );
     }
@@ -765,23 +766,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     if (!photo && fetchFailed) {
         return (
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
-                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-                    <h1 className="font-serif text-xl font-bold mb-4">
-                        {locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
-                    </h1>
-                    <p className="text-white/60 mb-6">
-                        {locale === "en"
-                            ? "A temporary network problem may be the cause."
-                            : "一時的な通信の問題かもしれません。"}
-                    </p>
-                    <button
-                        onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-ink text-sm font-semibold hover:brightness-110 active:scale-95 transition"
-                        style={{ touchAction: "manipulation", minHeight: "44px" }}
-                    >
-                        {locale === "en" ? "Retry" : "もう一度読み込む"}
-                    </button>
-                </div>
+                {/* 2026-10-30 束 0b C17: 共通の失敗の形（灰の三角・明朝 20・本文 15・副ボタン 44 の「もう一度」） */}
+                <ErrorState
+                    className="min-h-[60vh]"
+                    headingLevel={1}
+                    title={locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
+                    message={locale === "en" ? "A temporary network problem may be the cause." : "一時的な通信の問題かもしれません。"}
+                    onRetry={() => { setLoading(true); setReloadKey((k) => k + 1); }}
+                    retryLabel={locale === "en" ? "Retry" : "もう一度読み込む"}
+                    locale={locale === "en" ? "en" : "ja"}
+                />
             </main>
         );
     }
@@ -1202,14 +1196,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     ——**いちばん小さいスマホでだけ、隣のタグを押してしまう**。
                     `gap-2` で行の間隔が24pxになり0件（箱の高さは +2px だけ）。 */}
                 {(categoryDisplayName && photo.category) || (photo.tags?.length ?? 0) > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-x-2 gap-y-2.5">
                         {categoryDisplayName && photo.category && (
                             // カテゴリの集約ページへ（内部リンク＝SEO・回遊）。**先読みしない**
                             <Link
                                 href={collectionPath("category", slugify(photo.category, "category"))}
                                 prefetch={false}
                                 className={CHIP_CLASS}
-                                style={{ touchAction: "manipulation" }}
+                                style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
                             >
                                 {categoryDisplayName}
                             </Link>
@@ -1223,7 +1217,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                 href={collectionPath("tag", slugify(tag, "tag"))}
                                 prefetch={false}
                                 className={CHIP_CLASS}
-                                style={{ touchAction: "manipulation" }}
+                                style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
                             >
                                 #{tag}
                             </Link>
@@ -1531,15 +1525,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 {related.nearby.length > 0 && (
                     <section aria-labelledby="photo-nearby-heading" className="pt-3" data-testid="photo-nearby">
                         <div className="flex items-baseline justify-between gap-3">
-                            <h2 id="photo-nearby-heading" className="m-0 font-semibold" style={{ fontSize: "19px", lineHeight: 1.3, fontFamily: MINCHO }}>
+                            {/* 明朝は Shippori だけ（`font-serif`）・18（iOS `JPTypeScale.title3`）。2026-10-30 束 0b C10（以前はヒラギノ明朝 19） */}
+                            <h2 id="photo-nearby-heading" className="m-0 font-serif font-bold" style={{ fontSize: "18px", lineHeight: "24px" }}>
                                 {locale === "en" ? "Taken nearby" : "この近くで撮られた写真"}
                             </h2>
                             {mapHash && (
-                                <Link href={`${ROUTES.MAP}${mapHash}`} prefetch={false}
-                                      className="flex-shrink-0 inline-flex items-center text-white/70 hover:text-white transition-colors"
-                                      style={{ fontSize: "13px", minHeight: "44px", touchAction: "manipulation" }}>
-                                    {locale === "en" ? "View on map ›" : "地図で見る ›"}
-                                </Link>
+                                <MoreLink href={`${ROUTES.MAP}${mapHash}`} label={locale === "en" ? "View on map" : "地図で見る"} />
                             )}
                         </div>
                         <div className="grid grid-cols-4 gap-0.5 rounded-xl overflow-hidden">
@@ -1563,7 +1554,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     距離は出さない（写真の場所を割り出させない）。見出しは明朝（上の節と同じ）。行は撮影地ページと同じ部品 */}
                 {nearbySpots.length > 0 && (
                     <section aria-labelledby="photo-nearby-spots-heading" className="pt-5" data-testid="photo-nearby-spots">
-                        <h2 id="photo-nearby-spots-heading" className="m-0 mb-3 font-semibold" style={{ fontSize: "19px", lineHeight: 1.3, fontFamily: MINCHO }}>
+                        <h2 id="photo-nearby-spots-heading" className="m-0 mb-3 font-serif font-bold" style={{ fontSize: "18px", lineHeight: "24px" }}>
                             {locale === "en" ? "Photo spots nearby" : "近くの撮影スポット"}
                         </h2>
                         <SpotRows rows={nearbySpots} isJa={locale !== "en"} />
@@ -1589,7 +1580,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 ヘッダーの裏に入る） */}
             <div ref={tabsRef} className="mt-5 px-4 lg:px-0" style={{ scrollMarginTop: "var(--header-h)" }}>
                 <div role="tablist" aria-label={locale === "en" ? "Comments and related photos" : "コメントと関連写真"}
-                     className="flex border-b border-line">
+                     // 名前の幅で左から・間 24（2026-10-30 束 0b C4・iOS の札と同じ）。以前は 2 等分の札で下線も半分の幅
+                     className={TAB_ROW}>
                     {([
                         { key: "comments" as const, label: locale === "en" ? `Comments (${commentCount})` : `コメント (${commentCount})` },
                         { key: "related" as const, label: locale === "en" ? "Related" : "関連写真" },
@@ -1602,8 +1594,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                             aria-selected={activeTab === tab.key}
                             aria-controls={`photo-panel-${tab.key}`}
                             onClick={() => setActiveTab(tab.key)}
-                            className={`flex-1 pb-2.5 pt-2 text-center font-semibold border-b-2 -mb-px transition-colors ${activeTab === tab.key ? "text-accent border-accent" : "text-white/60 border-transparent hover:text-white"}`}
-                            style={{ fontSize: "14px", lineHeight: "20px", touchAction: "manipulation", minHeight: "44px" }}
+                            className={`${TAB_BASE} ${activeTab === tab.key ? TAB_ON : TAB_OFF}`}
+                            style={{ touchAction: "manipulation" }}
                         >
                             {tab.label}
                         </button>

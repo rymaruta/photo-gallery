@@ -440,8 +440,7 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/user/upload/page.tsx", 'PhotoIcon className="w-10 h-10 text-white/40 mb-2"', "選ぶ前の絵（3.66:1）"],
         ["app/components/Thumb.tsx", '<svg className="w-8 h-8 text-white/40"', "画像を読めなかったときの絵（3.66:1）"],
         ["app/components/UserAvatar.tsx", "${iconClassName} text-white/40", "アバターが無いときの既定の絵（3.66:1）"],
-        ["app/components/FilterBar.tsx", '"text-white/70 animate-pulse" : "text-white/35"', "入力欄の中の絵（3.01:1）"],
-        ["app/users/search/page.tsx", "-translate-y-1/2 w-4 h-4 text-white/35", "入力欄の中の絵（3.01:1）"],
+        ["app/components/FilterBar.tsx", '"!text-white/70 animate-pulse" : ""', "入力欄の中の絵（3.01:1）"],
         // アイコンだけの操作。**非テキストの基準は 3:1**（1.4.11）なので /40 で足りる。
         // 文字と同じ /50 に上げると、控えめにしてある操作が目立ちすぎる
         // ——シャッフル・リピートは「切」の状態で、隣の送りボタン（/60）と

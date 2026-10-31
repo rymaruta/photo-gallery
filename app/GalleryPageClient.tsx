@@ -28,7 +28,7 @@ import SpotsEntry from "./components/SpotsEntry";
 import type { HomeSeasonal } from "../lib/data/spotTopics";
 import { useMySaves } from "../lib/hooks/useMySaves";
 import { nextTabIndex } from "../lib/utils/tabKeys";
-import { TAB_ON, TAB_OFF } from "./components/tabStyles";
+import { TAB_ON, TAB_OFF, TAB_BASE, TAB_ROW } from "./components/tabStyles";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -629,7 +629,7 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
          `text-sm` も縮んでいた（`gap-6` は 21px・2026-10-30 束 0a で外した）。 */}
       {surface === "home" && (
         <div role="tablist" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
-             className="flex items-stretch gap-[24px] mb-3 border-b border-line">
+             className={`${TAB_ROW} mb-3`}>
           {HOME_TABS.map((t) => {
             const active = filters.scope === t.key;
             return (
@@ -645,7 +645,7 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
                 onClick={() => setFilters({ scope: t.key })}
                 onKeyDown={onHomeTabKeyDown}
                 // 選んでいるタブは真鍮＋太字＋2px の下線（`tabStyles.ts`。以前は白の下線）
-                className={`min-h-[44px] px-0 text-[15px] transition-colors ${active ? TAB_ON : TAB_OFF}`}
+                className={`${TAB_BASE} ${active ? TAB_ON : TAB_OFF}`}
                 style={{ touchAction: "manipulation" }}
               >
                 {locale === "en" ? t.en : t.ja}

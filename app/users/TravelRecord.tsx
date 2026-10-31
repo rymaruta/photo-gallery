@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { arcControls, countriesLine, routeShape, type LatLng } from "../../lib/utils/travelRoute";
+import { STAT_FIGURE_LARGE_PX } from "../components/statCellStyle";
 
 /**
  * マイページの「旅の記録」（案 H1「星図」・iOS の `TravelRecordView.swift` と同じ形）。
@@ -213,7 +214,7 @@ export default function TravelRecord({ distanceKm, countries, coordinates, first
                 {km !== null ? (
                     <span className="min-w-0" data-testid="travel-distance">
                         <span className="block leading-none whitespace-nowrap">
-                            <span className="tabular-nums" style={{ fontSize: "30px", fontWeight: 600, letterSpacing: "-0.02em" }}>{km}</span>
+                            <span className="tabular-nums" style={{ fontSize: `${STAT_FIGURE_LARGE_PX}px`, fontWeight: 600, letterSpacing: "-0.02em" }}>{km}</span>
                             <span className="text-white/60" style={{ fontSize: "13px", marginLeft: "3px" }}>km</span>
                         </span>
                         <span className="block mt-1.5 text-white/60" style={{ fontSize: "12px" }}>

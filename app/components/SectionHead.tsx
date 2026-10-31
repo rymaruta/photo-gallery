@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { ChevronRightIcon } from "@heroicons/react/24/outline";
 
 /**
  * **節の見出し**（iOS の `JPSectionHeading`・`JPEyebrowLine`・板 Components 05・2026-10-21 に共通化）:
@@ -34,16 +35,40 @@ export default function SectionHead({
                 <p aria-hidden="true" className="m-0 eyebrow eyebrow-line text-accent">{eyebrow}</p>
                 <h2 id={id} className="m-0 font-serif font-bold text-white" style={{ fontSize: "22px", lineHeight: "1.3" }}>{title}</h2>
             </div>
-            {href && moreLabel && (
-                <Link
-                    href={href}
-                    prefetch={false}
-                    className="flex-shrink-0 inline-flex items-center min-h-[44px] text-white/70 hover:text-white transition-colors"
-                    style={{ fontSize: "13px", touchAction: "manipulation" }}
-                >
-                    {moreLabel}
-                </Link>
-            )}
+            {href && moreLabel && <MoreLink href={href} label={moreLabel} />}
         </div>
+    );
+}
+
+/**
+ * **「すべて見る ›」**（iOS の `MoreLink`・2026-10-30 束 0b C10）。13・text-2・右に小さい ›・当たり 44×44。
+ * 以前は白70% の字だけで、› は字の中に書く所と無い所が割れていた。真鍮にしない（合図ではなく道）。先読みしない
+ */
+export function MoreLink({ href, label, testId }: { href: string; label: string; testId?: string }) {
+    return (
+        <Link
+            href={href}
+            prefetch={false}
+            data-testid={testId}
+            className="flex-shrink-0 inline-flex items-center justify-end gap-1 min-h-[44px] min-w-[44px] text-text-2 hover:text-white transition-colors"
+            style={{ fontSize: "13px", lineHeight: "18px", touchAction: "manipulation" }}
+        >
+            {label}
+            <ChevronRightIcon aria-hidden="true" style={{ width: 12, height: 12, strokeWidth: 2 }} />
+        </Link>
+    );
+}
+
+/**
+ * **静かな節の見出し**（iOS の `JPSectionTitle`・板「札の上の小さい見出し」・2026-10-30 束 0b C10）。
+ * 12・medium・白60%。札（設定・撮影情報など）の上に置く。眉ライン型（`SectionHead`）と2つだけにする
+ */
+export function SectionTitle({ id, children, as: Tag = "h2", className = "mb-2" }: {
+    id?: string; children: React.ReactNode; as?: "h2" | "h3"; className?: string;
+}) {
+    return (
+        <Tag id={id} className={`m-0 px-1 font-medium text-white/60 ${className}`} style={{ fontSize: "12px", lineHeight: "16px" }}>
+            {children}
+        </Tag>
     );
 }

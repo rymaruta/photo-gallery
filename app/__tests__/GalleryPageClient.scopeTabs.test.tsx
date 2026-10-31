@@ -106,7 +106,7 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
         expect(new URLSearchParams(window.location.search).get("scope")).toBeNull();
     });
 
-    it("選んでいるタブだけが真鍮＋太字＋2px の下線（iOS v2・色だけに頼らない）", async () => {
+    it("選んでいるタブだけが真鍮＋2px の下線（iOS v2・色だけに頼らない）。字の太さはどの札も 15 semibold（束 0b C4）", async () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(pressed("新着")).toBe(true));
         const cls = (name: string) => tab(name).className.split(/\s+/);
@@ -114,7 +114,7 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
         for (const off of screen.getAllByRole("tab").filter((t) => t.getAttribute("aria-selected") !== "true")) {
             const c = off.className.split(/\s+/);
             expect(c).not.toContain("text-accent");
-            expect(c).not.toContain("font-semibold");
+            expect(c).toContain("text-text-3");
             expect(c.some((x) => x.startsWith("shadow-"))).toBe(false);
         }
     });
