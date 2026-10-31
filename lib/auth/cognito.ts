@@ -398,8 +398,10 @@ export async function signUp(email: string, password: string): Promise<{
 }
 
 // メール確認コードで登録を確定（username は signUp が返した UUID）
-export async function confirmSignUp(username: string, code: string): Promise<{
+export async function confirmSignUp(username: string, code: string, clientMetadata?: Record<string, string>): Promise<{
     success: boolean;
+    /** もう確認済みだった（この回で登録したのではない）。登録の数を二重に数えないために返す */
+    alreadyConfirmed?: boolean;
     error?: string;
 }> {
     return new Promise((resolve) => {
@@ -427,7 +429,7 @@ export async function confirmSignUp(username: string, code: string): Promise<{
                     // ここで失敗を返すと、コードを入れ直しても永久に
                     // 確認画面から出られなくなる（登録完了に進めない）。
                     if (err.name === "NotAuthorizedException") {
-                        resolve({ success: true });
+                        resolve({ success: true, alreadyConfirmed: true });
                         return;
                     }
                     let msg = "確認に失敗しました。しばらくしてからもう一度お試しください";
@@ -448,7 +450,9 @@ export async function confirmSignUp(username: string, code: string): Promise<{
                     return;
                 }
                 resolve({ success: true });
-            });
+            // `ClientMetadata` は PostConfirmation のトリガーに届く（登録の数を出どころ別に数える・#432）。
+            // 中身は決まった値だけ（`app/signup` が渡す platform・from）。個人の情報は入れない
+            }, clientMetadata);
         } catch (e) {
             resolve({ success: false, error: e instanceof Error ? e.message : "確認処理中にエラーが発生しました" });
         }

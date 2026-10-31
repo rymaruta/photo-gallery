@@ -87,6 +87,12 @@ describe("loginWithNext", () => {
         expect(loginWithNext("https://evil.example")).toBe(ROUTES.LOGIN);
         expect(loginWithNext(null)).toBe(ROUTES.LOGIN);
     });
+
+    // 「行きたい」から来た印（登録までの数え方・#432）
+    it("via を付けると、戻り先の後ろ（無ければ最初）に via=wish を添える", () => {
+        expect(loginWithNext("/spots/a", "wish")).toBe(`${ROUTES.LOGIN}?next=${encodeURIComponent("/spots/a")}&via=wish`);
+        expect(loginWithNext(null, "wish")).toBe(`${ROUTES.LOGIN}?via=wish`);
+    });
 });
 
 // **前方一致で "//" を弾くだけでは足りなかった。** URL のパーサはタブ・
