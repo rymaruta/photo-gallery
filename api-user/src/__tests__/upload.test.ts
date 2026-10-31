@@ -230,6 +230,23 @@ describe("savePhoto: 共同アルバム", () => {
     });
 });
 
+// **投稿で候補の撮影スポットを外した印**（`spotAuto`・2026-10-31 journey.photo-ios#425）。
+// `"off"` だけ書く。書かないと、あとで静的な生成が同じ決まりで結び直す
+describe("savePhoto: 自動の結びを外した印", () => {
+    it("\"off\" を保存する", async () => {
+        await invoke(event("u1", { ...BASE, spotAuto: "off" }));
+        expect(savedPhoto().spotAuto).toBe("off");
+    });
+
+    it("ほかの値・無いときは書かない", async () => {
+        for (const spotAuto of [undefined, null, "", "on", true, 1]) {
+            mockPutPhoto.mockClear();
+            await invoke(event("u1", { ...BASE, spotAuto }));
+            expect("spotAuto" in savedPhoto(), String(spotAuto)).toBe(false);
+        }
+    });
+});
+
 // **撮影スポットの紐付け**（本人がスポットの画面から選ぶ・2026-09-29）。
 // 形の違う値は書かない（名前などを入れても紐付かない）
 describe("savePhoto: 撮影スポット", () => {

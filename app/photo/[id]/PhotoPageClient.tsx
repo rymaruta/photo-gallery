@@ -67,6 +67,7 @@ import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { sessionErrorMessage } from "../../../lib/utils/api";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
+import SpotAutoNotice from "./SpotAutoNotice";
 import SpotRows, { type SpotRow } from "../../components/SpotRows";
 import InspiredByLine from "../../components/InspiredByLine";
 import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
@@ -421,9 +422,15 @@ type PhotoPageClientProps = {
      * 「次のゴールデンアワー」をその土地の時計で言う。無ければ出さない（写真の座標から推測しない・`photoLightZone`）
      */
     spotTimeZone?: string | null;
+    /**
+     * 撮影地の名前と位置から**自動で結んだ**撮影スポット（`spotId` が無い写真だけ・サーバーで解いた名前だけ）。
+     * `off` は本人が外してある（`spotAuto: "off"`）。撮った本人にだけ知らせと「外す」を出す
+     * （`SpotAutoNotice`・2026-10-31 journey.photo-ios#425）
+     */
+    spotAuto?: { name: string; off: boolean } | null;
 };
 
-export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink, initialInspired, spotTimeZone, nearbySpots = [] }: PhotoPageClientProps) {
+export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink: builtSpotLink, initialInspired, spotTimeZone, nearbySpots = [], spotAuto = null }: PhotoPageClientProps) {
     const { locale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
 
@@ -555,6 +562,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
 
     // 写真BGM: オーナーが1曲添えられる（全員が写真ページで再生できる）
     const isOwnPhoto = isAuthenticated && !!authUserId && photo?.userId === authUserId;
+    // 自動の結び。本人が選んだ `spotId` が（API の取得で）付いていたら出さない。
+    // 外した・戻したはこの画面で先に見せる（静的な頁は作り直しで追いつく）
+    const [autoOffNow, setAutoOffNow] = useState<boolean | null>(null);
+    const autoActive = !!spotAuto && !photo?.spotId;
+    const autoOff = autoOffNow ?? (!!spotAuto?.off || photo?.spotAuto === "off");
+    const spotLink = autoActive && autoOff ? null : builtSpotLink;
     // **通報。** 自分の投稿と未ログインには出さない（押しても断られる）
     const [reportOpen, setReportOpen] = useState(false);
     const reportBtnRef = React.useRef<HTMLButtonElement>(null);
@@ -1114,7 +1127,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     </span>
                                 </Link>
                             )}
-                            {/* 台帳の撮影スポット（写真が確かめ済みの `spotId` を持つときだけ）。以前は本文の下の札（`SpotLinkCard`） */}
+                            {/* 台帳の撮影スポット。本人が選んだ `spotId`、無ければ撮影地の名前と位置から自動で結んだ先（サーバーの `page.tsx` が解く・
+                                journey.photo-ios#425）。本人が外したらこの画面でも引っ込める。以前は本文の下の札（`SpotLinkCard`） */}
                             {spotLink && (
                                 <Link
                                     href={`/spots/${spotLink.slug}`}
@@ -1154,6 +1168,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         </p>
                     )}
                 </div>
+
+                {/* 自動の結びつけ（撮った本人だけ・journey.photo-ios#425）。撮影スポットは写真の裾の帯のチップ
+                    「撮影スポット · ◯◯」に出るので、その帯を受ける本文側の情報（題と日時）のすぐ下に「外す」の札を置く */}
+                {isOwnPhoto && autoActive && spotAuto && (
+                    <SpotAutoNotice photoId={photoId} spotName={spotAuto.name} off={autoOff}
+                                    onChange={setAutoOffNow} locale={locale} />
+                )}
 
                 {/* カテゴリ（iOS は題の下の小さな札・板に無く実装にだけある）。集約ページへの内部リンク＝SEO・回遊。**先読みしない** */}
                 {categoryDisplayName && photo.category && (
