@@ -31,6 +31,17 @@ describe("autoLinksFor", () => {
     });
 });
 
+describe("autoLinksFor の鍵", () => {
+    it("updatedAt が同じでも、題・説明が変われば作り直す", () => {
+        const base = photos().map((p) => ({ ...p, updatedAt: "2026-10-31T00:00:00Z" }));
+        const first = autoLinksFor(base);
+        const described = base.map((p) => (p.id === "bb470019-c4a2-484e-bdbd-51e4b20fa4ef" ? { ...p, description: "森の橋" } : p));
+        const second = autoLinksFor(described);
+        expect(second).not.toBe(first);
+        expect(second["bb470019-c4a2-484e-bdbd-51e4b20fa4ef"]).toBeUndefined();
+    });
+});
+
 describe("autoSpotIdForPhoto", () => {
     it("非公開の写真は結ばない（表と同じ守り）", () => {
         const fox = photos().find((p) => p.id === FOX)!;

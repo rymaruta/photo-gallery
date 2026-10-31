@@ -91,6 +91,31 @@ describe("確かめで出た誤り（2026-10-31）", () => {
     });
 });
 
+describe("見直しで出た誤り（2026-10-31・2回目・本物の台帳）", () => {
+    it.each([
+        ["ニューヨーク市, アメリカ合衆国", "別名「ヨーク市」→ ヨーク"],
+        ["New York, NY, USA", "別名「York」→ ヨーク"],
+        ["Porto Alegre, Brasil", "別名「Porto」→ ポルト"],
+        ["Toledo, Ohio, USA", "別名「Toledo」→ トレド"],
+    ])("撮影地「%s」（位置なし）は結ばない: %s", (location) => {
+        expect(matcher.match({ location })).toBeNull();
+    });
+
+    it("「札幌市」・地名から補った位置・題「東京タワーより高い」→ 東京タワー を結ばない", () => {
+        expect(matcher.match({ title: "東京タワーより高い", location: "札幌市", coords: { lat: 43.06, lng: 141.35 }, geoApprox: true })).toBeNull();
+    });
+
+    it("「リヨン, フランス」・地名から補った位置・題「ヴァンドーム広場を思い出す」→ ヴァンドーム広場 を結ばない", () => {
+        expect(matcher.match({ title: "ヴァンドーム広場を思い出す", location: "リヨン, フランス", coords: { lat: 45.76, lng: 4.84 }, geoApprox: true })).toBeNull();
+    });
+
+    it("撮影地の1項目そのもの・語として書かれていれば結ぶ（ヨーク・ポルト・パリの代表点）", () => {
+        expect(matcher.match({ location: "ヨーク, イギリス" })).toMatch(/^sp_/);
+        expect(slugOf.get(matcher.match({ location: "ポルト, ポルトガル" }) ?? "")).toBe("porto");
+        expect(slugOf.get(matcher.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 48.86, lng: 2.32 }, geoApprox: true }) ?? "")).toBe("place-vendome");
+    });
+});
+
 describe("地名だけの別名（台帳の全行の地域から決める）", () => {
     const regions = regionTokens(SPOTS);
 
@@ -178,6 +203,23 @@ describe("決まり", () => {
         // 本物の位置なら、撮影地が地域の名前だけでも 5km を見る（2026-10-31 確かめの指摘）
         expect(mm.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 49.05, lng: 2.33 } })).toBeNull();
         expect(mm.match({ title: "ヴァンドーム広場", location: "ホテル前", coords: { lat: 49.05, lng: 2.33 } })).toBeNull();
+    });
+
+    it("語の切れ目は正規化の前の文字で見る（中黒・空白の後ろは切れ目・カタカナの続きは切れ目ではない）", () => {
+        const vendome = spot(13, { name: "ヴァンドーム広場", aliases: ["Place Vendome"], region: { country: "フランス", city: "パリ" }, coords: { lat: 48.87, lng: 2.33 } });
+        const mm = m([vendome]);
+        expect(mm.match({ title: "パリ・ヴァンドーム広場にて" })).toBe(vendome.spotId);
+        expect(mm.match({ location: "Place Vendôme, Paris" })).toBeNull(); // ô は別の字（台帳の綴りどおりでないと当てない）
+        expect(mm.match({ location: "Place Vendome, Paris" })).toBe(vendome.spotId);
+        expect(mm.match({ location: "Place Vendomex, Paris" })).toBeNull();
+        expect(mm.match({ title: "ニューヴァンドーム広場" })).toBeNull();
+    });
+
+    it("英字だけの5字以下の名前・別名は、撮影地の1項目と丸ごと同じときだけ（語の切れ目だけでは当てない）", () => {
+        const bikan = spot(14, { name: "倉敷美観地区", aliases: ["Bikan"], region: { country: "日本", prefecture: "岡山県", city: "倉敷市" }, coords: { lat: 34.6, lng: 133.77 } });
+        const mm = m([bikan]);
+        expect(mm.match({ location: "Bikan Street Cafe, Tokyo" })).toBeNull();
+        expect(mm.match({ location: "Bikan, Kurashiki" })).toBe(bikan.spotId);
     });
 
     it("補った位置のときは、位置が無いときと同じく県の食い違いを見る", () => {

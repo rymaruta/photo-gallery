@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSpotMatchIndex, uploadSpotIndex, uploadSpotFields, autoUploadSpot, choiceOff } from "../spotUploadAuto";
+import { parseSpotMatchIndex, uploadSpotIndex, uploadSpotFields, autoUploadSpot, choiceOff, autoOffFor } from "../spotUploadAuto";
 
 /** 投稿で撮影スポットを自動で選ぶ（2026-10-31 判断・journey.photo-ios#425） */
 const FOX = "sp_000000000001";
@@ -43,6 +43,21 @@ describe("uploadSpotFields", () => {
         expect(choiceOff(m, "a")).toBe(false);
         expect(choiceOff(m, "b")).toBe(true);
         expect(choiceOff(m, "c")).toBeUndefined();
+    });
+});
+
+describe("autoOffFor（撮影スポットの帯の「外す」）", () => {
+    const d = { spotId: GINZAN.spotId, itemId: "a" };
+    it("見ていた1枚で、候補が同じ撮影スポットなら切り", () => {
+        expect(autoOffFor(new Map(), d, "a", GINZAN.spotId)).toBe(true);
+    });
+    it("ほかの写真・ほかの候補・外していないときは触らない", () => {
+        expect(autoOffFor(new Map(), d, "b", GINZAN.spotId)).toBeUndefined();
+        expect(autoOffFor(new Map(), d, "a", FOX)).toBeUndefined();
+        expect(autoOffFor(new Map(), null, "a", GINZAN.spotId)).toBeUndefined();
+    });
+    it("本人の切り替えが先", () => {
+        expect(autoOffFor(new Map([["a", true]]), d, "a", GINZAN.spotId)).toBe(false);
     });
 });
 

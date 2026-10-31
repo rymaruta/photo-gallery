@@ -62,14 +62,14 @@ export default function SpotAutoNotice({ photoId, spotName, off, onChange, local
             </span>
             <h2 id="photo-spot-auto" className="m-0 text-white font-semibold" style={{ fontSize: "16px", lineHeight: "22px" }}>
                 {off
-                    ? (isJa ? `「${spotName}」への自動の結びつけを外しています` : `Not grouped with “${spotName}”`)
-                    : (isJa ? `撮影スポット「${spotName}」に結びました` : `Grouped with “${spotName}”`)}
+                    ? (isJa ? `「${spotName}」への自動の結びつけを外しています` : `Automatic link to “${spotName}” removed`)
+                    : (isJa ? `撮影スポット「${spotName}」に結びました` : `Linked to the photo spot “${spotName}”`)}
             </h2>
             <p className="m-0 text-white/70" style={{ fontSize: "13px", lineHeight: "20px" }}>
                 {off
                     ? (isJa ? "撮影スポットの頁には並びません。同じ場所なら元に戻せます。" : "It won’t appear on the spot page. Restore it if this is the same place.")
                     : (isJa ? "撮影地の名前と写真の位置から、自動で結んでいます。違う場所なら外してください。"
-                        : "Grouped automatically by place name and location. Remove it if this is a different place.")}
+                        : "Linked automatically by place name and location. Remove it if this is a different place.")}
             </p>
             <div>
                 <button type="button" onClick={() => save(!off)} disabled={saving}

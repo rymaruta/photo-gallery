@@ -69,7 +69,10 @@ const FOX_ID = "sp_000000000001";
 /** 投稿画面が読む索引（`/app/data/spot-match.json`）の小さな版 */
 const INDEX = {
     v: 1,
-    spots: [{ i: FOX_ID, d: "蔵王キツネ村", n: "蔵王キツネ村", c: [38.02, 140.55], p: "宮城県" }],
+    spots: [
+        { i: FOX_ID, d: "蔵王キツネ村", n: "蔵王キツネ村", c: [38.02, 140.55], p: "宮城県" },
+        { i: "sp_92dc681b0f47", d: "銀山温泉", n: "銀山温泉", c: [38.58, 140.53], p: "山形県" },
+    ],
 };
 
 function savedBody(): Record<string, unknown> | null {
@@ -208,3 +211,53 @@ describe("アップロード画面: 複数枚の投稿", () => {
         expect("spotId" in second).toBe(false);
     }, 15000);
 });
+
+describe("アップロード画面: 撮影スポットの帯で「外す」", () => {
+    function savedBodies(): Record<string, unknown>[] {
+        return mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/save").map((c) => JSON.parse((c[1] as { body: string }).body));
+    }
+
+    it("帯で外した撮影スポットと自動の候補が同じなら、見ていた1枚は「切り」で始め、外した印を書く", async () => {
+        q.search = "spot=ginzan-onsen";
+        const { container } = render(<UploadPage />);
+        await screen.findByTestId("upload-spot-banner");
+        await pick(container);
+        await waitFor(() => expect(screen.getByTestId("upload-spot-banner").textContent).toContain("1枚をスポットに紐付けます"));
+        await userEvent.click(screen.getByRole("button", { name: "撮影スポット「銀山温泉」を外す" }));
+        const sw = await screen.findByRole("switch", { name: "撮影スポット「銀山温泉」に結ぶ" });
+        expect(sw.getAttribute("aria-checked")).toBe("false");
+        await publish();
+        expect("spotId" in savedBody()!).toBe(false);
+        expect(savedBody()!.spotAuto).toBe("off");
+    });
+
+    it("帯で外したあとに選んだ写真（見ていなかった写真）には書かない", async () => {
+        q.search = "spot=ginzan-onsen";
+        const { container } = render(<UploadPage />);
+        await screen.findByTestId("upload-spot-banner");
+        await pick(container);
+        await waitFor(() => expect(screen.getByTestId("upload-spot-banner").textContent).toContain("1枚をスポットに紐付けます"));
+        await userEvent.click(screen.getByRole("button", { name: "撮影スポット「銀山温泉」を外す" }));
+        await screen.findByRole("switch", { name: "撮影スポット「銀山温泉」に結ぶ" });
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["z"], "c.jpg", { type: "image/jpeg" }));
+        // 2枚目にも同じ撮影地を書く（自動の候補は同じ銀山温泉）
+        const thumbs = await screen.findAllByRole("button", { name: /2枚目/ });
+        await userEvent.click(thumbs[0]);
+        await typePlace2("銀山温泉");
+        const btn = await screen.findByRole("button", { name: /投稿する/ }, { timeout: 4000 });
+        await waitFor(() => expect(btn).not.toBeDisabled());
+        await userEvent.click(btn);
+        await waitFor(() => expect(savedBodies()).toHaveLength(2), { timeout: 4000 });
+        const [first, second] = savedBodies();
+        expect(first.spotAuto).toBe("off");
+        expect("spotAuto" in second).toBe(false);
+        expect("spotId" in second).toBe(false);
+    }, 15000);
+});
+
+async function typePlace2(text: string) {
+    const input = await screen.findByLabelText("2枚目の位置情報（任意）");
+    await userEvent.clear(input);
+    await userEvent.type(input, text);
+}

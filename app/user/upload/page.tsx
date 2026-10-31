@@ -30,7 +30,7 @@ import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, splitTa
 import { tagKey } from "../../../lib/utils/collections";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { readSpotParam, spotBodyUrl, parseSpotBody, coversSpot, spotIdToSend, type SpotUploadTarget } from "../../../lib/utils/spotUpload";
-import { SPOT_MATCH_URL, parseSpotMatchIndex, uploadSpotIndex, autoUploadSpot, uploadSpotFields, choiceOff, type UploadSpotIndex } from "../../../lib/utils/spotUploadAuto";
+import { SPOT_MATCH_URL, parseSpotMatchIndex, uploadSpotIndex, autoUploadSpot, uploadSpotFields, autoOffFor, type UploadSpotIndex, type BannerDismissal } from "../../../lib/utils/spotUploadAuto";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 import { normalizeInspiredId, inspiredPickFrom, inspiredWasDropped, InspiredCarrier, type InspiredPick } from "../../../lib/utils/inspired";
@@ -222,7 +222,13 @@ function UploadPageInner() {
     const [autoIndex, setAutoIndex] = useState<UploadSpotIndex | null>(null);
     const autoIndexAskedRef = useRef(false);
     const [autoChoice, setAutoChoice] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+    /** 帯の「外す」を押したとき見ていた1枚と撮影スポット（`autoOffFor`）。見ている写真は描画のたびに覚える */
+    const [dismissal, setDismissal] = useState<BannerDismissal>(null);
+    const editingIdRef = useRef<string | null>(null);
     const removeSpot = useCallback(() => {
+        const s = spotRef.current;
+        const seen = editingIdRef.current;
+        if (s && seen) setDismissal({ spotId: s.spotId, itemId: seen });
         setSpot(null);
         setSpotFailed(false);
         spotPendingRef.current.clear();
@@ -1343,7 +1349,7 @@ function UploadPageInner() {
                             ...(albumId ? { albumId } : {}),
                             // 撮影スポット。撮影スポットの画面から来て**この写真がその近くで、撮影地に名前を含むとき**だけ spotId。
                             // 自動の候補は書かず、本人が切り替えを切ったときだけ外した印（`spotUploadAuto.ts`）
-                            ...uploadSpotFields({ target: spot, index: autoIndex, item, off: choiceOff(autoChoice, item.id) }),
+                            ...uploadSpotFields({ target: spot, index: autoIndex, item, off: autoOffFor(autoChoice, dismissal, item.id, autoUploadSpot(autoIndex, item)) }),
                             // この写真を見て撮影（形の合う ID だけ・付くかはサーバーが確かめる）
                             ...(inspiredId ? { inspiredBy: inspiredId } : {}),
                             ...audienceForSave(audience),
@@ -1445,7 +1451,7 @@ function UploadPageInner() {
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             ...(albumId ? { albumId } : {}),
                             // 撮影スポット。1件にまとめる回は表紙の写真で決める（題・撮影地と同じ）
-                            ...uploadSpotFields({ target: spot, index: autoIndex, item: c, off: choiceOff(autoChoice, c.id) }),
+                            ...uploadSpotFields({ target: spot, index: autoIndex, item: c, off: autoOffFor(autoChoice, dismissal, c.id, autoUploadSpot(autoIndex, c)) }),
                             ...(inspiredId ? { inspiredBy: inspiredId } : {}),
                             ...audienceForSave(audience),
                             // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
@@ -1568,7 +1574,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot, inspired, noteInspiredDropped, autoIndex, autoChoice]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot, inspired, noteInspiredDropped, autoIndex, autoChoice, dismissal]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -1635,6 +1641,7 @@ function UploadPageInner() {
     const coverItem = items.find((i) => i.status === "pending" || i.status === "error");
     const groupMode = asOnePost && pendingCount > 1 && !tooManyToGroup;
     const editing: Item | undefined = groupMode ? (coverItem ?? selected) : selected;
+    editingIdRef.current = editing?.id ?? null;
     /**
      * いま編集している写真に自動で選んだ撮影スポット（板 UploadIOS の切り替え）。撮影スポットの画面から来て
      * その写真が付くときは帯が受け持つので出さない
@@ -1644,7 +1651,7 @@ function UploadPageInner() {
         const id = autoUploadSpot(autoIndex, editing);
         const name = id ? autoIndex?.names.get(id) : undefined;
         if (!id || !name) return null;
-        return { itemId: editing.id, name, on: choiceOff(autoChoice, editing.id) !== true };
+        return { itemId: editing.id, name, on: autoOffFor(autoChoice, dismissal, editing.id, id) !== true };
     })();
     const editingNo = editing ? items.findIndex((i) => i.id === editing.id) + 1 : 0;
     /** 上げ終わった写真の欄は触らせない（サーバーの値と食い違う） */

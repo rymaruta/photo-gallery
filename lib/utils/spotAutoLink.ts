@@ -15,11 +15,13 @@
 //      （台帳の全行から地域の名前を集め、それだけを並べてできている別名を外す・`regionTokens`）
 //   3. 距離: 写真に本物の位置があれば、撮影スポットまで 5km 以内（撮影地が地域の名前だけでも見る。
 //      2026-10-31 確かめの指摘: 撮影地「日本」・札幌の位置・題「東京タワー」を結んでいた）。
-//      距離を省くのは、写真の位置が地名から補ったもの（`geoApprox`・地域の代表点）のときだけで、
+//      写真の位置が地名から補ったもの（`geoApprox`・地域の代表点）なら 50km で見る（`SPOT_AUTO_APPROX_KM`）。
 //      そのときと写真に位置が無いときは、撮影地に書かれた都道府県が撮影スポットの県と食い違わないこと
 //   2b. 短いカタカナ: カタカナだけでできた4字以下の名前・別名（「ポルト」「カバー」）は、撮影地を
 //      「,」「、」で区切った1項目と丸ごと同じときだけ当てる（題・説明の部分一致には使わない。
-//      「ポルトガル旅行」→ ポルト、「スマホカバー」→ カバー を結ばない）
+//      「ポルトガル旅行」→ ポルト、「スマホカバー」→ カバー を結ばない）。英字だけの5字以下（「york」）も同じ
+//   2c. 語の切れ目: 英字の名前・別名は前後が英数字でないこと。カタカナで始まる（終わる）ものは、すぐ前（後ろ）が
+//      カタカナでないこと（「ニューヨーク市」→ 別名「ヨーク市」に当てない）。切れ目は正規化の前の文字で見る
 //   4. 1つだけ: 当てはまる撮影スポットが2つ以上なら結ばない。台帳で2件以上に当たる
 //      名前・別名も使わない
 //   5. 公開済みの撮影スポットだけ。本人が外した写真（`spotAuto: "off"`）は結ばない。
@@ -44,6 +46,13 @@ import { isPublished } from "./spotGuide";
 
 /** 写真と撮影スポットの位置の差の上限（km）。3km だと高屋神社 本宮（3.7km）が外れる */
 export const SPOT_AUTO_KM = 5;
+/**
+ * 写真の位置が地名から補ったもの（`geoApprox`・地域の代表点）のときの上限（km）。
+ * 2026-10-31 判断（確かめの指摘）: 補った位置でも捨てずに見る。捨てると「札幌市」の写真が題の
+ * 「東京タワーより高い」で東京タワーに結ばれた。代表点と撮影スポットの差（市の中心から名所まで）を
+ * 見込んで 50km。県の食い違いの検査も重ねる
+ */
+export const SPOT_AUTO_APPROX_KM = 50;
 /** 名前・別名の最小の字数（括弧の中を除いて数える） */
 export const SPOT_AUTO_MIN_CHARS = 3;
 /** 本人が「違う場所なので外す」を押した印（写真の行の `spotAuto`） */
@@ -93,7 +102,13 @@ function addRegion(out: Set<string>, raw?: string): void {
     if (bare !== v && bare.length >= 2) out.add(bare);
 }
 
-/** 台帳の全行（下書きも）から地域の名前を集める */
+/**
+ * 台帳の全行（下書きも）から地域の名前を集める。
+ *
+ * 撮影スポットそのものが町（正式名が地域の名前と同じ・「トレド」「ポルト」）なら、その英語名も地域として
+ * 数える（2026-10-31 確かめの指摘: 別名「Toledo」が「Toledo, Ohio, USA」に当たった。町の英語名は
+ * 地名だけの別名と同じで、同じ名前の町がほかの国にもある）
+ */
 export function regionTokens(spots: readonly Spot[]): Set<string> {
     const out = new Set<string>();
     for (const s of spots) {
@@ -102,6 +117,12 @@ export function regionTokens(spots: readonly Spot[]): Set<string> {
         addRegion(out, s.region?.city);
     }
     for (const p of PREFECTURES) addRegion(out, p.name);
+    for (const s of spots) {
+        if (s.nameEn && out.has(matchKey(s.name))) {
+            const en = normalizeSpotName(s.nameEn);
+            if (en.length >= 2) out.add(en);
+        }
+    }
     return out;
 }
 
@@ -185,6 +206,60 @@ export function isShortKatakana(key: string): boolean {
     return SHORT_KATAKANA.test(key);
 }
 
+/** 英字だけでできた5字以下の語。撮影地の1項目と丸ごと同じときだけ当てる（「york」「porto」） */
+const SHORT_LATIN = /^[a-z]{1,5}$/;
+const HAS_LATIN = /[a-z0-9]/;
+const LATIN_CHAR = /[a-z0-9]/;
+/** カタカナ（中黒「・」は区切りなので含めない。長音「ー」は語の続き） */
+const KATAKANA_CHAR = /[\u30A1-\u30FA\u30FC]/;
+
+/**
+ * 正規化した文字列と、その1字ずつが正規化の前（NFKC・小文字だけの形）の何字目かの対応。
+ * 正規化は空白・括弧・読点を落とすので、語の切れ目は**正規化の前の文字**で見る
+ * （「New York」の「york」の前は空白＝切れ目・「ニューヨーク」の「ヨーク」の前は「ー」＝続き）
+ */
+type Located = { norm: string; soft: string; at: number[] };
+
+function locate(text: string): Located {
+    const soft = text.normalize("NFKC").toLowerCase();
+    let norm = "";
+    const at: number[] = [];
+    for (let i = 0; i < soft.length; i++) {
+        const ch = soft[i];
+        if (/[\s　()（）「」『』,、，]/.test(ch)) continue;
+        norm += ch;
+        at.push(i);
+    }
+    return { norm, soft, at };
+}
+
+/**
+ * 鍵が文中に**語として**あるか。
+ *   - 英字を含む鍵: 前後が英数字でないこと（語の切れ目）
+ *   - カタカナで始まる鍵: すぐ前がカタカナでないこと（「ニューヨーク市」の「ヨーク市」に当てない）
+ *   - カタカナで終わる鍵: すぐ後ろがカタカナでないこと（「ポルトガル」の「ポルト」に当てない）
+ */
+export function hasWord(t: Located, key: string): boolean {
+    if (!key) return false;
+    const latin = HAS_LATIN.test(key);
+    const kataStart = KATAKANA_CHAR.test(key[0]);
+    const kataEnd = KATAKANA_CHAR.test(key[key.length - 1]);
+    for (let i = t.norm.indexOf(key); i >= 0; i = t.norm.indexOf(key, i + 1)) {
+        const before = t.soft[t.at[i] - 1] ?? "";
+        const after = t.soft[t.at[i + key.length - 1] + 1] ?? "";
+        if (latin && (LATIN_CHAR.test(before) || LATIN_CHAR.test(after))) continue;
+        if (kataStart && KATAKANA_CHAR.test(before)) continue;
+        if (kataEnd && KATAKANA_CHAR.test(after)) continue;
+        return true;
+    }
+    return false;
+}
+
+/** 撮影地の1項目と丸ごと同じときだけ当てる鍵（短いカタカナ・短い英字） */
+function itemOnly(key: string): boolean {
+    return isShortKatakana(key) || SHORT_LATIN.test(key);
+}
+
 /** 撮影地を「,」「、」で区切った項目（正規化済み） */
 function locationItems(location: string | undefined): Set<string> {
     return new Set((location ?? "").normalize("NFKC").split(/[,、，]/).map((t) => normalizeSpotName(t)).filter(Boolean));
@@ -201,25 +276,23 @@ export type SpotMatcher = { match: (photo: AutoLinkPhoto) => string | null };
 
 export function spotMatcher(index: SpotMatchIndex): SpotMatcher {
     const match = (photo: AutoLinkPhoto): string | null => {
-        const loc = normalizeSpotName(photo.location);
-        const all = normalizeSpotName([photo.location ?? "", ...texts(photo.title), ...texts(photo.description)].join("\n"));
-        if (!all) return null;
+        const loc = locate(photo.location ?? "");
+        const all = locate([photo.location ?? "", ...texts(photo.title), ...texts(photo.description)].join("\n"));
+        if (!all.norm) return null;
         const items = locationItems(photo.location);
         const prefs = prefecturesIn(photo.location);
-        // 地名から補った位置（`geoApprox`）は地域の代表点なので、位置が無いのと同じに扱う
-        const c = !photo.geoApprox && photo.coords && Number.isFinite(photo.coords.lat) && Number.isFinite(photo.coords.lng)
-            ? photo.coords : null;
-        const nameHit = (k: string) => (isShortKatakana(k) ? items.has(k) : all.includes(k));
-        const aliasHit = (k: string) => (isShortKatakana(k) ? items.has(k) : loc.includes(k));
+        const c = photo.coords && Number.isFinite(photo.coords.lat) && Number.isFinite(photo.coords.lng) ? photo.coords : null;
+        // 地名から補った位置（`geoApprox`）は地域の代表点。捨てずに 50km で見て、県の食い違いも重ねる
+        const approx = !!photo.geoApprox;
+        const limitKm = approx ? SPOT_AUTO_APPROX_KM : SPOT_AUTO_KM;
+        const nameHit = (k: string) => (itemOnly(k) ? items.has(k) : hasWord(all, k));
+        const aliasHit = (k: string) => (itemOnly(k) ? items.has(k) : hasWord(loc, k));
         let found: string | null = null;
         for (const row of index.spots) {
-            const hit = (row.n && nameHit(row.n)) || (loc && row.a?.some(aliasHit));
+            const hit = (row.n && nameHit(row.n)) || (loc.norm && row.a?.some(aliasHit));
             if (!hit) continue;
-            if (c && row.c) {
-                if (haversineKm(c, { lat: row.c[0], lng: row.c[1] }) > SPOT_AUTO_KM) continue;
-            } else if (!c && prefs.length > 0 && !(row.p && prefs.includes(row.p))) {
-                continue;
-            }
+            if (c && row.c && haversineKm(c, { lat: row.c[0], lng: row.c[1] }) > limitKm) continue;
+            if ((!c || approx) && prefs.length > 0 && !(row.p && prefs.includes(row.p))) continue;
             if (found && found !== row.i) return null; // 2つ以上は結ばない
             found = row.i;
         }

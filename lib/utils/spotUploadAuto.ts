@@ -73,3 +73,22 @@ export function uploadSpotFields(args: {
 export function choiceOff(choice: ReadonlyMap<string, boolean>, id: string): boolean | undefined {
     return choice.has(id) ? !choice.get(id) : undefined;
 }
+
+/** 撮影スポットの帯（`?spot=`）で「外す」を押したとき、本人が見ていた1枚とその撮影スポット */
+export type BannerDismissal = { spotId: string; itemId: string } | null;
+
+/**
+ * その写真の `off`（`uploadSpotFields` に渡す）。本人の切り替えが先。触っていなければ、帯で外した
+ * 撮影スポットと自動の候補が同じで、そのとき見ていた1枚なら「切り」（明示の操作なので外した印を書く・
+ * 2026-10-31 見直し）。ほかの写真は undefined（何も書かない）
+ */
+export function autoOffFor(
+    choice: ReadonlyMap<string, boolean>,
+    dismissal: BannerDismissal,
+    itemId: string,
+    autoSpotId: string | null,
+): boolean | undefined {
+    const c = choiceOff(choice, itemId);
+    if (c !== undefined) return c;
+    return dismissal && dismissal.itemId === itemId && autoSpotId === dismissal.spotId ? true : undefined;
+}

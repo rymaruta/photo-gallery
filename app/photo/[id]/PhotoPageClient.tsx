@@ -1127,7 +1127,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     </span>
                                 </Link>
                             )}
-                            {/* 台帳の撮影スポット（写真が確かめ済みの `spotId` を持つときだけ）。以前は本文の下の札（`SpotLinkCard`） */}
+                            {/* 台帳の撮影スポット。本人が選んだ `spotId`、無ければ撮影地の名前と位置から自動で結んだ先（サーバーの `page.tsx` が解く・
+                                journey.photo-ios#425）。本人が外したらこの画面でも引っ込める。以前は本文の下の札（`SpotLinkCard`） */}
                             {spotLink && (
                                 <Link
                                     href={`/spots/${spotLink.slug}`}

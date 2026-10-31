@@ -6,7 +6,7 @@
 // `loadAllPhotos()` が写真を読み直す（毎回新しい配列）ので、2段で覚える:
 //
 //   - **表（`autoLinksFor`）**: 読み込んだ配列ごとに1回（`WeakMap`）。中身が前の読み込みと同じなら
-//     （写真ごとの id・`updatedAt`・`spotId`・`spotAuto`・公開・撮影地・位置を並べた鍵が同じ）前の表を
+//     （写真ごとの id・`updatedAt`・`spotId`・`spotAuto`・公開・撮影地・位置・題と説明の指紋を並べた鍵が同じ）前の表を
 //     そのまま返す——頁ごとに全件の並べ替え・突き合わせをやり直さない
 //   - **写真1枚の答え（`ruleSpotIdFor`・写真の詳細）**: 写真 id ごと。鍵は決まりに効く項目
 //     （撮影地・題・説明・位置・`geoApprox`。`signature()`）で、`spotId`・`spotAuto` は見ない
@@ -62,12 +62,22 @@ export function autoSpotIdForPhoto(photo: Photoish): string | null {
 const tableByLoad = new WeakMap<readonly Photo[], Record<string, string>>();
 let lastTable: { key: string; table: Record<string, string> } | null = null;
 
+/** 題・説明の短い指紋（長さと FNV-1a）。`updatedAt` の無い行でも、題・説明の書き換えで鍵が変わる */
+function textHash(v: unknown): string {
+    if (v == null) return "";
+    const str = typeof v === "string" ? v : JSON.stringify(v);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
+    return `${str.length}:${(h >>> 0).toString(36)}`;
+}
+
 /** 読み込みの中身の鍵（安い項目だけ。題・説明が変わる保存は `updatedAt` が変わる） */
 function loadKey(photos: readonly Photo[]): string {
     return photos.map((p) => {
         const q = p as Photoish & { updatedAt?: string };
         return [q.id, q.updatedAt ?? "", q.spotId ?? "", q.spotAuto ?? "", q.published === false ? 0 : 1,
-            q.location ?? "", q.coords?.lat ?? "", q.coords?.lng ?? "", q.geoApprox ? 1 : 0].join("\u0001");
+            q.location ?? "", q.coords?.lat ?? "", q.coords?.lng ?? "", q.geoApprox ? 1 : 0,
+            textHash(q.title), textHash(q.description)].join("\u0001");
     }).join("\u0002");
 }
 
