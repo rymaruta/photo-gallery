@@ -102,6 +102,7 @@ export default function MapSpotList({ spots, total = spots.length, categoryActiv
                             {s.cover ? (
                                 <span className="flex-shrink-0 block overflow-hidden rounded-full bg-accent ring-2 ring-inset ring-accent"
                                       style={{ width: "40px", height: "40px" }}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={s.cover.src}
                                         alt=""
