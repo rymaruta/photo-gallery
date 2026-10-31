@@ -20,7 +20,7 @@ import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { slimForGrid } from "@/lib/utils/related";
 import { collectionPath, slugify } from "@/lib/utils/collections";
 import { spotAreaOf } from "@/lib/data/spotLink";
-import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
+import { spotBreadcrumb, spotStructuredData, spotLinkedPhoto, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData } from "@/lib/utils/seo";
 import { lightCalendar } from "@/lib/utils/lightCalendar";
 import { spotSky } from "@/lib/utils/spotSky";
@@ -92,7 +92,10 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     const coverImage = cover && coverSeo ? coverImageObject(cover, coverSeo.url, coverSeo) : undefined;
     const seoImage = spotSeoImage(spot, samples);
     const lead = seoImage?.from === "sample" ? seoImage.sample : undefined;
-    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverImage, samples, lead }) : null;
+    // 代表写真も確かめた作例も無いときは、このスポットに結ばれた利用者の公開写真（OGP と同じ1枚・2026-10-31 #432）。
+    // サイトの固定の代表画像はここには入れない——観光地の `image` は「この場所の写真」として読まれる
+    const linked = seoImage ? undefined : spotLinkedPhoto(spot, photos);
+    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverImage ?? linked?.url, samples, lead }) : null;
     // 海外のスポットは 海外 → 国 → スポット（区画の一覧は国の一覧になった・2026-10-11）
     const country = spotCountryRef(spot);
     const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area, country));

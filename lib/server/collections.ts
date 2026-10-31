@@ -18,7 +18,7 @@ import {
     collectionCopy,
     type CollectionType,
 } from "../utils/collections";
-import { siteConfig, publicImageUrl, pageRobots } from "../utils/seo";
+import { siteConfig, publicImageUrl, pageRobots, shareImageUrl } from "../utils/seo";
 import { withPlaceholderParam } from "./staticParams";
 
 /** 静的エクスポート用: そのタイプの全 slug を列挙（列挙外のパスは 404） */
@@ -48,9 +48,11 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
     const url = `${siteConfig.url}${canonicalCollectionPath(type, slug)}`;
 
     const first = matched[0];
-    const rawImage = first?.thumbSrc || first?.src;
+    // 2026-10-31（#432）: 一覧の縮小版（`thumbSrc`・横 512 の webp）ではなく、写真の頁と同じ本体（`src`）を出す。
+    // 検索結果・共有カードは大きい1枚を好む（`max-image-preview: large`）。写真が無ければ固定の代表画像
+    const rawImage = first?.src || first?.thumbSrc;
     // 出すURLはサイトのドメインに揃える（`publicImageUrl`）
-    const image = rawImage ? publicImageUrl(rawImage) : undefined;
+    const image = rawImage ? publicImageUrl(rawImage) : shareImageUrl();
 
     return {
         title,
@@ -70,13 +72,13 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
             siteName: siteConfig.name,
             title,
             description,
-            images: image ? [{ url: image }] : undefined,
+            images: [{ url: image }],
         },
         twitter: {
             card: "summary_large_image",
             title,
             description,
-            images: image ? [image] : undefined,
+            images: [image],
             creator: siteConfig.twitterHandle,
         },
     };
@@ -95,8 +97,8 @@ export async function collectionIndexMetadata(type: CollectionType): Promise<Met
     const { title, description } = collectionIndexCopy(type, entries.length);
     const url = `${siteConfig.url}${collectionIndexPath(type)}`;
     const first = photosInCollection(photos, type, entries[0]?.slug ?? "")[0];
-    const rawImage = first?.thumbSrc || first?.src;
-    const image = rawImage ? publicImageUrl(rawImage) : undefined;
+    const rawImage = first?.src || first?.thumbSrc;
+    const image = rawImage ? publicImageUrl(rawImage) : shareImageUrl();
 
     return {
         title,
@@ -110,13 +112,13 @@ export async function collectionIndexMetadata(type: CollectionType): Promise<Met
             siteName: siteConfig.name,
             title,
             description,
-            images: image ? [{ url: image }] : undefined,
+            images: [{ url: image }],
         },
         twitter: {
             card: "summary_large_image",
             title,
             description,
-            images: image ? [image] : undefined,
+            images: [image],
             creator: siteConfig.twitterHandle,
         },
     };

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, shareOgImage } from "@/lib/utils/seo";
 import { ROUTES } from "@/lib/routes";
 
 // 利用規約。**このサイトが実際にしていることだけを書く**（雛形の丸写しをしない）。
@@ -24,6 +24,8 @@ export const metadata: Metadata = {
         siteName: siteConfig.name,
         title: "利用規約",
         description: "利用条件、投稿できるもの、禁止事項、著作権の扱いについて。",
+        // 子の `openGraph` は親の画像ごと置き換わるので、サイトの固定の代表画像を明示する（2026-10-31 #432。共有カードに絵が無かった）
+        images: [shareOgImage()],
     },
 };
 

@@ -1,7 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { resolveOgImage } from "@/lib/server/photos";
 import Link from "next/link";
 import HeaderNav from "./components/HeaderNav";
 import Footer from "./components/Footer";
@@ -19,7 +18,7 @@ import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
 import BottomNav from "./components/BottomNav";
 import { LocaleProvider } from "./i18n/context";
-import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
+import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE, shareOgImage, shareImageUrl } from "../lib/utils/seo";
 
 // Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
 // viewportFit=cover でノッチ・ホームインジケーター領域の safe-area-inset を有効化
@@ -38,13 +37,10 @@ export const viewport: Viewport = {
   themeColor: "#000000",
 };
 
-// **OGP 画像はビルド時に決める（静的な `metadata` から関数に変えた理由）。**
-// 既定の `/images/og-image.jpg` は**存在しないファイル**で、トップページを
-// SNS・LINE に貼っても画像が出ない状態だった（16ページがこの URL を出して
-// いた）。新しく画像を作るのはデザインの判断なので、サイトが既に持って
-// いるもの——一番新しい公開写真——を使う。詳しくは `resolveOgImage`。
+// **OGP 画像はサイトの固定の代表画像**（`SHARE_IMAGE`・2026-10-31 #432）。
+// それまでは「一番新しい公開写真」をビルド時に選んでいて、トップ・子が画像を
+// 書かない頁の共有カードと検索結果に、利用者の最新の投稿がそのまま出ていた。
 export async function generateMetadata(): Promise<Metadata> {
-  const ogImage = await resolveOgImage(siteConfig.url);
   return {
     metadataBase: new URL(siteConfig.url),
     manifest: "/manifest.webmanifest",
@@ -91,16 +87,14 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: siteConfig.name,
       title: siteConfig.name,
       description: siteConfig.description,
-      // **寸法は申告しない。** 実在しない固定画像を指していた頃の
-      // 1200x630 が残っていたが、いま出すのは実際の写真で縦横比はまちまち
-      // （`photos.json` は width/height を持たない）
-      images: [{ url: ogImage, alt: siteConfig.name }],
+      // 固定の代表画像（1200×630。実寸どおりに申告する）
+      images: [shareOgImage()],
     },
     twitter: {
       card: "summary_large_image",
       title: siteConfig.name,
       description: siteConfig.description,
-      images: [ogImage],
+      images: [shareImageUrl()],
       creator: siteConfig.twitterHandle,
     },
     alternates: {

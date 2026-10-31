@@ -90,10 +90,9 @@ export const siteConfig = {
     // **リポジトリにもビルド成果物にも存在しない**（git の全履歴にも
     // 一度も現れない）。16ページがこの URL を OGP 画像として出しており、
     // トップを SNS に貼っても画像が出なかった。
-    // 通常は `resolveOgImage`（`lib/server/photos.ts`）がビルド時に
-    // 一番新しい公開写真を返す。**この値を直接読むページはもう無い**が、
-    // 落とし先と `Organization.logo` がここから引くので残す
-    // ——同じパスを3か所に散らさないため。
+    // 2026-10-31: 共有カード・検索結果の1枚は固定の代表画像（下の `SHARE_IMAGE`）に替えた。
+    // **この値を読むのは `Organization.logo` だけ**（正方形のアイコン＝ロゴとして正しい）。
+    // og:image には使わない——正方形のアイコンは検索結果で「写真ではなくアイコン」に見える
     ogImage: "/icon-512.png",
     twitterHandle: "@JourneyPhoto",
     // iOS アプリ（App Store「Journey Photo — 旅の写真」）の App ID。
@@ -130,6 +129,71 @@ export const siteConfig = {
     adsenseClientId: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "",
     bingVerification: process.env.NEXT_PUBLIC_BING_VERIFICATION || "", // Bing の msvalidate.01
 };
+
+/**
+ * **サイトの代表画像（共有カード・検索結果の1枚）**——2026-10-31 判断（札 journey.photo-ios#432 の 4）。
+ *
+ * それまでトップ・`/map`・`/q`・404 などは `resolveOgImage`（ビルド時の**一番新しい公開写真**）を
+ * og:image・twitter:image に出していた。結果、トップの共有カードと Google の検索結果に、そのとき
+ * 最新の利用者の投稿（2026-10-31 はスーパーのぶどう・値札つき）がそのまま出ていた。
+ * サイトの顔は**投稿に左右されない固定の1枚**にする。
+ *
+ * 画像は `public/images/og/journey-photo.jpg`（1200×630）。黒地にワードマーク・明朝の見出し・
+ * 真鍮の眉ラベル（デザインの板「黒塗りの真鍮」の色。真鍮と字は黒地の上だけ、写真の上には何も置かない）、
+ * 右に撮影スポットの作例の写真を置いた。写真は銀山温泉（Wikimedia Commons
+ * 「Ginzan Onsen in blue hour.jpg」・lumoplank・**CC0**——表示の義務は無いが出典は下に残す）。
+ * サイト内の縮小版（`public/images/spots/ginzan-onsen.jpg`・横 960）を縮めて使った（拡大していない）。
+ */
+export const SHARE_IMAGE = {
+    path: "/images/og/journey-photo.jpg",
+    width: 1200,
+    height: 630,
+    alt: "Journey Photo — 旅の写真を、気軽に眺める。",
+    /** 右の写真の出典（CC0。構造化データの `creditText` にだけ使う） */
+    photoCredit: "Ginzan Onsen in blue hour — lumoplank / CC0 / Wikimedia Commons",
+} as const;
+
+/** 代表画像の絶対 URL（og:image・twitter:image） */
+export function shareImageUrl(): string {
+    return `${siteConfig.url}${SHARE_IMAGE.path}`;
+}
+
+/** `openGraph.images` にそのまま渡す形（寸法つき） */
+export function shareOgImage() {
+    return { url: shareImageUrl(), width: SHARE_IMAGE.width, height: SHARE_IMAGE.height, alt: SHARE_IMAGE.alt };
+}
+
+/** 構造化データの `ImageObject`（トップの `primaryImageOfPage` など） */
+export function shareImageObject() {
+    return {
+        "@type": "ImageObject",
+        contentUrl: shareImageUrl(),
+        url: shareImageUrl(),
+        width: SHARE_IMAGE.width,
+        height: SHARE_IMAGE.height,
+        caption: SHARE_IMAGE.alt,
+        creditText: SHARE_IMAGE.photoCredit,
+    };
+}
+
+/**
+ * **トップの構造化データ**（ImageGallery）。ギャラリーの写真の並びは残し、
+ * **代表の1枚（`primaryImageOfPage`・`image` の先頭）は固定の代表画像**にする。
+ * Google は「代表として選ぶ画像」を `primaryImageOfPage`・主な対象の `image`・og:image から取るので、
+ * og:image だけ固定にしても、ここの先頭（新着の投稿）が選ばれうる（2026-10-31・#432）
+ */
+export function generateHomeStructuredData(
+    photos: Parameters<typeof generateStructuredData>[0],
+) {
+    const gallery = generateStructuredData(photos);
+    const primary = shareImageObject();
+    return {
+        ...gallery,
+        primaryImageOfPage: primary,
+        thumbnailUrl: primary.contentUrl,
+        image: [primary, ...gallery.image],
+    };
+}
 
 /**
  * 構造化データ（JSON-LD）を生成 - ギャラリーページ用
