@@ -1,12 +1,20 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
 
 export type MoreMenuItem = {
     key: string;
     label: string;
-    onSelect: () => void;
+    /** 押したときの動き。`href` を持つ項目は無くてよい（行き先へ移るだけ） */
+    onSelect?: () => void;
+    /**
+     * 行き先（2026-10-31 束 1）。持つ項目はリンクで描く——押す前に行き先が見え、新しいタブでも開ける。
+     * `external` なら別のタブで開く（外のサイト）。サイトの中は先読みしない `<Link>`
+     */
+    href?: string;
+    external?: boolean;
     /** 取り返しの付かない／目立たせたい項目（通報・ブロック）は赤で */
     danger?: boolean;
 };
@@ -94,18 +102,34 @@ export default function MoreMenu({ items, label, buttonRef, className = "", butt
                     onKeyDown={onMenuKey}
                     className="absolute right-0 top-full mt-1 z-30 min-w-[180px] rounded-xl bg-surface-2 ring-1 ring-line shadow-lg shadow-black/40 py-1"
                 >
-                    {items.map((it) => (
-                        <button
-                            key={it.key}
-                            type="button"
-                            role="menuitem"
-                            onClick={() => { setOpen(false); it.onSelect(); }}
-                            className={`block w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${it.danger ? "text-danger" : "text-white"}`}
-                            style={{ touchAction: "manipulation", minHeight: "44px" }}
-                        >
-                            {it.label}
-                        </button>
-                    ))}
+                    {items.map((it) => {
+                        const cls = `block w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${it.danger ? "text-danger" : "text-white"}`;
+                        const style = { touchAction: "manipulation", minHeight: "44px" } as const;
+                        if (it.href && it.external) {
+                            return (
+                                <a key={it.key} role="menuitem" href={it.href} target="_blank" rel="noopener noreferrer"
+                                   onClick={() => setOpen(false)} className={cls} style={style}>{it.label}</a>
+                            );
+                        }
+                        if (it.href) {
+                            return (
+                                <Link key={it.key} role="menuitem" href={it.href} prefetch={false}
+                                      onClick={() => setOpen(false)} className={cls} style={style}>{it.label}</Link>
+                            );
+                        }
+                        return (
+                            <button
+                                key={it.key}
+                                type="button"
+                                role="menuitem"
+                                onClick={() => { setOpen(false); it.onSelect?.(); }}
+                                className={cls}
+                                style={style}
+                            >
+                                {it.label}
+                            </button>
+                        );
+                    })}
                 </div>
             )}
         </div>

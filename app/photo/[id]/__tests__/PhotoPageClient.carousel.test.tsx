@@ -77,9 +77,11 @@ describe("写真ページ: 1投稿に複数枚", () => {
         expect(shownSrc(), "1枚目が出ていない").toContain("a.jpg");
     });
 
-    it("複数枚なら「N/M」と、前へ・次への操作を出す", () => {
+    // 2026-10-31 束 1 P4: 写真の上の「1/3」の札をやめ、裾の点（iOS の `pageDots`）と題の下の1行「… · 1/3枚」に
+    it("複数枚なら裾の点と「1/3枚」、前へ・次への操作を出す", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={withExtra} />);
-        expect(screen.getByText("1/3")).toBeTruthy();
+        expect(screen.getByText("1/3枚")).toBeTruthy();
+        expect(screen.getByTestId("photo-page-dots").children).toHaveLength(3);
         expect(screen.getByRole("button", { name: "次の写真" })).toBeTruthy();
         expect(screen.getByRole("button", { name: "前の写真" })).toBeTruthy();
     });
@@ -88,7 +90,7 @@ describe("写真ページ: 1投稿に複数枚", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={withExtra} />);
         fireEvent.click(screen.getByRole("button", { name: "次の写真" }));
         expect(shownSrc()).toContain("b.jpg");
-        expect(screen.getByText("2/3")).toBeTruthy();
+        expect(screen.getByText("2/3枚")).toBeTruthy();
         fireEvent.click(screen.getByRole("button", { name: "前の写真" }));
         expect(shownSrc()).toContain("a.jpg");
     });
@@ -101,9 +103,9 @@ describe("写真ページ: 1投稿に複数枚", () => {
         expect(shownSrc()).toContain("a.jpg");
     });
 
-    it("何枚目かを読み上げにも伝える（バッジは aria-hidden）", () => {
+    it("何枚目かを読み上げにも伝える（点は aria-hidden）", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={withExtra} />);
-        expect(screen.getByText("1/3").getAttribute("aria-hidden")).toBe("true");
+        expect(screen.getByTestId("photo-page-dots").getAttribute("aria-hidden")).toBe("true");
         expect(screen.getByText("3枚中 1枚目")).toBeTruthy();
     });
 
@@ -113,7 +115,7 @@ describe("写真ページ: 1投稿に複数枚", () => {
             // @ts-expect-error 壊れた値を通す（本番のデータは何でもありうる）
             extraImages: [null, {}, { src: 5 }, { src: "" }, { src: "https://cdn.example.com/uploads/u1/b.jpg" }],
         }} />);
-        expect(screen.getByText("1/2"), "壊れた要素まで数えている").toBeTruthy();
+        expect(screen.getByText("1/2枚"), "壊れた要素まで数えている").toBeTruthy();
         expect(shownSrc()).toContain("a.jpg");
     });
 

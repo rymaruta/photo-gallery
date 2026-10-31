@@ -44,3 +44,20 @@ describe("MoreMenu（⋯）", () => {
         expect(screen.getByRole("menuitem", { name: "リンクをコピー" }).className).not.toContain("text-danger");
     });
 });
+
+// 2026-10-31 束 1: 行き先を持つ項目はリンクで描く（写真の詳細の「撮影地マップで見る」「Google マップで開く」）
+it("href を持つ項目はリンク（外のサイトは別のタブ）。押すとメニューは閉じる", () => {
+    render(<MoreMenu label="その他" items={[
+        { key: "map", label: "撮影地マップで見る", href: "/map#12/1/2" },
+        { key: "g", label: "Google マップで開く", href: "https://maps.google.com/?q=1,2", external: true },
+    ]} />);
+    fireEvent.click(screen.getByRole("button", { name: "その他" }));
+    const map = screen.getByRole("menuitem", { name: "撮影地マップで見る" });
+    expect(map.tagName).toBe("A");
+    expect(map.getAttribute("href")).toBe("/map#12/1/2");
+    const g = screen.getByRole("menuitem", { name: "Google マップで開く" });
+    expect(g.getAttribute("target")).toBe("_blank");
+    expect(g.getAttribute("rel")).toContain("noopener");
+    fireEvent.click(g);
+    expect(screen.queryByRole("menu")).toBeNull();
+});

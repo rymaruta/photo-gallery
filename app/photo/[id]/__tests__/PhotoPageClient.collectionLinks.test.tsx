@@ -64,7 +64,8 @@ const hrefOf = (text: string | RegExp) => screen.getByText(text).closest("a")?.g
 const locationHref = (text: string) =>
     screen.getAllByText(text).map((e) => e.closest("a")).find((a) => a?.getAttribute("href")?.includes("/location/"))?.getAttribute("href");
 /** 撮影情報は初期は畳まれている（中身は DOM に残る）。リンクの role で引くときは開く */
-const expandExif = () => { const b = screen.queryByRole("button", { name: "詳しく見る" }); if (b) fireEvent.click(b); };
+// 2026-10-31 束 1 P8: 「詳しく見る」の字のボタンをやめ、「撮影情報」の行そのものが開け閉めのボタン
+const expandExif = () => { const b = screen.queryByRole("button", { name: /^撮影情報/ }); if (b && b.getAttribute("aria-expanded") !== "true") fireEvent.click(b); };
 
 describe("集約ページへの内部リンク", () => {
     it("タグは統合後のURLを指す", async () => {
