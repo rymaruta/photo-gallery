@@ -174,6 +174,20 @@ export function sanitizeSpotId(v: unknown): string | undefined {
     return /^sp_[0-9a-f]{12}$/.test(trimmed) ? trimmed : undefined;
 }
 
+/**
+ * 自動の結びを本人が外した印（`spotAuto`・2026-10-31 owner 承認・journey.photo-ios#425）。
+ * 書ける値は `"off"` だけ。`null`・空文字は「外した印を消す（自動に戻す）」で `null` を返す。
+ * それ以外の形は `undefined`（呼ぶ側が 400 で断る——読めない値を「戻す」に倒さない）。
+ * 決まりの本体は Web の `lib/utils/spotAutoLink.ts`（`SPOT_AUTO_OFF`）
+ */
+export function sanitizeSpotAuto(v: unknown): "off" | null | undefined {
+    if (v === null) return null;
+    if (typeof v !== "string") return undefined;
+    const t = v.trim();
+    if (t === "") return null;
+    return t === "off" ? "off" : undefined;
+}
+
 export function sanitizeDate(v: unknown): string | undefined {
     if (typeof v !== "string" || !v.trim()) return undefined;
     const s = v.trim();
