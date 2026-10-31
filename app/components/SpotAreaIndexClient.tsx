@@ -7,6 +7,7 @@ import { REGIONS, REGION_EN, type RegionName } from "@/lib/data/prefectures";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
 import { CHIP_OFF, CHIP_SIZE, CHIP_HIT, CHIP_ROW } from "./chipStyles";
+import SectionHead from "./SectionHead";
 
 /**
  * **公式撮影地ガイドの入口**（`/spots`）。**都道府県の一覧**を出す。
@@ -48,12 +49,12 @@ export default function SpotAreaIndexClient({ areas, total, draftCount, children
 
     return (
         <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
-            <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight">
+            <h1 className="font-serif text-4xl font-bold m-0 wrap-anywhere" data-testid="spots-title">
                 {isJa ? "撮影スポットをさがす" : "Find a place to shoot"}
             </h1>
             {/* 0件のときは下の「まだありません」だけを出す（「0件の下書きです」と並べない） */}
             {total > 0 && (
-            <p className="m-0 mt-2 mb-6 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
+            <p className="m-0 mt-2 mb-6 text-text-2" style={{ fontSize: "15px", lineHeight: "24px" }}>
                 {/* **「運営が調べた」と言えるのは、人が確かめた行だけ。** 全部が下書きなら
                     そう言う（2026-09-24 の台帳は 1,417件が未確認のまま「調べた」と名乗っていた）
                     2026-10-11: 公開の行も人が確かめたのは数件で、多くは AI 照合。「運営が調べた」は
@@ -76,12 +77,11 @@ export default function SpotAreaIndexClient({ areas, total, draftCount, children
             ) : (
                 groups.map(({ region, items }) => (
                     <section key={region ?? "overseas"} className="mb-7">
-                        <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90"
-                            style={{ fontSize: "17px", lineHeight: "24px" }}>
-                            {region === null
+                        {/* 地方の見出しは節の見出し（明朝 22・`SectionHead`・2026-10-31 束 2 P3）。以前は明朝 17 */}
+                        <SectionHead id={`spots-region-${region ?? "overseas"}`}
+                            title={region === null
                                 ? (isJa ? "海外" : "Outside Japan")
-                                : (isJa ? region : REGION_EN[region])}
-                        </h2>
+                                : (isJa ? region : REGION_EN[region])} />
                         <ul className={CHIP_ROW} style={{ listStyle: "none" }}>
                             {items.map((a) => (
                                 <li key={a.slug}>
