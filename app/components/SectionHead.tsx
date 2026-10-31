@@ -24,7 +24,8 @@ export default function SectionHead({
     id: string;
     /** 眉。**無ければ明朝 22 の題だけ**（iOS の `JPSectionHeading(eyebrow: nil)`・撮影地の頁の節・2026-10-31 束 2） */
     eyebrow?: string;
-    title: string;
+    /** 題（文字か、言語で出し分ける部品＝`Lang`） */
+    title: React.ReactNode;
     href?: string;
     moreLabel?: string;
     testId?: string;
