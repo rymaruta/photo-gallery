@@ -30,6 +30,9 @@ describe("P1・U1: スマホではサイトの見出しを外す頁", () => {
         expect(smoke).toContain("await expectMenuWorks(dpage, `[${eng}] プロフィール(デスクトップ)`)");
         expect(smoke).toContain("await expectChromelessPhone(page, `[${eng}] 写真ページ`");
         expect(smoke).not.toContain("await expectMenuWorks(page, `[${eng}] 写真ページ`)");
+        // ホームの一覧から開いた写真の頁（個別ページ）も同じ
+        expect(smoke).toContain("await expectChromelessPhone(page, `[${eng}] 個別ページ`");
+        expect(smoke).not.toContain("await expectMenuWorks(page, `[${eng}] 個別ページ`)");
         expect(smoke).toContain("await expectMenuWorks(dpage, `[${eng}] 写真ページ(デスクトップ)`)");
     });
 });

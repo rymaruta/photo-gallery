@@ -337,7 +337,8 @@ async function runChecks(browser, eng) {
                 h1Detail = `url=${page.url()} 写真=${pid} h1=${found.length}件${found.length ? ` [${found.join(", ")}]` : ""}`;
             }
             check(`[${eng}] 個別ページが表示される`, h1, h1Detail);
-            await expectMenuWorks(page, `[${eng}] 個別ページ`);
+            // 写真の詳細はスマホでサイトの見出しを外す（束 1 P1）。メニューは PC の幅（下のデスクトップ）で見る
+            await expectChromelessPhone(page, `[${eng}] 個別ページ`, "[data-testid='photo-top-bar'] a[href='/']");
         }
 
         // ビルド前の新着写真フォールバック: /?photo=<id> でモーダルが開く
