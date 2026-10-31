@@ -52,7 +52,9 @@ describe("nearbySpotsForPhoto", () => {
 
     it("写真ページは静的HTMLに焼くため、ページ（サーバー）で解いて渡す", () => {
         const src = readFileSync(join(__dirname, "../../../app/photo/[id]/page.tsx"), "utf8");
-        expect(src).toMatch(/nearbySpots=\{photo \? nearbySpotsForPhoto\(photo\) : \[\]\}/);
+        // 2026-10-31: 撮影スポットは本人が選んだ `spotId`、無ければ自動の結び（journey.photo-ios#425）。
+        // 写真が結ばれた撮影スポット自身を「近く」から除くため、その spotId を渡す
+        expect(src).toMatch(/nearbySpots=\{photo \? nearbySpotsForPhoto\(\{ \.\.\.photo, spotId \}\) : \[\]\}/);
         const client = readFileSync(join(__dirname, "../../../app/photo/[id]/PhotoPageClient.tsx"), "utf8");
         expect(client).toContain("<SpotRows rows={nearbySpots}");
     });
