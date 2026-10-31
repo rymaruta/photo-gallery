@@ -402,7 +402,8 @@ describe("撮影地ページの構造化データへの渡し方（レビュー 
         const fs = await import("node:fs");
         const src = fs.readFileSync(`${__dirname}/../../../app/components/SpotGuidePage.tsx`, "utf8");
         expect(src).toMatch(/const samples = spotSamples\(spot, \{ exclude: \[cover\?\.sourceUrl\] \}\);/);
-        expect(src).toMatch(/spotStructuredData\(spot, \{ image: coverImage, samples, lead \}\)/);
+        // 2026-10-31（#432）: 代表写真が無いときは、スポットに結ばれた利用者の公開写真（OGP と同じ1枚）
+        expect(src).toMatch(/spotStructuredData\(spot, \{ image: coverImage \?\? linked\?\.url, samples, lead \}\)/);
         // 代表写真は作者・ライセンスつきの ImageObject（2026-10-11）。URL と寸法は検索向けの版（2026-10-22）
         expect(src).toMatch(/const coverImage = cover && coverSeo \? coverImageObject\(cover, coverSeo\.url, coverSeo\) : undefined;/);
         expect(src).toMatch(/samples=\{samples\}/);

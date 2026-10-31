@@ -8,8 +8,6 @@ import { existsSync } from "fs";
 import path from "path";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
-import { sortByNewest } from "@/lib/utils/photoOrder";
-import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
 
 /**
  * 公開してはいけない項目（scripts/sync-photos-from-ddb.js の PRIVATE_FIELDS と対）。
@@ -57,43 +55,6 @@ export async function loadAllPhotos(): Promise<Photo[]> {
     return stripPrivateFields(RAW_PHOTOS as Photo[]);
 }
 
-/**
- * OGP・Twitter カードに出す既定の画像。**ビルド時に決める。**
- *
- * それまでは `siteConfig.ogImage = "/images/og-image.jpg"` の固定値だったが、
- * **そのファイルはリポジトリにもビルド成果物にも存在しない**
- * （`public/images/` にあるのは `me-portrait.jpg` だけで、git の全履歴にも
- * 一度も現れない）。それでも16ページがこの URL を OGP 画像として出して
- * いたので、**トップページを SNS・LINE・Slack に貼っても画像が出ない**
- * ——写真が主役のサイトとしては痛い。`Organization` の `logo` も同じ
- * URL を指していた。
- *
- * 画像を新しく作るのはデザインの判断になるので、**サイトが既に持って
- * いるもの**から選ぶ: 一番新しい公開写真。写真ギャラリーの共有カードに
- * 出るべきものであり、ビルドのたびに最新へ入れ替わる。
- *
- * **寸法は申告しない。** 写真の縦横比はまちまちで、`photos.json` は
- * `width`/`height` を持っていない（実測 0/30）。ユーザーページと写真
- * ページで同じ理由から寸法をやめたのと同じ扱い。
- *
- * 公開写真が1枚も無いときだけ、PWA のアイコン（実在する）に落とす。
- */
-export async function resolveOgImage(siteUrl: string, source?: () => Promise<Photo[]>): Promise<string> {
-    try {
-        // 既定はビルド時の一覧。`source` は差し替え用（テストから
-        // 「写真が無い」「非公開だけ」を作るため——`loadAllPhotos` は
-        // ディスクの `app/data/photos.json` を読むのでモックが効かない）
-        const photos = await (source ?? loadAllPhotos)();
-        const newest = sortByNewest(photos.filter((p) => p.published !== false && p.src))[0];
-        if (newest?.src) {
-            // 出すURLはサイトのドメインに揃える（`publicImageUrl`）。
-            // ここはトップ・ログイン後の画面・404 など**18ページ**が使う
-            // 既定のOGPで、直前まで CloudFront の既定ドメインのまま出ていた
-            return publicImageUrl(newest.src);
-        }
-    } catch {
-        // 読めなければアイコンに落とす（メタ情報のために本体を落とさない）
-    }
-    // 落とし先は `siteConfig.ogImage`（同じパスを散らさない）
-    return `${siteUrl}${siteConfig.ogImage}`;
-}
+// `resolveOgImage`（一番新しい公開写真を共有カードに出す）は 2026-10-31 に外した。
+// トップの共有カードと検索結果が利用者の最新の投稿に左右されていた（#432 の 4）。
+// 代わりは `lib/utils/seo.ts` の `SHARE_IMAGE`（固定の代表画像）

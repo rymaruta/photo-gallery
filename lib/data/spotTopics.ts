@@ -22,7 +22,7 @@ import { spotCoverImage, spotCoverLarge, spotCoverSize } from "./spotImages";
 import { spotThumbSrc, spotThumbExists } from "./spotThumbs";
 import { COUNTRY_SHARD_KEYS } from "./spotFeedShards";
 import { REGIONS, prefectureByName, OVERSEAS_SLUG, OVERSEAS_NAME, type RegionName } from "./prefectures";
-import { siteConfig, generateItemListStructuredData, generateBreadcrumbStructuredData, pageRobots } from "../utils/seo";
+import { siteConfig, generateItemListStructuredData, generateBreadcrumbStructuredData, pageRobots, shareOgImage, shareImageUrl } from "../utils/seo";
 import { ROUTES } from "../routes";
 
 /**
@@ -929,7 +929,8 @@ export function topicMetadata(view: TopicView | null) {
         openGraph: {
             type: "website" as const, url, siteName: siteConfig.name,
             locale: siteConfig.locale.ja, title, description,
-            ...(image ? { images: [{ url: image, ...(og?.width && og?.height ? { width: og.width, height: og.height } : {}), alt: view.heading }] } : {}),
+            // 写真が無ければサイトの固定の代表画像（2026-10-31 #432。書かないと og:image が出ない）
+            images: [image ? { url: image, ...(og?.width && og?.height ? { width: og.width, height: og.height } : {}), alt: view.heading } : shareOgImage()],
         },
         twitter: spotTwitterMeta(title, description, image),
     };
@@ -938,10 +939,8 @@ export function topicMetadata(view: TopicView | null) {
 /**
  * **X（Twitter）のカード**（2026-10-22）。子が `twitter` を書かないと、レイアウトの値（新着の投稿写真・サイト名の題）が
  * そのまま残り、og:image と別の1枚・別の題になっていた（県・季節の頁で実測）。og:image と同じ1枚を渡す。
- * 画像が無ければ書かない（レイアウトの既定に任せる）
+ * 画像が無ければサイトの固定の代表画像（`SHARE_IMAGE`・2026-10-31 #432。og:image の落とし先と同じ）
  */
 export function spotTwitterMeta(title: string, description: string, image: string | undefined) {
-    return image
-        ? { card: "summary_large_image" as const, title, description, images: [image], creator: siteConfig.twitterHandle }
-        : undefined;
+    return { card: "summary_large_image" as const, title, description, images: [image ?? shareImageUrl()], creator: siteConfig.twitterHandle };
 }

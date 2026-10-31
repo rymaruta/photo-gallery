@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, shareOgImage } from "@/lib/utils/seo";
 
 // プライバシーポリシー。実際にこのサイトが行っている処理だけを書く（雛形の丸写しをしない）。
 // 内容を変えたときは「最終更新日」も必ず更新すること。
@@ -41,6 +41,8 @@ export const metadata: Metadata = {
         // カードに2回出る（`<title>` だけ直して og を見落としていた）
         title: "プライバシーポリシー",
         description: "個人情報・アクセス解析・Cookie の取り扱いについて。",
+        // 子の `openGraph` は親の画像ごと置き換わるので、サイトの固定の代表画像を明示する（2026-10-31 #432。共有カードに絵が無かった）
+        images: [shareOgImage()],
     },
 };
 

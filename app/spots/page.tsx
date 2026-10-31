@@ -3,7 +3,7 @@ import SpotAreaIndexClient from "@/app/components/SpotAreaIndexClient";
 import { SPOTS } from "@/lib/data/spots";
 import { spotAreas } from "@/lib/data/spotLink";
 import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
-import { siteConfig, pageRobots } from "@/lib/utils/seo";
+import { siteConfig, pageRobots, shareOgImage } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
 import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 import { spotIndexTopics, firstSpotOgImage, spotTwitterMeta } from "@/lib/data/spotTopics";
@@ -42,7 +42,8 @@ export async function generateMetadata(): Promise<Metadata> {
         openGraph: {
             type: "website", url: `${siteConfig.url}/spots`, siteName: siteConfig.name, title, description,
             // 子の `openGraph` は親（レイアウト）の画像ごと置き換えるので、ここで渡す（2026-10-16・絵が無かった）
-            ...(og ? { images: [og] } : {}),
+            // 写真が無ければサイトの固定の代表画像（2026-10-31 #432）
+            images: [og ?? shareOgImage()],
         },
         // og:image と同じ1枚（レイアウトの新着写真を残さない・2026-10-22）
         twitter: spotTwitterMeta(title, description, og?.url),
