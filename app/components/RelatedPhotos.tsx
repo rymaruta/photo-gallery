@@ -1,6 +1,6 @@
 "use client";
 
-// 写真ページの回遊導線: 関連写真を横スクロールのサムネイル列で見せる。
+// 写真ページの回遊導線: 関連写真を 4 列の格子で見せる（iOS の「この近くで撮られた写真」と同じ形）。
 // タップでその写真の個別ページへ遷移する（サイト内の内部リンク＝SEOにも有利）。
 
 import React from "react";
@@ -22,14 +22,19 @@ type Props = {
     fallbackAlt?: string;
 };
 
+/**
+ * 2026-10-31 判断（束 1 P11）: **iOS の「この近くで撮られた写真」と同じ形**——明朝 18 の見出し、4 列・すき間 2・
+ * 外の角 12（`rounded-field`）の格子（題は出さない。題は alt と title が持つ）。以前は 112px の横に流れる帯に題 2 行つき、
+ * 見出しは 14 の灰の太字で、コメントと「関連写真」のタブの中にあった。並べる数（最大 8）は変えない
+ * ——写真から写真への内部リンク（SEO・回遊）を減らさない
+ */
 export default function RelatedPhotos({ title, photos, locale, fallbackAlt }: Props) {
     if (!photos || photos.length === 0) return null;
 
     return (
-        <section className="pt-5 border-t border-line">
-            <h2 className="text-sm font-semibold text-white/70 mb-3">{title}</h2>
-            {/* 横スクロール。スクロールバーは隠し、指/トラックパッドで流す */}
-            <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 snap-x snap-mandatory">
+        <section className="flex flex-col gap-[10px]" data-testid="related-photos">
+            <h2 className="m-0 font-serif font-bold text-white" style={{ fontSize: "18px", lineHeight: "24px" }}>{title}</h2>
+            <div className="grid grid-cols-4 gap-0.5 rounded-field overflow-hidden">
                 {photos.map((p) => {
                     // 題は空なら出さない（旧い「無題」も落とす）。画像の alt は名前が要るので代わりの題
                     const t = photoOwnTitle(p, (locale === "en" ? "en" : "ja"));
@@ -43,24 +48,11 @@ export default function RelatedPhotos({ title, photos, locale, fallbackAlt }: Pr
                             href={ROUTES.PHOTO(p.id)}
                             prefetch={false}
                             data-photo-id={p.id}
-                            className="group flex-shrink-0 w-28 sm:w-32 snap-start focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-lg"
-                            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                            title={t}
+                            className="relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                            style={{ aspectRatio: "1 / 1", backgroundColor: p.dominantColor ?? "var(--color-surface)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                            title={t || undefined}
                         >
-                            <div
-                                className="relative w-full overflow-hidden rounded-lg ring-1 ring-line"
-                                style={{ paddingTop: "100%", backgroundColor: p.dominantColor ?? "var(--color-surface)" }}
-                            >
-                                <Thumb
-                                    photo={p}
-                                    alt={named}
-                                    sizes="(max-width:640px) 112px, 128px"
-                                    className="transition-transform duration-300 group-hover:scale-[1.05]"
-                                />
-                            </div>
-                            {t && (
-                                <p className="mt-1.5 text-[12px] leading-snug text-white/70 line-clamp-2">{t}</p>
-                            )}
+                            <Thumb photo={p} alt={named} sizes="(max-width:640px) 25vw, 120px" />
                         </Link>
                     );
                 })}

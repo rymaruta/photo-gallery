@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import TravelRecord from "../TravelRecord";
 
 // **旅の記録の線は、画面に出たとき一度だけ引く。** `prefers-reduced-motion` の人には動かさない。
@@ -38,10 +38,15 @@ afterEach(() => {
     delete (Element.prototype as unknown as { animate?: unknown }).animate;
 });
 
-const renderIt = () => render(
-    <TravelRecord distanceKm={12345.6} countries={["日本", "台湾", "フランス", "ペルー"]} coordinates={COORDS}
-                  firstYear={2023} href="/map" locale="ja" />,
-);
+// 2026-10-31 束 1 U5: 線は畳んで始めるので、開いてから見る
+const renderIt = () => {
+    const r = render(
+        <TravelRecord distanceKm={12345.6} countries={["日本", "台湾", "フランス", "ペルー"]} coordinates={COORDS}
+                      firstYear={2023} href="/map" locale="ja" />,
+    );
+    fireEvent.click(screen.getByTestId("travel-route-toggle"));
+    return r;
+};
 
 describe("旅の記録の線", () => {
     it("最初から引き終えた形（区間の数だけの線・最新の点）", () => {

@@ -1,0 +1,67 @@
+import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+
+/**
+ * 束 1（#420・2026-10-31）: ホーム・写真の詳細・さがす・人のページを iOS にそろえた所のうち、
+ * 画面の部品のテストでは見えない「つなぎ」（CSS・見出しの印・スモーク）を見る
+ */
+const read = (p: string) => fs.readFileSync(path.join(__dirname, "..", "..", p), "utf8");
+
+describe("P1・U1: スマホではサイトの見出しを外す頁", () => {
+    it("見出しに印があり、`data-chromeless-phone` を持つ頁で 1024px 未満だけ外す", () => {
+        expect(read("app/layout.tsx")).toMatch(/<header[\s\S]{0,200}data-site-header=""/);
+        const css = read("app/globals.css");
+        const block = css.slice(css.indexOf("@media (max-width: 1023.98px)"));
+        expect(block).toMatch(/body:has\(\[data-chromeless-phone\]\) \[data-site-header\] \{\s*display: none;/);
+        // 見出しの高さの変数も 0（送る先の余白が無い見出しのぶん空かない）
+        expect(block).toMatch(/:root:has\(\[data-chromeless-phone\]\) \{\s*--header-h: 0px;/);
+    });
+
+    it("写真の詳細と人のページはその印を持つ", () => {
+        expect(read("app/photo/[id]/PhotoPageClient.tsx")).toContain('data-chromeless-phone=""');
+        expect(read("app/users/UserProfileClient.tsx")).toContain('<main className="min-h-screen text-white bg-bg" data-chromeless-phone="">');
+    });
+
+    it("スモークは写真ページ・人のページのスマホでメニューではなく「見出しが消えて戻るが押せる」を見て、メニューは PC で見る", () => {
+        const smoke = read("scripts/e2e-smoke.mjs");
+        expect(smoke).toContain("await expectChromelessPhone(page, `[${eng}] プロフィール`");
+        expect(smoke).not.toContain("await expectMenuWorks(page, `[${eng}] プロフィール`)");
+        expect(smoke).toContain("await expectMenuWorks(dpage, `[${eng}] プロフィール(デスクトップ)`)");
+        expect(smoke).toContain("await expectChromelessPhone(page, `[${eng}] 写真ページ`");
+        expect(smoke).not.toContain("await expectMenuWorks(page, `[${eng}] 写真ページ`)");
+        // ホームの一覧から開いた写真の頁（個別ページ）も同じ
+        expect(smoke).toContain("await expectChromelessPhone(page, `[${eng}] 個別ページ`");
+        expect(smoke).not.toContain("await expectMenuWorks(page, `[${eng}] 個別ページ`)");
+        expect(smoke).toContain("await expectMenuWorks(dpage, `[${eng}] 写真ページ(デスクトップ)`)");
+    });
+});
+
+describe("U6: 人のページの訪れた場所のチップは外し、マップの札へ", () => {
+    it("チップの節（visited-places）を描かない・マップの札を持つ", () => {
+        const src = read("app/users/UserProfileClient.tsx");
+        expect(src).not.toContain('data-testid="visited-places"');
+        expect(src).toContain('const VISITOR_TABS: TabKey[] = ["posts", "map", "timeline"];');
+        expect(src).toContain("<ProfileMapTab photos={visiblePhotos}");
+    });
+});
+
+describe("S1: スモークのさがすは、対象の「写真」でチップを出してからカテゴリで絞る", () => {
+    it("発見の面の丸や札（aria-pressed）を絞り込みのチップと取り違えない", () => {
+        const smoke = read("scripts/e2e-smoke.mjs");
+        expect(smoke).toContain('[data-testid="search-scope"] [data-scope="photos"]');
+        expect(smoke).toContain('await tapOrClick(page, `[data-testid="search-category-chips"] button[aria-pressed="false"]`);');
+    });
+});
+
+describe("束 1 の確かめの直し", () => {
+    it("本人のページにもマップの札（訪れた場所を見る手立てを失わない）", () => {
+        expect(read("app/users/UserProfileClient.tsx")).toContain('const OWNER_TABS: TabKey[] = ["posts", "map", "timeline", "trips"];');
+    });
+    it("人のページの読み込み失敗の札も、時計の帯のぶん下げる", () => {
+        expect(read("app/users/UserProfileClient.tsx")).toMatch(/pt-\[calc\(12px\+env\(safe-area-inset-top,0px\)\)\] lg:pt-3" data-testid="profile-load-error"/);
+    });
+    it("消した useBlurColors を注記が指したままにしない", () => {
+        expect(read("lib/color/buckets.ts")).not.toMatch(/画面は `useBlurColors` が決めたぶんだけ差し替えて渡す/);
+    });
+});

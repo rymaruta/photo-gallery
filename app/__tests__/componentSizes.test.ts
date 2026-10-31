@@ -21,7 +21,7 @@ describe("チップは高さ 34・字 13（v2 の .chip）", () => {
         ["app/components/FilterBar.tsx", 2],
         ["app/components/SpotIndexClient.tsx", 2],
         ["app/components/DiscoverRail.tsx", 2],
-        ["app/search/DiscoverSections.tsx", 1],
+        // app/search/DiscoverSections.tsx は 2026-10-31 束 1 S7 で機種名のチップを外した（機材は札 3 枚）
         ["app/components/SpotGuideClient.tsx", 1],
         ["app/components/SpotTopicLists.tsx", 1],
         ["app/components/SpotAreaIndexClient.tsx", 1],

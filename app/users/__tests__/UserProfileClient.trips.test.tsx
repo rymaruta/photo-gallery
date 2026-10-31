@@ -77,16 +77,18 @@ describe("人のページの旅の記録", () => {
     it("未ログインの人にも出す・公開写真だけで数える・押せない", async () => {
         await show(null);
         const block = await screen.findByTestId("travel-record");
-        expect(block.tagName, "人のページで撮影地マップへのリンクになっている").not.toBe("A");
+        expect(block.querySelector("a"), "人のページで撮影地マップへのリンクになっている").toBeNull();
         // 読み上げは1回だけ（2026-10-21）: まとめた1文を読ませ、見た目の字は読ませない。
         // 名前つきの group にして中身も読ませていた頃は、同じ数と字を2回読んだ
         expect(block.getAttribute("aria-label")).toBeNull();
         const spoken = block.querySelector(".sr-only")!;
         expect(spoken.textContent).toContain("公開写真から");
         expect(spoken.textContent).not.toContain("撮影地マップを開く");
-        const visible = [...block.children].filter((c) => c !== spoken);
+        const visible = [...spoken.parentElement!.children].filter((c) => c !== spoken);
         expect(visible.length).toBeGreaterThan(0);
         for (const c of visible) expect(c.getAttribute("aria-hidden")).toBe("true");
+        // 線は畳んで始める（束 1 U5）。開いてから数える
+        fireEvent.click(screen.getByTestId("travel-route-toggle"));
         // フォロワー限定（アメリカ）は国に入らない
         expect(screen.getByTestId("travel-countries").textContent).toBe("2か国・地域フランス・スペイン");
         // パリ → バルセロナの1区間（ニューヨークへの線は無い）
@@ -104,17 +106,20 @@ describe("人のページの旅の記録", () => {
 });
 
 describe("旅の一冊", () => {
-    it("見出しに一番新しい一冊の札と「すべての旅 · 2冊」・押すと旅のタブ", async () => {
+    // 2026-10-31 束 1 U7・U9: 人のページに旅の札は無く、「すべての旅」で棚を開く（iOS の `ProfileTripsScreen`）
+    it("見出しに一番新しい一冊の札と「すべての旅 · 2冊」・押すと旅の棚", async () => {
         await show(null);
         const line = await screen.findByTestId("profile-trips");
         const card = within(line).getByTestId("profile-trip");
         expect(card.getAttribute("href")).toBe(`/users/trip?id=${OWNER}&p=tokyo`);
         expect(card.textContent).toContain("東京の旅");
         expect(card.textContent).toContain("2日間 · 2枚");
+        expect(card.querySelector(".font-serif")!.textContent, "題は明朝 18").toBe("東京の旅");
+        expect(line.querySelector("h2")!.textContent).toBe("旅");
         fireEvent.click(within(line).getByTestId("profile-trips-all"));
-        const tab = screen.getByRole("tab", { name: "旅" });
-        expect(tab.getAttribute("aria-selected")).toBe("true");
-        const shelf = within(screen.getByRole("tabpanel")).getByTestId("trip-shelf");
+        expect(screen.queryByRole("tab", { name: "旅" }), "人のページに旅の札は並べない").toBeNull();
+        const panel = screen.getByRole("region", { name: "すべての旅 · 2冊" });
+        const shelf = within(panel).getByTestId("trip-shelf");
         // 新しい一冊が大きな表紙の札、2冊目からは行
         expect(within(shelf).getByTestId("trip-shelf-cover").textContent).toContain("東京の旅");
         const rows = within(shelf).getAllByTestId("trip-shelf-row");
@@ -125,13 +130,12 @@ describe("旅の一冊", () => {
         expect(rows[0].getAttribute("href")).toBe(`/users/trip?id=${OWNER}&p=paris`);
     });
 
-    it("一冊も無い人は見出しに札を出さず、タブは説明だけ", async () => {
+    it("一冊も無い人は旅の行を出さない（札も無い）", async () => {
         mockPublicFetch.mockResolvedValue({ ok: true, json: async () => [PHOTOS[0], PHOTOS[2]] });
         render(<UserProfileClient userId={OWNER} />);
         await screen.findByText("2");
         expect(screen.queryByTestId("profile-trips")).toBeNull();
-        fireEvent.click(screen.getByRole("tab", { name: "旅" }));
-        expect(screen.getByTestId("trip-shelf").textContent).toContain("まだ旅はありません");
+        expect(screen.queryByRole("tab", { name: "旅" })).toBeNull();
     });
 });
 

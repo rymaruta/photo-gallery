@@ -4,7 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { BookmarkIcon as BookmarkOutline } from "@heroicons/react/24/outline";
 import { BookmarkIcon as BookmarkSolid, HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
-import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartOutline, FlagIcon as FlagOutline } from "@heroicons/react/24/outline";
+import { FlagIcon as FlagSolid } from "@heroicons/react/24/solid";
 import { useAuth } from "../auth/context";
 import { useSavedSpots } from "../../lib/hooks/useSavedSpots";
 import { useToast } from "../../lib/hooks/useToast";
@@ -71,7 +72,7 @@ export default function SaveSpotButton({
     /** 既定は撮影地（これまでの形）。公式ガイドのスポットは `"spot"` */
     kind?: "location" | "spot";
     /** 見た目。既定は撮影地ページの丸い札（上の注記） */
-    variant?: "pill" | "tile";
+    variant?: "pill" | "tile" | "trip";
 }) {
     const en = locale === "en";
     const { isAuthenticated, loading: authLoading } = useAuth();
@@ -82,13 +83,19 @@ export default function SaveSpotButton({
     const key = kind === "spot" ? spotSavedKey(slug) : slug;
     const saved = isSaved(key);
     const working = busy === key;
-    const tile = variant === "tile";
-    const base = tile ? TILE : BTN;
-    // 印: 札はしおり、スポットのタイルはハート（iOS と同じ）
-    const IconOff = tile ? HeartOutline : BookmarkOutline;
-    const IconOn = tile ? HeartSolid : BookmarkSolid;
+    // 写真の詳細の「次の旅へ」（`trip`）も格子に直接並ぶ札なので、並べ方は `tile` と同じ扱い
+    const trip = variant === "trip";
+    const tile = variant === "tile" || trip;
+    const base = trip ? TRIP_TILE : tile ? TILE : BTN;
+    // 印: 札はしおり、スポットのタイルはハート、写真の「次の旅へ」は旗（iOS と同じ）
+    const IconOff = trip ? FlagOutline : tile ? HeartOutline : BookmarkOutline;
+    const IconOn = trip ? FlagSolid : tile ? HeartSolid : BookmarkSolid;
     // タイルの印は縮ませない（狭い列で字に押されて幅0まで潰れた・英語の 320px）
-    const iconClass = tile ? `${TILE_ICON}` : "w-5 h-5";
+    const iconClass = trip ? TRIP_ICON : tile ? `${TILE_ICON}` : "w-5 h-5";
+    const tileOff = trip ? TRIP_OFF : TILE_OFF;
+    const tileOn = trip ? TRIP_ON : TILE_ON;
+    const tileText = trip ? TRIP_TEXT : TILE_TEXT;
+    const tileMinH = trip ? TRIP_MIN_H : TILE_MIN_H;
     const wantLabel = tile ? (en ? "Want to go" : "行きたい") : (en ? "Save to want-to-go" : "行きたい");
 
     // 未ログインはログインへ。**戻り先は今のページ**（押した場所に返す）
@@ -97,11 +104,11 @@ export default function SaveSpotButton({
             <Link
                 href={loginWithNext(typeof window === "undefined" ? null : window.location.pathname)}
                 prefetch={false}
-                className={tile ? `${base} min-w-0 ${TILE_OFF}` : base}
-                style={{ touchAction: "manipulation", minHeight: tile ? TILE_MIN_H : 44 }}
+                className={tile ? `${base} min-w-0 ${tileOff}` : base}
+                style={{ touchAction: "manipulation", minHeight: tile ? tileMinH : 44 }}
             >
                 <IconOff className={iconClass} aria-hidden />
-                {tile ? <span className={TILE_TEXT}>{wantLabel}</span> : wantLabel}
+                {tile ? <span className={tileText}>{wantLabel}</span> : wantLabel}
             </Link>
         );
     }
@@ -131,15 +138,15 @@ export default function SaveSpotButton({
                 aria-pressed={saved === undefined ? undefined : saved}
                 aria-busy={saved === undefined || working}
                 className={tile
-                    ? `${base} min-w-0 ${saved ? TILE_ON : TILE_OFF} disabled:opacity-60`
+                    ? `${base} min-w-0 ${saved ? tileOn : tileOff} disabled:opacity-60`
                     : `${base} ${saved ? "bg-primary ring-primary text-ink hover:brightness-110" : "bg-white/10 ring-white/20 text-white hover:bg-white/20"} disabled:opacity-60`}
-                style={{ touchAction: "manipulation", minHeight: tile ? TILE_MIN_H : 44 }}
+                style={{ touchAction: "manipulation", minHeight: tile ? tileMinH : 44 }}
             >
                 {saved
                     ? <IconOn className={iconClass} aria-hidden />
                     : <IconOff className={iconClass} aria-hidden />}
                 {tile ? (
-                    <span className={TILE_TEXT}>{saved ? (en ? "Saved" : "保存済み") : wantLabel}</span>
+                    <span className={tileText}>{trip ? wantLabel : saved ? (en ? "Saved" : "保存済み") : wantLabel}</span>
                 ) : saved === undefined
                     ? (en ? "Loading…" : "読み込み中…")
                     : saved
@@ -199,3 +206,18 @@ export const TILE_ICON = "w-[18px] h-[18px] flex-shrink-0";
 export const TILE_OFF = "bg-chip text-white hover:bg-white/15";
 /** 押した: 白地に墨の字（iOS の `filled`） */
 export const TILE_ON = "bg-primary text-ink hover:brightness-110";
+
+/**
+ * **写真の詳細の「次の旅へ」の札**（iOS の `PhotoTripSection.chip`・2026-10-31 束 1 P7）。
+ * 高さ 48（`JPHeight.field`）・角 14・地 白7%＋白8%の縁・**印は真鍮を左に、字は白 15 semibold を右に**。
+ * 選んだら縁が真鍮（地は変えない）・印が塗りの旗。字は「行きたい」のまま（iOS も選んだ印と縁で見せる）。
+ * 撮影スポットの頁の行動の札（`TILE`・64・印を字の上に積む）とは別の形——iOS も別の部品
+ */
+export const TRIP_TILE =
+    "inline-flex items-center justify-center gap-2 rounded-xl px-4 bg-chip " +
+    "focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.98] transition";
+export const TRIP_MIN_H = 48;
+export const TRIP_TEXT = "truncate text-white text-[15px] leading-[20px] font-semibold";
+export const TRIP_ICON = "w-[18px] h-[18px] flex-shrink-0 text-accent";
+export const TRIP_OFF = "ring-1 ring-inset ring-line hover:bg-white/10";
+export const TRIP_ON = "ring-1 ring-inset ring-accent hover:bg-white/10";

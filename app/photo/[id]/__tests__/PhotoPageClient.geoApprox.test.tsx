@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 
 // **地名から引いたおおよその座標（`geoApprox`）では「地図で見る」を出さない。**
@@ -45,53 +45,49 @@ const photo = (extra: Partial<Photo>): Photo => ({
     ...extra,
 } as Photo);
 
-describe("場所チップの地図リンク", () => {
-    it("正確な座標なら「地図で見る」のリンクになる", async () => {
+// 2026-10-31 束 1 P2・P4: 本文の上の「撮影日 · 撮影地」の行と、写真の右下の地図の丸を外した。
+// Google マップと撮影地マップの行き先は「…」の中へ移した（行き先は消さない）
+const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "その他" }));
+
+describe("Google マップの行き先（「…」の中）", () => {
+    it("正確な座標なら「Google マップで開く」がその座標へ（別のタブ）", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo({})} />);
         await screen.findByText("テスト写真");
-        const link = screen.getByTitle("地図で見る");
+        openMenu();
+        const link = screen.getByRole("menuitem", { name: "Google マップで開く" });
         expect(link).toHaveAttribute("href", expect.stringContaining("48.86,2.35"));
-        expect(link).toHaveTextContent("パリ");
+        expect(link).toHaveAttribute("target", "_blank");
     });
 
-    it("おおよその座標（geoApprox）なら地名だけ出し、地図へは飛ばさない", async () => {
+    it("おおよその座標（geoApprox）なら出さない（街の中心へのリンクにしない）。地名は消えない", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo({ geoApprox: true })} />);
         await screen.findByText("テスト写真");
-        expect(screen.queryByTitle("地図で見る"), "街の中心へのリンクを出している").toBeNull();
-        // 地名そのものは消えない
-        // 地名は写真の上のチップと「撮影日 · 撮影地」の行の2か所に出る
+        openMenu();
+        expect(screen.queryByRole("menuitem", { name: "Google マップで開く" }), "街の中心へのリンクを出している").toBeNull();
         expect(screen.getAllByText("パリ").length).toBeGreaterThan(0);
     });
 });
 
 // 撮影地マップ（/map）のその位置へ。外部の Google マップとは別の内部リンク
-describe("撮影地マップへの導線", () => {
+describe("撮影地マップへの導線（「…」の中）", () => {
     it("座標があれば、その位置に寄せた /map へのリンクを出す", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo({})} />);
         await screen.findByText("テスト写真");
-        expect(screen.getByRole("link", { name: "撮影地マップで見る" })).toHaveAttribute("href", "/map#12/48.86/2.35");
+        openMenu();
+        expect(screen.getByRole("menuitem", { name: "撮影地マップで見る" })).toHaveAttribute("href", "/map#12/48.86/2.35");
     });
 
     it("おおよその座標（geoApprox）でも出す——地図の側は断りを付けてピンを立てている", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo({ geoApprox: true })} />);
         await screen.findByText("テスト写真");
-        expect(screen.getByRole("link", { name: "撮影地マップで見る" })).toHaveAttribute("href", "/map#12/48.86/2.35");
+        openMenu();
+        expect(screen.getByRole("menuitem", { name: "撮影地マップで見る" })).toHaveAttribute("href", "/map#12/48.86/2.35");
     });
 
     it("座標が無ければ出さない（地図にピンが無い）", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo({ coords: undefined })} />);
         await screen.findByText("テスト写真");
-        expect(screen.queryByRole("link", { name: "撮影地マップで見る" })).toBeNull();
+        openMenu();
+        expect(screen.queryByRole("menuitem", { name: "撮影地マップで見る" })).toBeNull();
     });
-});
-
-// 撮影地のリンクの押す的は24px（字の高さ16pxのままだと target-size で落ちた）。
-// **上へだけ**広げる——下へ広げると、説明文の無い写真で真下のタグチップと4px重なった。
-// 同じだけ負の余白で打ち消して、行の高さは変えない
-it("撮影地のリンクは上へ8px広げた押す的（下のチップと重ならない・行の高さは変えない）", async () => {
-    render(<PhotoPageClient photoId="p1" initialPhoto={photo({})} />);
-    await screen.findByText("テスト写真");
-    const cls = screen.getByTitle("地図で見る").className.split(/\s+/);
-    expect(cls).toEqual(expect.arrayContaining(["pt-[8px]", "-mt-[8px]"]));
-    expect(cls.some((c) => /^(-?my-|pb-|py-|-mb-)/.test(c)), "下へ広げている").toBe(false);
 });

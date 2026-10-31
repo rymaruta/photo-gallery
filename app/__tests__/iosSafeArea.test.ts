@@ -165,7 +165,8 @@ describe("高さとスクロール", () => {
 
     it("「コメントを見る」の行き先は、ヘッダーの高さぶん手前で止まる", () => {
         const src = code("app/photo/[id]/PhotoPageClient.tsx");
-        expect(src).toMatch(/ref=\{tabsRef\}[^>]*scrollMarginTop:\s*"var\(--header-h\)"/);
+        // 2026-10-31 束 1 P11: 送る先はタブではなくコメントの節（`commentsRef`）
+        expect(src).toMatch(/ref=\{commentsRef\}[^>]*\s+style=\{\{ scrollMarginTop:\s*"var\(--header-h\)"/);
     });
 
     it("遷移のスクロールはなめらかにしない（Next 16 は html の data 属性を見て遷移の間だけ切る）", () => {

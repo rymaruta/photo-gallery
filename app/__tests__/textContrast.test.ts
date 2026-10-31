@@ -218,7 +218,7 @@ function findLines(file: string, needle: string): { src: string[]; hits: number[
  * 色を取り逃がす。同じ行に無ければ、改行して書いてあるとみて上へたどる
  */
 function classNameFor(src: string[], i: number): string {
-    const hasColor = (l: string) => /text-white(\/\d+)?\b|text-black(\/\d+)?\b|text-\[#|text-gray/.test(l);
+    const hasColor = (l: string) => /text-white(\/\d+)?\b|text-black(\/\d+)?\b|text-\[#|text-gray|text-text-[23]\b/.test(l);
     if (i >= 0 && hasColor(src[i])) return src[i];
     for (let j = i - 1; j >= Math.max(0, i - 15); j--) {
         if (/className=/.test(src[j]) && hasColor(src[j])) return src[j];
@@ -244,7 +244,8 @@ describe("読めない濃さの文字に戻っていないか", () => {
         expect(hits.length, `${file} に「${needle}」の行が無い`).toBeGreaterThan(0);
         for (const i of hits) {
             const cls = classNameFor(src, i);
-            expect(/text-white(\/\d+)?\b|text-\[#|text-gray|text-black/.test(cls),
+            // `text-text-2`・`text-text-3` は v2 の灰（黒の上で 10.6:1・7.46:1・globals.css）。束 1 で撮影情報の名前に使った
+            expect(/text-white(\/\d+)?\b|text-\[#|text-gray|text-black|text-text-[23]\b/.test(cls),
                 `色の指定が見当たらない（既定の色に落ちていないか）: ${src[i]?.trim().slice(0, 80)}`).toBe(true);
         }
     });

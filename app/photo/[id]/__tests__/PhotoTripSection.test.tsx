@@ -27,18 +27,22 @@ describe("PhotoTripSection", () => {
         expect(container.innerHTML).toBe("");
     });
 
-    it("スポットを指す写真: 行きたい（スポットの鍵）と経路（Google マップ・新しいタブ・真鍮）", () => {
+    // 2026-10-31 束 1 P7: iOS の `PhotoTripSection.chip`（48・角 14・印は真鍮・字は白 15）
+    it("スポットを指す写真: 行きたい（スポットの鍵）と経路（Google マップ・新しいタブ・印は真鍮・字は白）", () => {
         render(<PhotoTripSection spot={SPOT} directionsTo={GINZAN} zone={null} inspiredPhotoId={null} locale="ja" />);
         expect(screen.getByText("NEXT TRIP · 次の旅へ")).toBeTruthy();
         const wish = screen.getByTestId("wish");
         expect(wish.textContent).toBe("ginzan-onsen");
         expect(wish.dataset.kind, "撮影スポットのページと同じ鍵（SPOT-…）で入れる").toBe("spot");
+        expect(wish.dataset.variant, "撮影スポットの頁の 64 の札ではなく、写真の「次の旅へ」の横の札").toBe("trip");
         const route = screen.getByTestId("photo-trip-directions");
         expect(route.getAttribute("href")).toBe("https://www.google.com/maps/dir/?api=1&destination=38.58,140.53");
         expect(route.getAttribute("target")).toBe("_blank");
         expect(route.getAttribute("rel")).toContain("noopener");
-        expect(route.className.split(/\s+/), "外へ出るリンクは真鍮").toContain("text-accent");
-        expect(route.className.split(/\s+/), "白の字と並べない").not.toContain("text-white");
+        expect(route.style.minHeight).toBe("48px");
+        expect(route.className.split(/\s+/)).toContain("rounded-xl");
+        expect(route.querySelector("svg")!.getAttribute("class"), "印は真鍮").toContain("text-accent");
+        expect(route.querySelector("span")!.className, "字は白").toContain("text-white");
         expect(route.getAttribute("aria-label")).toBe("銀山温泉への経路（Google マップ）");
     });
 

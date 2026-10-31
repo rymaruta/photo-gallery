@@ -68,7 +68,8 @@ function profileResponse(body: unknown) {
 const coverImg = (c: HTMLElement) => c.querySelector<HTMLImageElement>("[data-testid=profile-cover] img");
 
 describe("プロフィールのカバー写真", () => {
-    it("profiles/<uid>/cover を読み、出せたら 180px の帯を広げて見出しを重ねる", async () => {
+    // 2026-10-31 束 1 U1: iOS の `ProfileCover.height` 240（PC は 320・クラスで切り替え）・重なり 44
+    it("profiles/<uid>/cover を読み、出せたら 240px（PC 320）の帯を広げて見出しを重ねる", async () => {
         profileResponse({ userId: ME, displayName: "旅人" });
         const { container } = render(<UserProfileClient userId={ME} />);
         await screen.findByRole("heading", { level: 1 });
@@ -77,12 +78,12 @@ describe("プロフィールのカバー写真", () => {
         expect(img!.getAttribute("src")).toMatch(new RegExp(`/profiles/${ME}/cover$`));
         // 読み込み中は場所を取らない（無い人で見出しが跳ねない）
         const band = container.querySelector<HTMLElement>("[data-testid=profile-cover]")!;
-        expect(band.style.height).toBe("0px");
+        expect(band.className).toContain("h-0");
         fireEvent.load(img!);
-        await waitFor(() => expect(band.style.height).toBe("180px"));
+        await waitFor(() => expect(band.className).toContain("h-[240px] lg:h-[320px]"));
         // 見出しが帯の下端に重なる（上の余白が増える）
         const heading = screen.getByRole("heading", { level: 1 });
-        const header = heading.closest<HTMLElement>("div[style*='padding-top']");
+        const header = heading.closest<HTMLElement>("div[class*='pt-[128px]']");
         expect(header, "カバーがあるのに見出しを下げていない").not.toBeNull();
     });
 
@@ -93,7 +94,7 @@ describe("プロフィールのカバー写真", () => {
         fireEvent.error(coverImg(container)!);
         await waitFor(() => expect(container.querySelector("[data-testid=profile-cover]")).toBeNull());
         const heading = screen.getByRole("heading", { level: 1 });
-        expect(heading.closest("div[style*='padding-top']")).toBeNull();
+        expect(heading.closest("div[class*='pt-[128px]']")).toBeNull();
     });
 });
 
@@ -127,7 +128,7 @@ describe("カバーが無いときの額縁（#304・板 52）", () => {
         fireEvent.error(coverImg(container)!);
         const frame = await screen.findByTestId("cover-frame");
         expect(frame.getAttribute("href")).toBe("/user/profile#cover-pick");
-        expect(screen.getByRole("heading", { level: 1 }).closest("div[style*='padding-top']")).not.toBeNull();
+        expect(screen.getByRole("heading", { level: 1 }).closest("div[class*='pt-[128px]']")).not.toBeNull();
     });
 
     it("カバーがあれば本人でも出さない", async () => {
@@ -136,7 +137,7 @@ describe("カバーが無いときの額縁（#304・板 52）", () => {
         const { container } = render(<UserProfileClient userId={ME} />);
         await screen.findByRole("heading", { level: 1 });
         fireEvent.load(coverImg(container)!);
-        await waitFor(() => expect(container.querySelector<HTMLElement>("[data-testid=profile-cover]")?.style.height).toBe("180px"));
+        await waitFor(() => expect(container.querySelector<HTMLElement>("[data-testid=profile-cover]")?.className).toContain("h-[240px]"));
         expect(screen.queryByTestId("cover-frame")).toBeNull();
     });
 
@@ -163,7 +164,7 @@ describe("カバー写真: 付く前に読み終えていた画像（静的HTML�
         stubImage(true, 1200);
         const b = render(<UserProfileClient userId={ME} />);
         await screen.findByRole("heading", { level: 1 });
-        await waitFor(() => expect(b.container.querySelector<HTMLElement>("[data-testid=profile-cover]")?.style.height).toBe("180px"));
+        await waitFor(() => expect(b.container.querySelector<HTMLElement>("[data-testid=profile-cover]")?.className).toContain("h-[240px]"));
     });
 });
 
