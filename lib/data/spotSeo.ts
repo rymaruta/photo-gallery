@@ -10,7 +10,9 @@
 import { SPOTS, type Spot } from "./spots";
 import { sameAreaAs, type SpotAreaRef, type SpotArea } from "./spotLink";
 import { visibleSpots, isPublished } from "../utils/spotGuide";
-import { siteConfig, generateItemListStructuredData } from "../utils/seo";
+import { siteConfig, generateItemListStructuredData, publicImageUrl } from "../utils/seo";
+import { sortByNewest } from "../utils/photoOrder";
+import type { Photo } from "./photos";
 import { ROUTES } from "../routes";
 import { haversineKm, kmForLabel } from "../utils/journey";
 import { sampleImageObject, type SpotSample, type coverImageObject } from "./spotSamples";
@@ -105,6 +107,31 @@ export function spotStructuredData(
         url: spotPageUrl(spot),
         ...(image ? { image } : {}),
         ...(address ? { address } : {}),
+    };
+}
+
+/**
+ * **このスポットに結ばれた利用者の公開写真の1枚**（新しい順の先頭。無ければ undefined）——2026-10-31・#432。
+ *
+ * 台帳の代表写真・場所を確かめた作例のどちらも無いスポットで、検索・共有のカードに出す1枚。
+ * 拾うのは `spotId` がこのスポットの写真だけ（運営が確かめた紐付けか、撮った本人がスポットから選んだもの。
+ * `SpotGuidePage` の `photosForSpot` と同じ線）。撮影地の文字列の一致では拾わない。
+ *
+ * 🔴 **非公開・公開範囲を絞った写真は出さない。** ビルドの `photos.json` が既に落としているが
+ * （`scripts/sync-photos-from-ddb.js`）、ここでも `published === false` と `audience` を落とす（二重の守り）
+ */
+export function spotLinkedPhoto(
+    spot: Pick<Spot, "spotId" | "name">,
+    photos: readonly Photo[],
+): { url: string; width?: number; height?: number; alt: string } | undefined {
+    const linked = photos.filter((p) => p.spotId === spot.spotId && p.src
+        && p.published !== false && !(p as { audience?: unknown }).audience);
+    const first = sortByNewest(linked)[0];
+    if (!first?.src) return undefined;
+    return {
+        url: publicImageUrl(first.src),
+        ...(first.width && first.height ? { width: first.width, height: first.height } : {}),
+        alt: spot.name,
     };
 }
 

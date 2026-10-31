@@ -3,7 +3,9 @@ import SpotGuidePage from "@/app/components/SpotGuidePage";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
-import { siteConfig, pageRobots } from "@/lib/utils/seo";
+import { siteConfig, pageRobots, shareOgImage } from "@/lib/utils/seo";
+import { spotLinkedPhoto } from "@/lib/data/spotSeo";
+import { loadAllPhotos } from "@/lib/server/photos";
 import { spotCoverImage } from "@/lib/data/spotImages";
 import { spotSamples, spotSeoImage } from "@/lib/data/spotSamples";
 import { spotPageTitle, spotPageDescription } from "@/lib/data/spotPageMeta";
@@ -42,18 +44,21 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     // 下書きは説明文の頭でもそう名乗る（共有プレビューで「確認済み」に見せない）
     const url = `${siteConfig.url}/spots/${spot.slug}`;
     // 代表写真があればそれを OGP に出す。
-    // **無ければサイトの既定の画像（`siteConfig.ogImage`）に落とす**——画像を申告しないと、
-    // 共有したときに画像の無いプレビューになる。
-    // 新着の写真（`resolveOgImage`）には落とさない: 別の場所の写真を、この場所の写真として
-    // 見せることになる。既定の画像は正方形のアイコンなので、カードは小さい形（`summary`）
+    // 無ければ**このスポットに結ばれた利用者の公開写真**（`spotLinkedPhoto`）、それも無ければ
+    // **サイトの固定の代表画像**（`SHARE_IMAGE`・1200×630）——2026-10-31 判断（#432 の 4）。
+    // それまでの落とし先は正方形のアイコン（`siteConfig.ogImage`）で、検索結果・共有カードで
+    // 「写真ではなくアイコン」に見えていた（表示中の 2,691 頁のうち 86 頁）。
+    // 新着の写真には落とさない: 別の場所の写真を、この場所の写真として見せることになる
     const cover = spotCoverImage(spot);
     // 数えるのは画面と同じもの（作例は代表写真と同じ1枚を除く・`SpotGuidePage`）
     const samples = spotSamples(spot, { exclude: [cover?.sourceUrl] });
     // 2026-10-22: OGP の1枚は**横 1,200px 以上を優先**（`spotSeoImage`）。代表写真の Commons の 1280px 版 →
     // 画面の作例の 1,200 以上 → 代表写真の 960px の順。幅・高さも申告する
     const seo = spotSeoImage(spot, samples);
-    const image = seo?.url ?? `${siteConfig.url}${siteConfig.ogImage}`;
-    const ogSize = seo?.width && seo?.height ? { width: seo.width, height: seo.height } : {};
+    const linked = seo ? undefined : spotLinkedPhoto(spot, await loadAllPhotos());
+    const ogImage = seo
+        ? { url: seo.url, ...(seo.width && seo.height ? { width: seo.width, height: seo.height } : {}), alt: spot.name }
+        : linked ?? shareOgImage();
     // 2026-10-22: title と description は同じ事実（作例の実数・光の表など）から組む
     const facts = {
         light: lightCalendar(spot.coords, spot.region?.country, spot.timeZone) !== null,
@@ -80,13 +85,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
             siteName: siteConfig.name,
             title,
             description,
-            images: [{ url: image, ...ogSize, alt: seo ? spot.name : siteConfig.name }],
+            images: [ogImage],
         },
         twitter: {
-            card: seo ? "summary_large_image" : "summary",
+            card: "summary_large_image",
             title,
             description,
-            images: [image],
+            images: [ogImage.url],
             creator: siteConfig.twitterHandle,
         },
     };

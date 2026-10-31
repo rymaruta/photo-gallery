@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import { siteConfig, generateStructuredData, generateOrganizationStructuredData, FEED_ALTERNATE } from "../lib/utils/seo";
-import { loadAllPhotos, resolveOgImage } from "../lib/server/photos";
+import { siteConfig, generateHomeStructuredData, generateOrganizationStructuredData, FEED_ALTERNATE, shareOgImage, shareImageUrl } from "../lib/utils/seo";
+import { loadAllPhotos } from "../lib/server/photos";
 import GalleryPageClient from "./GalleryPageClient";
 import { homeSeasonalSpots } from "../lib/data/spotTopics";
 
-// OGP 画像はビルド時に決める（ルートと同じ理由——既定の
-// `/images/og-image.jpg` は存在しないファイルだった）。
+// OGP 画像は**固定の代表画像**（`SHARE_IMAGE`・2026-10-31 #432）。利用者の最新の投稿
+// （2026-10-31 はスーパーのぶどう）が共有カードと Google の検索結果に出ていた
 export async function generateMetadata(): Promise<Metadata> {
-    const ogImage = await resolveOgImage(siteConfig.url);
     return {
         title: siteConfig.name,
         description: siteConfig.description,
@@ -30,8 +29,15 @@ export async function generateMetadata(): Promise<Metadata> {
             siteName: siteConfig.name,
             title: siteConfig.name,
             description: siteConfig.description,
-            // 寸法は申告しない（実際の写真で縦横比はまちまち）
-            images: [{ url: ogImage, alt: siteConfig.name }],
+            images: [shareOgImage()],
+        },
+        // 子が `twitter` を書かないとルートの値が残る。ここでも同じ1枚を明示する
+        twitter: {
+            card: "summary_large_image",
+            title: siteConfig.name,
+            description: siteConfig.description,
+            images: [shareImageUrl()],
+            creator: siteConfig.twitterHandle,
         },
     };
 }
@@ -41,7 +47,8 @@ export default async function Page() {
     // lib/data/photos の既定エクスポート（BASE_PHOTOS）は空配列なので、
     // そのまま渡すと構造化データの image が常に空になっていた。
     const photos = await loadAllPhotos();
-    const structuredData = generateStructuredData(photos.filter((p) => p.published !== false));
+    // 代表の1枚（`primaryImageOfPage`・`image` の先頭）は固定の代表画像。ギャラリーの並びはそのあと
+    const structuredData = generateHomeStructuredData(photos.filter((p) => p.published !== false));
     const organizationData = generateOrganizationStructuredData();
 
     return (
