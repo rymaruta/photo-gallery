@@ -288,7 +288,7 @@ describe("SignupPage - 確認ステップ", () => {
         await waitFor(() => {
             expect(screen.getByRole("heading", { name: "登録完了" })).toBeInTheDocument();
         });
-        expect(mockConfirmSignUp).toHaveBeenCalledWith("uuid-1234", "123456");
+        expect(mockConfirmSignUp).toHaveBeenCalledWith("uuid-1234", "123456", { platform: "web", from: "other" });
         expect(localStorageMock.getItem("jp_verify_u@example.com")).toBeNull();
         // **確認が済んだことをログイン画面に伝える。** `verified=1` を付ける
         // 箇所がリポジトリに1つも無く、あちらのバナーは死んだ画面だった
@@ -424,5 +424,93 @@ describe("SignupPage - URLパラメータ復元", () => {
         expect(screen.getByRole("heading", { name: "アカウント作成" })).toBeInTheDocument();
         // 期限切れUUIDは削除されている
         expect(localStorageMock.getItem("jp_verify_expired@example.com")).toBeNull();
+    });
+});
+
+// ──────────────────────────────────────────────────────────────
+// 登録までの数え方（journey.photo-ios#432 の 5・2026-10-31）
+// ──────────────────────────────────────────────────────────────
+describe("SignupPage - 登録の数え方", () => {
+    const gtag = vi.fn();
+    beforeEach(() => {
+        gtag.mockReset();
+        (window as unknown as { gtag?: unknown }).gtag = gtag;
+    });
+
+    async function confirm(user: ReturnType<typeof userEvent.setup>, result: object) {
+        mockSignUp.mockResolvedValue({ success: true, username: "uuid-1234" });
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.type(screen.getByPlaceholderText("8文字以上"), "Password1!");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(screen.getByRole("heading", { name: "メールを確認" })).toBeInTheDocument());
+        mockConfirmSignUp.mockResolvedValue(result);
+        await user.type(screen.getByPlaceholderText(/メールに届いた6桁のコード/), "123456");
+        await user.click(screen.getByRole("button", { name: /登録を確定する/ }));
+        await waitFor(() => expect(screen.getByRole("heading", { name: "登録完了" })).toBeInTheDocument());
+    }
+
+    it("「行きたい」から来た（via=wish）→ サーバーにも GA4 にも from=wish を渡す", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fspots%2Fhanauma-bay&via=wish");
+        const user = userEvent.setup();
+        render(<SignupPage />);
+        await confirm(user, { success: true });
+        expect(mockConfirmSignUp).toHaveBeenCalledWith("uuid-1234", "123456", { platform: "web", from: "wish" });
+        expect(gtag).toHaveBeenCalledWith("event", "sign_up", { method: "email", from: "wish" });
+    });
+
+    // next が撮影スポットでも、「行きたい」の印が無ければ other（コメント欄のログインなども同じ next を付ける）
+    it("via が無ければ from=other（next だけでは決めない）", async () => {
+        mockSearchParams = new URLSearchParams("next=%2Fspots%2Fhanauma-bay");
+        const user = userEvent.setup();
+        render(<SignupPage />);
+        await confirm(user, { success: true });
+        expect(gtag).toHaveBeenCalledWith("event", "sign_up", { method: "email", from: "other" });
+    });
+
+    it("もう確認済みだった回は sign_up を送らない（同じ人を二度数えない）", async () => {
+        const user = userEvent.setup();
+        render(<SignupPage />);
+        await confirm(user, { success: true, alreadyConfirmed: true });
+        expect(gtag).not.toHaveBeenCalled();
+    });
+
+    it("送るのは method と from だけ（メールも uid も入れない）", async () => {
+        mockSearchParams = new URLSearchParams("via=wish");
+        const user = userEvent.setup();
+        render(<SignupPage />);
+        await confirm(user, { success: true });
+        const sent = JSON.stringify(gtag.mock.calls);
+        expect(sent).not.toContain("u@example.com");
+        expect(sent).not.toContain("uuid-1234");
+    });
+
+    // ログイン画面の「確認コードを入力・再送する」は via を付けずに戻ってくる
+    it("控えから確認に戻った回は、控えた from を使う", async () => {
+        localStorageMock.setItem(
+            "jp_verify_resume@example.com",
+            JSON.stringify({ username: "resumed-uuid", t: Date.now(), from: "wish" }),
+        );
+        window.history.replaceState({}, "", "/signup?email=resume@example.com");
+        const user = userEvent.setup();
+        await act(async () => { render(<SignupPage />); });
+        await waitFor(() => expect(screen.getByRole("heading", { name: "メールを確認" })).toBeInTheDocument());
+        mockConfirmSignUp.mockResolvedValue({ success: true });
+        await user.type(screen.getByPlaceholderText(/メールに届いた6桁のコード/), "123456");
+        await user.click(screen.getByRole("button", { name: /登録を確定する/ }));
+        await waitFor(() => expect(mockConfirmSignUp).toHaveBeenCalledWith("resumed-uuid", "123456", { platform: "web", from: "wish" }));
+    });
+
+    it("登録のときに from を控える", async () => {
+        mockSearchParams = new URLSearchParams("via=wish");
+        const user = userEvent.setup();
+        render(<SignupPage />);
+        mockSignUp.mockResolvedValue({ success: true, username: "uuid-1234" });
+        await user.type(screen.getByPlaceholderText(/example@email\.com/), "u@example.com");
+        await user.type(screen.getByPlaceholderText("8文字以上"), "Password1!");
+        await user.type(screen.getByPlaceholderText("••••••••"), "Password1!");
+        await user.click(screen.getByRole("button", { name: /確認コードを送信/ }));
+        await waitFor(() => expect(screen.getByRole("heading", { name: "メールを確認" })).toBeInTheDocument());
+        expect(JSON.parse(localStorageMock.getItem("jp_verify_u@example.com")!).from).toBe("wish");
     });
 });

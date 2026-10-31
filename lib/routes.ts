@@ -205,7 +205,10 @@ export function safeNextPath(raw: unknown): string | null {
 }
 
 /** ログイン画面へ。戻り先を添える（省略時は既定＝自分のプロフィール） */
-export function loginWithNext(next?: string | null): string {
+export function loginWithNext(next?: string | null, via?: "wish"): string {
     const safe = safeNextPath(next);
-    return safe ? `${ROUTES.LOGIN}?next=${encodeURIComponent(safe)}` : ROUTES.LOGIN;
+    const base = safe ? `${ROUTES.LOGIN}?next=${encodeURIComponent(safe)}` : ROUTES.LOGIN;
+    // `via` は登録までの数え方（`lib/utils/analytics.ts` の `signupFromVia`）。
+    // 決まった値しか受けない（URL に好きな文字列を載せない）
+    return via ? `${base}${safe ? "&" : "?"}via=${via}` : base;
 }

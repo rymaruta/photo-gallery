@@ -22,7 +22,7 @@ vi.mock("@aws-sdk/util-dynamodb", () => ({
 
 vi.stubEnv("USERS_TABLE", "users-test");
 vi.stubEnv("PHOTOS_TABLE", "photos-test");
-const { postConfirmation } = await import("../cognitoTrigger");
+const { postConfirmation, signupMetricLine } = await import("../cognitoTrigger");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const invoke = (event: unknown): Promise<unknown> => (postConfirmation as any)(event);
@@ -180,5 +180,49 @@ describe("グループが無いプール", () => {
         await expect(invoke(event())).resolves.toBeTruthy();
         // 失敗しても、プロフィール行は作る
         expect(mockDdbSend).toHaveBeenCalled();
+    });
+});
+
+// 登録までの数え方（journey.photo-ios#432 の 5・2026-10-31）。
+// `docs/signup-funnel.md` の Logs Insights の問い合わせがこの1行を数える
+describe("登録の数のログ", () => {
+    const withMeta = (triggerSource: string, clientMetadata?: Record<string, string>) => ({
+        ...event(triggerSource),
+        userName: "uuid-secret",
+        request: { userAttributes: { sub: "sub-secret", email: "a@example.com" }, clientMetadata },
+    });
+    const signupLines = (spy: { mock: { calls: unknown[][] } }) =>
+        spy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes('"metric":"signup"'));
+
+    it("登録の確定で JSON を1行だけ出す（出どころつき）", async () => {
+        const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+        await invoke(withMeta("PostConfirmation_ConfirmSignUp", { platform: "web", from: "wish" }));
+        expect(signupLines(spy)).toEqual(['{"metric":"signup","platform":"web","from":"wish"}']);
+        spy.mockRestore();
+    });
+
+    it("uid・メール・userName は出さない", async () => {
+        const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+        await invoke(withMeta("PostConfirmation_ConfirmSignUp", { platform: "web", from: "other" }));
+        const all = JSON.stringify(spy.mock.calls);
+        expect(all).not.toContain("sub-secret");
+        expect(all).not.toContain("uuid-secret");
+        expect(all).not.toContain("a@example.com");
+        spy.mockRestore();
+    });
+
+    it("パスワードの再設定（ConfirmForgotPassword）は数えない", async () => {
+        const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+        await invoke(withMeta("PostConfirmation_ConfirmForgotPassword", { platform: "web", from: "wish" }));
+        expect(signupLines(spy)).toEqual([]);
+        spy.mockRestore();
+    });
+
+    it("ClientMetadata が無い（iOS など）・知らない値は unknown に丸める", () => {
+        expect(signupMetricLine(undefined)).toBe('{"metric":"signup","platform":"unknown","from":"unknown"}');
+        expect(signupMetricLine({ platform: 'web\n{"metric":"signup"}', from: "a@example.com" }))
+            .toBe('{"metric":"signup","platform":"unknown","from":"unknown"}');
+        expect(signupMetricLine({ platform: "ios", from: "other" }))
+            .toBe('{"metric":"signup","platform":"ios","from":"other"}');
     });
 });

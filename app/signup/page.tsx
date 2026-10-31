@@ -10,6 +10,7 @@ import { pendingNameKey, pendingVerifyKey } from "../../lib/utils/pendingName";
 import { safeNextPath } from "../../lib/routes";
 import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { BTN_FILL } from "../components/buttonStyles";
+import { track, signupFromVia, type SignupFrom } from "../../lib/utils/analytics";
 
 type Step = "register" | "verify" | "done";
 
@@ -38,8 +39,18 @@ const PERMANENT_RESEND_FAILURES = new Set([
     "InvalidParameterException",
 ]);
 
-function savePending(em: string, username: string) {
-    try { localStorage.setItem(pendingVerifyKey(em), JSON.stringify({ username, t: Date.now() })); } catch { /* ignore */ }
+function savePending(em: string, username: string, from: SignupFrom) {
+    // `from`（どこから登録に来たか）も控える。確認コードの入力へは、ログイン画面の
+    // 「確認コードを入力・再送する」から `via` 無しで戻ってくることがある（#432）
+    try { localStorage.setItem(pendingVerifyKey(em), JSON.stringify({ username, t: Date.now(), from })); } catch { /* ignore */ }
+}
+/** 控えた `from`。無い・読めないときは null（呼ぶ側が URL の値を使う） */
+function loadPendingFrom(em: string): SignupFrom | null {
+    try {
+        const raw = localStorage.getItem(pendingVerifyKey(em));
+        const from = raw ? (JSON.parse(raw) as { from?: unknown })?.from : null;
+        return from === "wish" || from === "other" ? from : null;
+    } catch { return null; }
 }
 function loadPending(em: string): string | null {
     try {
@@ -72,6 +83,8 @@ function SignupForm() {
     // 付ける箇所がリポジトリに1つも無く**、バナーは死んだ画面だった
     // （テストは自前で `verified=1` を作っていたので気づけない）
     const loginHref = `/login?verified=1${nextPath ? `&next=${encodeURIComponent(nextPath)}` : ""}`;
+    // 登録の画面に来た理由（「行きたい」から＝`via=wish`。登録までの数え方・#432）
+    const fromUrl = signupFromVia(searchParams?.get("via"));
     const { isAuthenticated, loading } = useAuth();
     const { showToast } = useToast();
 
@@ -86,6 +99,9 @@ function SignupForm() {
     const [submitting, setSubmitting] = useState(false);
     const [resending, setResending] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
+    // 控えから戻したときの `from`（URL に `via` が無い回のため）
+    const [pendingFrom, setPendingFrom] = useState<SignupFrom | null>(null);
+    const from: SignupFrom = fromUrl === "wish" ? "wish" : (pendingFrom ?? fromUrl);
 
     // ログイン済みならトップへ
     useEffect(() => {
@@ -104,6 +120,7 @@ function SignupForm() {
         if (savedUsername) {
             setEmail(emailParam);
             setCognitoUsername(savedUsername);
+            setPendingFrom(loadPendingFrom(emailParam));
             setStep("verify");
         } else {
             setEmail(emailParam);
@@ -134,7 +151,7 @@ function SignupForm() {
         try {
             const result = await signUp(email, password);
             if (result.success && result.username) {
-                savePending(email, result.username);
+                savePending(email, result.username, from);
                 if (displayName.trim()) {
                     // メールアドレスで区切る。
                     // 以前はグローバルな1キーだったので、登録を途中でやめた人の
@@ -189,8 +206,11 @@ function SignupForm() {
         setError("");
         setSubmitting(true);
         try {
-            const result = await confirmSignUp(cognitoUsername, code.trim());
+            // サーバーの数（PostConfirmation のログ）と GA4 の数に、同じ出どころを渡す（#432）
+            const result = await confirmSignUp(cognitoUsername, code.trim(), { platform: "web", from });
             if (result.success) {
+                // もう確認済みだった回（`alreadyConfirmed`）は数えない（同じ人を二度数える）
+                if (!result.alreadyConfirmed) track("sign_up", { method: "email", from });
                 clearPending(email);
                 setStep("done");
             } else {

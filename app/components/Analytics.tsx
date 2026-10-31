@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { siteConfig } from "../../lib/utils/seo";
+import { gaInitSnippet } from "../../lib/utils/analytics";
 
 /**
  * アクセス解析タグ。設定されている時だけ出力する（未設定なら null＝完全に無害）。
@@ -34,8 +35,10 @@ export default function Analytics() {
                     src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
                     strategy="lazyOnload"
                 />
+                {/* 初期化の行は、読み込み前に積んだイベント（行きたい・登録）も送る
+                    （`lib/utils/analytics.ts` の `track`・2026-10-31 #432） */}
                 <Script id="ga4-init" strategy="lazyOnload">
-                    {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`}
+                    {gaInitSnippet(gaId)}
                 </Script>
             </>
         );

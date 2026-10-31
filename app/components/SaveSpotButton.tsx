@@ -11,6 +11,7 @@ import { useSavedSpots } from "../../lib/hooks/useSavedSpots";
 import { useToast } from "../../lib/hooks/useToast";
 import { loginWithNext } from "../../lib/routes";
 import { spotSavedKey } from "../../lib/utils/savedSpotKey";
+import { track, WISH_VIA } from "../../lib/utils/analytics";
 
 /**
  * 撮影スポットを「行きたい場所」に保存するボタン。
@@ -102,8 +103,10 @@ export default function SaveSpotButton({
     if (!authLoading && !isAuthenticated) {
         return (
             <Link
-                href={loginWithNext(typeof window === "undefined" ? null : window.location.pathname)}
+                href={loginWithNext(typeof window === "undefined" ? null : window.location.pathname, WISH_VIA)}
                 prefetch={false}
+                // 登録までの数え方（#432）: 未ログインで押した＝登録の入口に来た
+                onClick={() => track("wish_tap", { signed_in: 0, kind })}
                 className={tile ? `${base} min-w-0 ${tileOff}` : base}
                 style={{ touchAction: "manipulation", minHeight: tile ? tileMinH : 44 }}
             >
@@ -114,6 +117,8 @@ export default function SaveSpotButton({
     }
 
     const onClick = async () => {
+        // 数えるのは「保存する」側だけ（外すのは行きたいの合図ではない）。送るのは種別だけで slug は送らない
+        if (saved === false) track("wish_tap", { signed_in: 1, kind });
         const ok = await toggle(key);
         if (!ok) {
             showToast(en ? "Couldn't update. Please try again." : "更新できませんでした。もう一度お試しください。", "error");
