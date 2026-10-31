@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { tagKey } from "../../lib/utils/collections";
 
 // **同じタグのチップが2つ並んでいた。**
@@ -51,6 +51,14 @@ vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: PHOTOS
 
 const GalleryPageClient = (await import("../GalleryPageClient")).default;
 
+/**
+ * 2026-10-31 束 1 S1・S2: さがすのカテゴリとタグのチップは**何かを探している間だけ**出る（iOS の `isDiscovering`）。
+ * 対象の「写真」を選んで、チップの出る状態にしてから見る
+ */
+function showChips() {
+    fireEvent.click(screen.getByRole("button", { name: "写真" }));
+}
+
 beforeEach(() => {
     mockShowToast.mockReset();
     window.history.replaceState({}, "", "/");
@@ -60,6 +68,7 @@ describe("タグのチップ", () => {
     it("スラッグで来ても、同じタグのチップは1つ", async () => {
         window.history.replaceState({}, "", "/?tags=mount-fuji");
         render(<GalleryPageClient surface="search" />);
+        showChips();
 
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         const labels = screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label") ?? "");
@@ -73,6 +82,7 @@ describe("タグのチップ", () => {
     it("そのチップは選択済みとして出る（押せば外せる）", async () => {
         window.history.replaceState({}, "", "/?tags=mount-fuji");
         render(<GalleryPageClient surface="search" />);
+        showChips();
 
         const chip = await screen.findByRole("switch", { name: /Mount Fuji/ });
         expect(chip, "選択が反映されていない").toHaveAttribute("aria-checked", "true");
@@ -80,6 +90,7 @@ describe("タグのチップ", () => {
 
     it("選択が無ければ今までどおり全部未選択", async () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         for (const chip of screen.getAllByRole("switch")) {
             expect(chip).toHaveAttribute("aria-checked", "false");
@@ -98,6 +109,7 @@ describe("表記ゆれのタグ", () => {
 
     it("同じタグは1つのチップに畳む", async () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
 
         const fuji = chips().filter((l) => l.toLowerCase().startsWith("fuji"));
@@ -106,6 +118,7 @@ describe("表記ゆれのタグ", () => {
 
     it("件数は合算し、代表はいちばん多い表記", async () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
 
         // fuji が2枚・Fuji が1枚 → 代表は "fuji"、件数は 3
@@ -114,6 +127,7 @@ describe("表記ゆれのタグ", () => {
 
     it("別のタグまで畳まない（正常系）", async () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         expect(chips().some((l) => l.startsWith("night")), "無関係のタグが消えている").toBe(true);
         expect(chips().some((l) => l.startsWith("Mount Fuji")), "別のタグまで畳んでいる").toBe(true);
@@ -131,6 +145,7 @@ describe("同じ写真が同じタグを2つの表記で持つとき", () => {
 
     it("1枚として数える（バッジと結果が食い違わない）", async () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
 
         const tabi = chips().filter((l) => l.startsWith("旅") || l.startsWith("#旅"));
@@ -143,6 +158,7 @@ describe("同じ写真が同じタグを2つの表記で持つとき", () => {
     // 「先に見つけた方」だと、写真が1枚増えるだけで字面が変わる
     it("同数なら文字列の小さい方を代表にする", async () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
 
         const paris = chips().filter((l) => l.toLowerCase().startsWith("paris"));
@@ -162,6 +178,7 @@ describe("絞り込み中のタグの件数", () => {
         // fuji は travel 2枚（p4/p5）＋ food 1枚。food で絞れば 1枚
         window.history.replaceState({}, "", "/?category=food");
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getByText(/結果: 4 件/)).toBeInTheDocument());
 
         const fuji = chips().filter((l) => l.toLowerCase().startsWith("fuji"));
@@ -171,6 +188,7 @@ describe("絞り込み中のタグの件数", () => {
     it("結果に1枚も無いタグはチップに出さない", async () => {
         window.history.replaceState({}, "", "/?category=food");
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getByText(/結果: 4 件/)).toBeInTheDocument());
 
         expect(chips().some((l) => l.startsWith("night")),
@@ -179,6 +197,7 @@ describe("絞り込み中のタグの件数", () => {
 
     it("絞っていなければ今までどおり全部の枚数（正常系）", async () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         expect(chips()).toContain("fuji (3)");
     });
@@ -201,6 +220,7 @@ describe("絞り込んでもチップの字面と並びは動かない", () => {
     async function chipsFor(url: string): Promise<string[]> {
         window.history.replaceState({}, "", url);
         const { unmount } = render(<GalleryPageClient surface="search" />);
+        showChips();
         await waitFor(() => expect(screen.getAllByRole("switch").length).toBeGreaterThan(0));
         const labels = chipsOf();
         unmount();
@@ -231,6 +251,7 @@ describe("選択中のタグの救済", () => {
     it("結果が0件でも、選択したタグのチップは残る", async () => {
         window.history.replaceState({}, "", "/?tags=night&q=zzzznomatch");
         render(<GalleryPageClient surface="search" />);
+        showChips();
 
         await waitFor(() => expect(screen.getByText(/条件に一致する写真がありません/)).toBeInTheDocument());
         const labels = screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label") ?? "");

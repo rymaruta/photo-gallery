@@ -63,14 +63,12 @@ const MEASURED_6XL: Array<[number, number]> = [
     [320, 142], [390, 177], [639, 301.5], [640, 199], [641, 199], [768, 241], [1024, 244], [1280, 276], [1536, 276],
 ];
 /**
- * 「さがす」（`/search`）。**≥1024px で左に絞り込みの柱（248px）が入り**、
- * 容器の上限が `max-w-6xl`（72rem）になる。1023px までは `max-w-5xl` と同じ。
- * 列は **PC でも3列**（柱を置いて4列にすると 1024px で 165.5px ＝ スマホより
- * 小さくなる）。Chromium で `out/` を配って実測（2026-09-22）。
+ * 「さがす」（2026-10-31 束 1 で柱をやめた 1 列の並び・iOS の `SearchGrid` の縦 3:4・隙間 10）。
+ * 列は 電話 2 → 768 で 3 → 1024 で 4（W3）。Chromium で `next dev` を配って結果の格子の1枚目の幅を読んだ（2026-10-31）
  */
 const MEASURED_SEARCH: Array<[number, number]> = [
-    [320, 142], [390, 177], [639, 301.5], [640, 193], [641, 194], [768, 231],
-    [1024, 223], [1151, 265], [1152, 265], [1280, 265], [1536, 265], [1920, 265],
+    [320, 139], [390, 174], [639, 298.5], [640, 291], [641, 291.5], [767, 354.5], [768, 228],
+    [1023, 313], [1024, 232.5], [1151, 264.25], [1152, 264.5], [1280, 264.5], [1536, 264.5],
 ];
 
 /**
@@ -102,7 +100,7 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
         expect(Math.abs(declared! - actual) / actual).toBeLessThanOrEqual(TOLERANCE);
     });
 
-    it.each(MEASURED_SEARCH)("さがす（柱つき）: 画面幅 %ipx で実測 %ipx に合う", (vw, actual) => {
+    it.each(MEASURED_SEARCH)("さがす: 画面幅 %ipx で実測 %ipx に合う", (vw, actual) => {
         const declared = resolveSizes(GRID_SIZES_SEARCH, vw);
         expect(declared).not.toBeNull();
         expect(Math.abs(declared! - actual) / actual).toBeLessThanOrEqual(TOLERANCE);
@@ -124,13 +122,16 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
      * **柱を置いたのに `sizes` を据え置く**のがいちばん起きやすい間違い
      * （容器と列数だけ直して申告を忘れる）。その形を通すと落ちること。
      */
-    it("柱のぶんを引いていない式は、PC の幅で落ちる（判定の自己確認）", () => {
-        const bad = MEASURED_SEARCH.filter(([vw]) => vw >= 1024).filter(([vw, actual]) => {
-            const d = resolveSizes(GRID_SIZES_5XL, vw);   // 柱が無い前提の式
+    // 2026-10-31 束 1: 柱をやめたので「柱のぶん」の自己確認を、**以前の柱つきの式では今の幅に合わない**ことに替えた
+    it("以前の柱つき・3列の式は、今のさがすの幅で落ちる（判定の自己確認）", () => {
+        const OLD = "(max-width:39.99rem) calc(50vw - 1.125rem), (max-width:47.99rem) calc(33.33vw - 1.25rem), (max-width:63.99rem) calc(33.33vw - 1.583rem), (max-width:71.99rem) calc(33.33vw - 7.41667rem), 16.58333rem";
+        const bad = MEASURED_SEARCH.filter(([vw, actual]) => {
+            const d = resolveSizes(OLD, vw);
             return d === null || Math.abs(d - actual) / actual > TOLERANCE;
         });
-        expect(bad.length, "柱の有無で申告が変わらない＝この判定は空回りしている")
-            .toBe(MEASURED_SEARCH.filter(([vw]) => vw >= 1024).length);
+        // 640〜767（3 列 → 2 列に変えた幅）と 1024（柱が無くなり 4 列になった幅）は以前の式では合わない
+        // （768 以上の 3 列と 1152 以上は、たまたま以前の式とほぼ同じ幅になる）
+        expect(bad.map(([vw]) => vw), "以前の式でも通る＝この判定は空回りしている").toEqual(expect.arrayContaining([640, 641, 767, 1024]));
     });
 
     // **この判定が空回りしていないこと。** 直す前の式を通すと落ちるはず。

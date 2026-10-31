@@ -54,7 +54,7 @@ describe("C5 チップ", () => {
     });
     it.each([
         "app/components/FilterBar.tsx", "app/components/SpotIndexClient.tsx", "app/components/DiscoverRail.tsx",
-        "app/components/SpotAreaIndexClient.tsx", "app/search/DiscoverSections.tsx", "app/photo/[id]/PhotoPageClient.tsx",
+        "app/components/SpotAreaIndexClient.tsx", "app/photo/[id]/PhotoPageClient.tsx",
         "app/components/NotificationsBell.tsx",
     ])("%s のチップは当たり 44（CHIP_HIT）を持つ", (f) => {
         expect(read(f)).toContain("${CHIP_HIT}");

@@ -693,9 +693,12 @@ async function runChecks(browser, eng) {
         check(`[${eng}] さがす: ハイドレーション完了`, await waitForHydration(page));
         const all = await page.evaluate(() => document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length);
         check(`[${eng}] さがす: 写真が並ぶ`, all > 0, `links=${all}`);
-        // カテゴリで絞る（URL から読む経路）。**件数が減ること**まで見る
+        // 2026-10-31 束 1 S1・S2: カテゴリのチップは何かを探している間だけ出る（iOS と同じ）。
+        // 対象の「写真」を押してチップを出してから、カテゴリで絞る（URL から読む経路）。**件数が減ること**まで見る
+        await tapOrClick(page, `[data-testid="search-scope"] [data-scope="photos"]`).catch(() => {});
+        await page.waitForSelector(`[data-testid="search-category-chips"]`, { timeout: 10000 }).catch(() => {});
         const cat = await page.evaluate(() => {
-            const b = [...document.querySelectorAll("button[aria-pressed]")].find((x) => x.getAttribute("aria-pressed") === "false");
+            const b = [...document.querySelectorAll('[data-testid="search-category-chips"] button[aria-pressed]')].find((x) => x.getAttribute("aria-pressed") === "false");
             return b ? (b.getAttribute("aria-label") ?? b.textContent ?? "").trim() : null;
         });
         // **見つからなければ赤にする。** `if (cat)` で包むと、チップの形が
@@ -703,7 +706,7 @@ async function runChecks(browser, eng) {
         // 「見えたら押す」を死んだ分岐として消したのと同じ形）
         check(`[${eng}] さがす: 絞り込みのチップがある`, !!cat, `cat=${cat}`);
         if (cat) {
-            await tapOrClick(page, `button[aria-pressed="false"]`);
+            await tapOrClick(page, `[data-testid="search-category-chips"] button[aria-pressed="false"]`);
             // 件数が動くまで待つ（固定の待ちにしない）
             const narrowed = await page
                 .waitForFunction((n) => document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length !== n, all, { timeout: 10000 })

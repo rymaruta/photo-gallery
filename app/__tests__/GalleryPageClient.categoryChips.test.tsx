@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ja } from "../i18n/labels";
 
 /**
@@ -46,11 +46,20 @@ vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: PHOTOS
 
 const GalleryPageClient = (await import("../GalleryPageClient")).default;
 
+/**
+ * 2026-10-31 束 1 S1・S2: さがすのカテゴリとタグのチップは**何かを探している間だけ**出る（iOS の `isDiscovering`）。
+ * 対象の「写真」を選んで、チップの出る状態にしてから見る
+ */
+function showChips() {
+    fireEvent.click(screen.getByRole("button", { name: "写真" }));
+}
+
 beforeEach(() => { mockShowToast.mockReset(); window.history.replaceState({}, "", "/"); });
 
 describe("カテゴリのチップの字", () => {
     it("別名で保存されていても、飛び先と同じ名前で出る", () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         // **チップは `role="button"` で探す。** 同じ画面の「カテゴリから探す」
         // （`DiscoverSections`）が同じ名前を `<Link>` で出すので、素の
         // `getByText` だと2件見つかって落ちる——そして `getAllByText` に
@@ -68,6 +77,7 @@ describe("カテゴリのチップの字", () => {
     // ——渡し忘れを観測できるのはこちら
     it("サムネの下に出す地図を、ちゃんと渡している", () => {
         render(<GalleryPageClient surface="search" />);
+        showChips();
         expect(gridProps.map, "地図を渡していない").toBeTruthy();
         expect(gridProps.map?.architecture, "別名の写真のカテゴリが空欄になる").toBe("建築");
         expect(gridProps.map?.landscape).toBe("風景");
