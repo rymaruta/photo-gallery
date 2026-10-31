@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 
 // **検索の失敗が「見つかりませんでした」になっていた。**
 //
@@ -17,6 +17,8 @@ vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: 
 const { useUserSearch } = await import("../useUserSearch");
 
 const HIT = { userId: "u1", displayName: "旅子" };
+/** 問い合わせの前の待ち（`useUserSearch` の `DEBOUNCE_MS` = 120）を確実に越える時間 */
+const DEBOUNCE_PAST = 200;
 
 beforeEach(() => { mockUserPublicFetch.mockReset(); });
 
@@ -64,17 +66,30 @@ describe("ユーザー検索: 失敗と0件を分ける", () => {
         await waitFor(() => expect(result.current.failed, "前の失敗が残っている").toBe(false));
     });
 
+    /**
+     * **偽の時計で進める**（2026-10-31）。問い合わせの前に 120ms 待つ作り（`DEBOUNCE_MS`）を
+     * 「失敗 → 打ち直し → 成功」と2回通すので、本物の時計だと `waitFor` の既定の 1 秒の中に2回の待ちと
+     * 応答が収まる前提になり、重い全体の並列実行で落ちた。時計を自分で進めれば、待ちの長さに左右されない
+     */
     it("成功したら前の failed を下ろす", async () => {
-        mockUserPublicFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
-        const { result, rerender } = renderHook(({ q }) => useUserSearch(q), {
-            initialProps: { q: "たびこ" },
-        });
-        await waitFor(() => expect(result.current.failed).toBe(true));
+        vi.useFakeTimers();
+        try {
+            mockUserPublicFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+            const { result, rerender } = renderHook(({ q }) => useUserSearch(q), {
+                initialProps: { q: "たびこ" },
+            });
+            // 待ちを越えて問い合わせを走らせ、応答（約束の連なり）まで流し切る
+            await act(async () => { await vi.advanceTimersByTimeAsync(DEBOUNCE_PAST); });
+            expect(result.current.failed).toBe(true);
 
-        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ users: [HIT] }) });
-        rerender({ q: "たびこさん" });
-        await waitFor(() => expect(result.current.users).toHaveLength(1));
-        expect(result.current.failed).toBe(false);
+            mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ users: [HIT] }) });
+            rerender({ q: "たびこさん" });
+            await act(async () => { await vi.advanceTimersByTimeAsync(DEBOUNCE_PAST); });
+            expect(result.current.users).toHaveLength(1);
+            expect(result.current.failed).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 

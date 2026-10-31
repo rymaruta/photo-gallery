@@ -149,7 +149,9 @@ describe("CommentSection: 送ったコメントを見せる", () => {
         // 並びは新しい順のまま（先頭が送った1件）
         const items = screen.getAllByRole("listitem");
         expect(items[0].textContent).toContain("送った");
-        expect(scrolled).toHaveLength(1);
+        // **画面送りも待つ。** 送りは字を出した描画のあとの `useEffect` で走るので、字が出た瞬間には
+        // まだ呼ばれていないことがある（重い全体の並列実行で落ちた・2026-10-31）。1回だけ呼ばれることは変えずに見る
+        await waitFor(() => expect(scrolled).toHaveLength(1));
         expect(scrolled[0].el).toBe(items[0]);
         expect(scrolled[0].opts).toEqual({ block: "nearest", behavior: "smooth" });
     });
