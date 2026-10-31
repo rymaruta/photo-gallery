@@ -5,7 +5,7 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, EllipsisHorizontalIcon, GlobeAltIcon, EyeSlashIcon, LinkIcon, PencilSquareIcon, PlusIcon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
@@ -33,12 +33,13 @@ import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
 import { compareNewest } from "../../lib/utils/photoOrder";
-import { ROUTES, hasPhotoPage } from "../../lib/routes";
-import { collectEntries, collectionPath, slugify } from "../../lib/utils/collections";
+import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import { EmptyState, LoadingState } from "../components/StateViews";
-import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX, CoverFrame, coverIsMissing, profileCoverUrl } from "../components/ProfileCover";
+import { SectionTitle } from "../components/SectionHead";
+import ProfileMapTab from "./ProfileMapTab";
+import ProfileCover, { COVER_HEADER_PAD, CoverFrame, coverIsMissing, profileCoverUrl } from "../components/ProfileCover";
 import ProfileHandleLine from "../components/ProfileHandleLine";
 import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_NUMBER_CLASS, STAT_LABEL_CLASS, STAT_CELL_CLASS } from "../components/statCellStyle";
 import PostSheet from "../components/PostSheet";
@@ -118,12 +119,20 @@ type UserProfile = {
  */
 const StoriesBar = dynamic(() => import("../components/stories/StoriesBar"), { ssr: false });
 
-type TabKey = "posts" | "timeline" | "trips";
+type TabKey = "posts" | "map" | "timeline" | "trips";
 /**
- * タブ。`timeline` は**年表**（内部名は古い）。「フォロー中」はトップのタブに在る。
- * `trips` は**旅の一冊の棚**（iOS の「旅の記録」のタブ・2026-10-21 に Web へ）
+ * タブ。`timeline` は**年表**（内部名は古い・Web だけ）。「フォロー中」はトップのタブに在る。
+ * `trips` は**旅の一冊の棚**（iOS の「旅の記録」のタブ・2026-10-21 に Web へ）。
+ *
+ * 2026-10-31 判断（束 1 U9・iOS の `ProfileTab.tabs(isMe:)`）: **人のページは 投稿・マップ・年表**。
+ * iOS の人のページは 投稿・マップ の2つで、旅は名前の下の「旅」の行（`ProfileTripsLine`）から開く。
+ * Web だけの年表は残す。旅の棚は札に並べず、「すべての旅 · N冊」で開く（`trips` は選べるが札は無い）。
+ * 本人のページ（マイページ）は今のまま（iOS のマイページの直しは束 5）
  */
-const TAB_ORDER: TabKey[] = ["posts", "timeline", "trips"];
+// 2026-10-31 判断（束 1 の確かめ）: **本人のページにもマップの札を出す。** iOS のマイページに地図の区分は無いが、
+// Web は「訪れた場所」のチップを外した（U6）ので、札が無いと本人が自分の撮影地を見る手立てが無くなる。今ある機能を失わない
+const OWNER_TABS: TabKey[] = ["posts", "map", "timeline", "trips"];
+const VISITOR_TABS: TabKey[] = ["posts", "map", "timeline"];
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
@@ -722,6 +731,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     // 内訳を添えて**食い違いの理由が分かるようにする。
     const hiddenCount = isOwner ? postCount - publishedPhotos.length : 0;
     const [tab, setTab] = useState<TabKey>("posts");
+    // 札の並び（本人と人で違う）。スワイプの callback が古い並びを掴まないよう ref でも持つ
+    const tabOrder = isOwner ? OWNER_TABS : VISITOR_TABS;
+    const tabOrderRef = useRef(tabOrder);
+    tabOrderRef.current = tabOrder;
+    // 札に無い `trips`（人のページの「すべての旅」）を開いている間は、先頭の札を Tab の止まり先にする
+    const focusTab = tabOrder.includes(tab) ? tab : tabOrder[0];
     const [shareOpen, setShareOpen] = useState(false);
     // カバー写真が出せたか（出せたときだけ見出しを帯の下端へ重ねる・`ProfileCover`）
     const [hasCover, setHasCover] = useState(false);
@@ -870,10 +885,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
      * 計算は `lib/utils/tabKeys.ts`（写真ページ・通知ベルと共有）。
      */
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-        const to = nextTabIndex(e.key, TAB_ORDER.indexOf(tab), TAB_ORDER.length);
+        const to = nextTabIndex(e.key, tabOrder.indexOf(focusTab), tabOrder.length);
         if (to === null) return;
         e.preventDefault();          // 矢印での横スクロールを起こさない
-        const next = TAB_ORDER[to];
+        const next = tabOrder[to];
         setTab(next);
         // 選んだタブへフォーカスも移す（roving tabindex なので移さないと
         // 次の Tab が一覧を飛ばす）
@@ -886,6 +901,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
     const swallowClickRef = useRef(false);
     const onTabPointerDown = useCallback((e: React.PointerEvent) => {
+        // **地図（マップの札）の中で始まる操作は拾わない**——地図を横に動かすたびに札が替わる
+        if ((e.target as Element | null)?.closest?.(".leaflet-container")) { swipeStartRef.current = null; return; }
         swipeStartRef.current = { x: e.clientX, y: e.clientY };
         // **新しい指が触れたら、前回の「食う札」は捨てる。**
         // 札を下ろす経路が click と pointercancel しか無かったので、
@@ -910,7 +927,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
         if (dir !== 0) {
             hapticTap(8);
             swallowClickRef.current = true;
-            setTab((cur) => stepInList(TAB_ORDER, cur, dir));
+            setTab((cur) => stepInList(tabOrderRef.current, tabOrderRef.current.includes(cur) ? cur : tabOrderRef.current[0], dir));
         }
     }, []);
     /** スワイプで切り替えた直後の click を止める（捕捉フェーズで拾う） */
@@ -1115,31 +1132,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const trips = useMemo(() => shelfTrips(tripPhotos), [tripPhotos]);
     const showTrips = useCallback(() => {
         setTab("trips");
-        document.getElementById("profile-tab-trips")?.scrollIntoView({ block: "nearest" });
+        // 人のページには旅の札が無いので、開いた棚そのものへ送る（描いたあと）
+        requestAnimationFrame(() => document.querySelector("[data-testid=profile-trips-panel]")?.scrollIntoView?.({ block: "nearest" }));
     }, []);
 
-
-    // 訪れた場所（板 v2 UserProfile のチップ）: この人の公開写真の撮影地を多い順に。
-    // **チップの数は、この人がその撮影地で撮った写真の枚数**（撮影地ページの見出しの枚数＝
-    // 全員の写真の数ではない）。撮影地の束ね方（綴りの揺れ・スラッグ）は `collectEntries` で
-    // `/location/*` と同じなので、チップから飛んだ先は同じ撮影地になる。
-    // 本人のページには出さない（本人は「旅の記録」）。
-    //
-    // **行き先のページが無いチップはリンクにしない。** `/location/*` はビルドの時点の写真から
-    // 作るので、ビルドのあとに初めて書いた撮影地は 404 になる。ビルドに入っている写真
-    // （`hasPhotoPage`）がその撮影地を持っているときだけリンクにする
-    const visitedPlaces = useMemo(() => {
-        if (isOwner) return [];
-        return collectEntries(visiblePhotos, "location")
-            .filter((e) => e.count > 0)
-            .map((e) => ({
-                ...e,
-                href: visiblePhotos.some((p) => typeof p.location === "string"
-                    && slugify(p.location, "location") === e.slug && hasPhotoPage(p.id))
-                    ? collectionPath("location", e.slug)
-                    : null,
-            }));
-    }, [visiblePhotos, isOwner]);
 
     // テーマソング: 保存された URL を埋め込みプレイヤーに変換（好きな部分の開始・終了つき）
     const songEmbed = useMemo(
@@ -1245,11 +1241,13 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     }, [locale, showToast, shareUrl]);
 
     return (
-        <main className="min-h-screen text-white bg-bg">
+        // 2026-10-31 束 1 U1: スマホではサイトの見出しを外し、カバーを画面の上端から（iOS の人のページ・`globals.css`）
+        <main className="min-h-screen text-white bg-bg" data-chromeless-phone="">
             {loadError && (
                 // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
                 // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
+                // スマホは見出しを外したので、ホーム画面から起動したとき時計の帯のぶん下げる（束 1 の確かめの直し）
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-[calc(12px+env(safe-area-inset-top,0px))] lg:pt-3" data-testid="profile-load-error">
                     <p className="text-xs text-danger bg-danger/10 ring-1 ring-danger/20 rounded-lg px-3 py-2">
                         {loadError === "ownPhotos"
                             ? (locale === "en"
@@ -1279,10 +1277,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
             <div className="relative">
                 <ProfileCover userId={userId} onLoaded={(ok) => { setHasCover(ok); setCoverFailed(!ok); }} />
                 {showCoverFrame && <CoverFrame href="/user/profile#cover-pick" locale={locale} />}
-                <div className="relative max-w-2xl lg:max-w-5xl mx-auto px-4">
+                {/* 束 1 W6: 顔・名前・数・旅の記録は中央 680 の列（PC でも横に広げない・字と部品は電話と同じ値） */}
+                <div className="relative max-w-2xl lg:max-w-[680px] mx-auto px-4">
                     {/* 上部バー: 戻る（左）+ 共有（右）。どちらもカバー上のガラスボタンで
                         背景に関わらず視認性を確保し、左右対称でバランスを取る。 */}
-                    <div className="pt-4 mb-2 flex items-center justify-between">
+                    {/* 束 1 U1: 見出しを外したので、ホーム画面から起動したときは時計の帯のぶん下げる（PC は見出しがあるので 0） */}
+                    <div className="pt-[calc(12px+env(safe-area-inset-top,0px))] lg:pt-4 mb-2 flex items-center justify-between">
                         <Link
                             href="/"
                             prefetch={false}
@@ -1290,9 +1290,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             // 写真の上のガラスの丸（44・2026-10-30 束 0b C12）。以前は 36・黒40%
                             className={GLASS_BTN}
                         >
-                            <ArrowLeftIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
+                            <ChevronLeftIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
                         </Link>
-                        {/* 共有: 戻ると対になる単一のガラスボタン。タップでメニューを開く */}
+                        {/* 「…」（iOS の人のページの右上・束 1 U1）: 共有・QR・ブロックをまとめたメニュー。以前は共有の印 */}
                         <div className="relative">
                             <button
                                 ref={shareBtnRef}
@@ -1300,10 +1300,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 aria-haspopup="menu"
                                 aria-expanded={shareOpen}
                                 className={`${GLASS_BTN} ${shareOpen ? "!bg-primary !text-ink" : ""}`}
-                                title={locale === "en" ? "Share" : "共有"}
-                                aria-label={locale === "en" ? "Share profile" : "プロフィールを共有"}
+                                title={locale === "en" ? "More" : "その他"}
+                                aria-label={locale === "en" ? "Share and more" : "共有・その他の操作"}
                             >
-                                <ShareIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
+                                <EllipsisHorizontalIcon aria-hidden="true" style={GLASS_ICON_STYLE} />
                             </button>
 
                             {shareOpen && (
@@ -1395,18 +1395,20 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         プロフィールヘッダーを横方向に活用し、写真一覧を複数カラムで」）。
                         スマホ（1024px 未満）は最終版モックのまま縦に積む */}
                     <div
-                        className="pb-5 pt-2 lg:flex lg:items-start lg:gap-8"
-                        // カバーがあればアイコンを帯の下端に重ねる（板: 180px の帯に 50px）。
-                        // 上の戻る・共有の列（約 60px）の下から数える
-                        style={hasCover || showCoverFrame ? { paddingTop: `${COVER_HEIGHT_PX - COVER_AVATAR_OVERLAP_PX - 62}px` } : undefined}
+                        className={`pb-5 ${hasCover || showCoverFrame ? COVER_HEADER_PAD : "pt-2"}`}
+                        // カバーがあればアイコンを帯の下端に重ねる（iOS: 240 の帯に 44・PC は 320）。
+                        // 上の戻る・「…」の列の下から数える（`COVER_HEADER_PAD`）
                     >
+                        {/* 束 1 U2: 顔（88・黒 4 の縁）を左、フォロー（C8）を右に、下でそろえる（iOS の `header`）。
+                            以前はフォローが名前の右にあった */}
+                        <div className="flex items-end justify-between gap-3">
                         {/* アバター（黒 4px の縁だけ・2026-10-15 iOS v2）。以前は回るオーロラの輪
                             （その人のテーマ色のグラデーション）だったが、輪は「未見のストーリー」の
                             合図の形なので、ここで回すと合図と紛れる。縁はカバーの写真の上で顔を切り出す。
                             本人には右下に「＋」（投稿する）——モックと同じ */}
                         <div className="relative w-fit rounded-full lg:flex-shrink-0">
                             <div className="rounded-full border-4 border-bg bg-bg" data-avatar-frame>
-                                <UserAvatar userId={userId} className="w-[84px] h-[84px] lg:w-[120px] lg:h-[120px]" iconClassName="w-11 h-11 lg:w-16 lg:h-16" />
+                                <UserAvatar userId={userId} className="w-[88px] h-[88px]" iconClassName="w-11 h-11" />
                             </div>
                             {isOwner && (
                                 <button
@@ -1423,14 +1425,28 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 </button>
                             )}
                         </div>
+                            {/* **ブロック中は出さない**（サーバーは必ず断るので、押せる形で置くと失敗する操作へ誘う）。
+                                `key` で張り直さない——張り直すと二重送信の番人（`busyRef`）が外れる */}
+                            {!isOwner && !blocked && (
+                                <div className="flex-shrink-0 pb-1" data-testid="profile-follow">
+                                    <FollowAction
+                                        targetUserId={userId}
+                                        isOwner={isOwner}
+                                        isAuthenticated={viewerAuthed}
+                                        locale={locale as "ja" | "en"}
+                                    />
+                                </div>
+                            )}
+                        </div>
 
                         <div className="lg:flex-1 lg:min-w-0" data-testid="profile-header-main">
                         {/* 名前 + @ユーザー名 + フォローボタン（同じ行の右端）。
                             縦の場所を使わずに主要アクションを見せるため。名前は truncate し、
                             ボタン側は縮ませないので、長い名前でも崩れない。 */}
-                        <div className="mt-3.5 mb-3 flex items-start gap-3">
+                        <div className="mt-3 mb-1 flex items-start gap-3">
                             <div className="min-w-0 flex-1">
-                                <h1 className="text-2xl sm:text-3xl font-bold leading-tight flex items-center gap-2 min-w-0">
+                                {/* 束 1 U3: 名前は明朝 26（iOS `JPFont.screenTitle`）。以前はゴシック 24／30 */}
+                                <h1 className="font-serif font-bold flex items-center gap-2 min-w-0 m-0" style={{ fontSize: "26px", lineHeight: 1.3 }}>
                                     {/* 名前だけを切り詰め、印は縮ませない（長い名前でも印が消えない） */}
                                     <span className="truncate">{displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}</span>
                                     <VerifiedBadge verified={userProfile?.verified} size={20} locale={locale} />
@@ -1452,19 +1468,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     className="mt-0.5"
                                 />
                             </div>
-                            {/* **ブロック中は出さない。** サーバーは 400
-                                「ブロック中の相手です。解除は設定の
-                                『ブロックした人』からできます」を必ず返すので、
-                                押せる形で置くと**必ず失敗する操作へ誘う**。
-                                開いたときに `GET /user/blocks` で合わせる
-                                （この画面で押した分だけだと、開き直すと戻る）。
-                                これで `key` による張り直しも要らなくなった
-                                ——張り直すと `busyRef` / `pending` ごと
-                                作り直され、**二重送信の番人が外れる**
-                                （飛んでいる POST の最中に押せる） */}
-                            {isOwner ? (
-                                // モックはここに枠線の「プロフィールを編集」（以前は下の行に
-                                // 「投稿する」と並べていた。投稿はアバターの＋へ移した）
+                            {isOwner && (
+                                // モックはここに枠線の「プロフィールを編集」（投稿はアバターの＋へ）。
+                                // 人のページのフォローは顔の行の右へ移した（束 1 U2）
                                 <Link
                                     href={ROUTES.PROFILE_EDIT}
                                     prefetch={false}
@@ -1473,16 +1479,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 >
                                     {locale === "en" ? "Edit profile" : "プロフィールを編集"}
                                 </Link>
-                            ) : !blocked ? (
-                                <div className="flex-shrink-0">
-                                    <FollowAction
-                                        targetUserId={userId}
-                                        isOwner={isOwner}
-                                        isAuthenticated={viewerAuthed}
-                                        locale={locale as "ja" | "en"}
-                                    />
-                                </div>
-                            ) : null}
+                            )}
                         </div>
 
                         {/* 自己紹介: 名前のすぐ下（従来ステータスがあった位置）に置く。
@@ -1492,7 +1489,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             自己紹介は300文字まで入る）。ストーリーのキャプションと
                             コメント本文には最初から付いていた */}
                         {shownBio && (
-                            <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{shownBio}</p>
+                            // 束 1 U3: 本文 15・text-2・行送り 1.7（iOS の `about` の行・`lineSpacing(6)`）。以前は 14・白85%
+                            <p className="text-text-2 whitespace-pre-wrap break-words mt-2 mb-1" style={{ fontSize: "15px", lineHeight: 1.7 }}>{shownBio}</p>
                         )}
 
                     {/* 数字の行（最終版モック）: 投稿 ／ フォロワー ／ フォロー中。
@@ -1546,47 +1544,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         );
                     })()}
 
-                    {/* 訪れた場所（板 v2 UserProfile）: 真鍮の眉ラベル（黒地の上）と、撮影地のチップ
-                        （多い順に3つ・残りは「ほか N か所」）。チップの見た目は 34、**押せる高さは 44**。
-                        数は**この人が**その撮影地で撮った写真の枚数（撮影地ページの見出しの枚数とは違う） */}
-                    {visitedPlaces.length > 0 && (
-                        <section aria-labelledby="visited-places-heading" className="mb-4" data-testid="visited-places">
-                            <h2 id="visited-places-heading" className="eyebrow eyebrow-line text-accent">
-                                {locale === "en" ? "PLACES VISITED" : "訪れた場所"}
-                            </h2>
-                            <ul className="flex flex-wrap items-center gap-x-1.5">
-                                {visitedPlaces.slice(0, 3).map((e) => {
-                                    const pill = (
-                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-chip border border-line text-chip-text whitespace-nowrap"
-                                              style={{ height: "34px", padding: "0 12px", fontSize: "13px" }}>
-                                            <span className="truncate" style={{ maxWidth: "12rem" }}>{e.label}</span>
-                                            <span className="text-white/60 tabular-nums">{e.count}</span>
-                                        </span>
-                                    );
-                                    return (
-                                        <li key={e.slug}>
-                                            {e.href ? (
-                                                <Link href={e.href} prefetch={false}
-                                                      aria-label={locale === "en" ? `${e.label}, ${e.count} photos` : `${e.label}（${e.count}枚）`}
-                                                      className="inline-flex items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                                      style={{ minHeight: "44px", touchAction: "manipulation" }}>
-                                                    {pill}
-                                                </Link>
-                                            ) : (
-                                                <span className="inline-flex items-center" style={{ minHeight: "44px" }}>{pill}</span>
-                                            )}
-                                        </li>
-                                    );
-                                })}
-                                {visitedPlaces.length > 3 && (
-                                    <li className="inline-flex items-center text-white/60" style={{ minHeight: "44px", fontSize: "13px", paddingLeft: "4px" }}>
-                                        {locale === "en" ? `+${visitedPlaces.length - 3} more` : `ほか ${visitedPlaces.length - 3}か所`}
-                                    </li>
-                                )}
-                            </ul>
-                        </section>
-                    )}
-
+                    {/* 訪れた場所のチップは外した（2026-10-31 束 1 U6・iOS は外して「マップ」の札で地図に出す）。
+                        撮影地の頁へは、写真の頁の「撮影地の詳細」とマップの札の写真から行ける */}
                     {/* 旅の一冊（板 UserProfile F33「旅」・iOS の `ProfileTripsLine`）。いちばん新しい一冊の札と、
                         2冊以上なら「すべての旅 · N冊」（旅のタブへ）。一冊も無ければ節ごと出さない */}
                     {photosResolved && trips.length > 0 && (
@@ -1625,6 +1584,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     }]}
                                 label={locale === "en" ? "My BGM" : "マイBGM"}
                                 locale={locale}
+                                // 札の行 64（束 1 U8・Web だけのマイ BGM を iOS の札の行の形で残す）
+                                row
                             />
                         </div>
                     ) : songEmbed && (
@@ -1717,12 +1678,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             </Link>
                         </div>
                     )}
-                    {/* 人のページ: 持っているメダルの一覧（名前の横に選んでいない人にも入口を置く・2026-10-11） */}
-                    {!isOwner && (
-                        <div className="mt-2 text-center">
-                            <MedalsButton badges={userProfile?.badges} ownerName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")} locale={locale === "en" ? "en" : "ja"} />
-                        </div>
-                    )}
+                    {/* 人のページのメダルの入口は、切り替えの札の右端へ移した（束 1 U9） */}
                     </div>{/* /PC の右列 */}
 
                     </div>
@@ -1749,8 +1705,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 locale={locale as "ja" | "en"}
             />
 
-            {/* コンテンツ（黒背景）: 投稿 / 年表 */}
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
+            {/* コンテンツ（黒背景）: 投稿 / マップ / 年表。束 1 W6: 写真の格子は中央 1200 */}
+            <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8">
                 {/* タブバー。
                     🔴 **`aria-pressed` のボタンではなく、本物のタブにする。**
                     `aria-pressed` は「押して入り切りする」という意味なので、
@@ -1775,9 +1731,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 >
                     {([
                         { key: "posts", label: locale === "en" ? "Posts" : "投稿" },
+                        { key: "map", label: locale === "en" ? "Map" : "マップ" },
                         { key: "timeline", label: locale === "en" ? "Timeline" : "年表" },
                         { key: "trips", label: locale === "en" ? "Trips" : "旅" },
-                    ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, label }) => {
+                    ] as const).filter(({ key }) => tabOrder.includes(key)).map(({ key, label }) => {
                         const active = tab === key;
                         return (
                             <button
@@ -1788,7 +1745,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 aria-selected={active}
                                 aria-controls={`profile-panel-${key}`}
                                 // roving tabindex（停止点は選択中の1つだけ）
-                                tabIndex={active ? 0 : -1}
+                                tabIndex={key === focusTab ? 0 : -1}
                                 onClick={() => setTab(key)}
                                 onKeyDown={onTabKeyDown}
                                 data-profile-tab={key}
@@ -1803,6 +1760,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         );
                     })}
                 </div>
+                {/* 人のページ: 持っているメダルの一覧（Web だけ・名前の横に選んでいない人にも入口）。札の右端の字のボタン（束 1 U9） */}
+                {!isOwner && (
+                    <span className="ml-auto flex-shrink-0">
+                        <MedalsButton badges={userProfile?.badges} ownerName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")} locale={locale === "en" ? "en" : "ja"} />
+                    </span>
+                )}
                 {isOwner && ([
                     { href: ROUTES.SAVED_SPOTS, label: locale === "en" ? "Want to go" : "行きたい場所" },
                     { href: ROUTES.SAVES, label: locale === "en" ? "Saved" : "保存" },
@@ -1851,7 +1814,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         />
                     ) : <LoadingState kind="grid" locale={locale === "en" ? "en" : "ja"} testId="profile-posts-loading" />) : (
                         // **スマホ（640px 未満）は端から端まで**（iOS の格子と同じ・2026-10-21）。外枠の左右 16px を打ち消す
-                        <div className="grid grid-cols-3 gap-[2px] pb-8 -mx-4 sm:mx-0" data-testid="profile-grid">
+                        // 束 1 W3: 電話・タブレットは 3 列、1024 以上 4 列、1440 以上 5 列（隙間 2・4:5 は iOS の `ProfileV2` のまま）
+                        <div className="grid grid-cols-3 lg:grid-cols-4 min-[1440px]:grid-cols-5 gap-[2px] pb-8 -mx-4 sm:mx-0" data-testid="profile-grid">
                             {orderedPhotos.map((photo, i) => (
                                 <PhotoCard
                                     key={photo.id}
@@ -1871,9 +1835,26 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     </div>
                 )}
 
-                {/* 旅タブ: 旅の一冊の棚（公開写真から自動でまとまる） */}
+                {/* マップの札（人のページ・束 1 U6）: この人の公開写真の地図 */}
+                {tab === "map" && (
+                    <div role="tabpanel" id="profile-panel-map" aria-labelledby="profile-tab-map" className="pt-2 pb-8 -mx-4 sm:mx-0">
+                        {photosResolved
+                            ? <ProfileMapTab photos={visiblePhotos} locale={locale === "en" ? "en" : "ja"} />
+                            : <LoadingState kind="rows" locale={locale === "en" ? "en" : "ja"} testId="profile-map-loading" />}
+                    </div>
+                )}
+
+                {/* 旅の一冊の棚（公開写真から自動でまとまる）。本人は札、人のページは「すべての旅」から（札は無い・束 1 U7） */}
                 {tab === "trips" && (
-                    <div role="tabpanel" id="profile-panel-trips" aria-labelledby="profile-tab-trips" className="pt-4 pb-8">
+                    <div {...(tabOrder.includes("trips")
+                            ? { role: "tabpanel", id: "profile-panel-trips", "aria-labelledby": "profile-tab-trips" }
+                            : { role: "region", "aria-labelledby": "profile-trips-all-heading" })}
+                         className="pt-4 pb-8" data-testid="profile-trips-panel">
+                        {!tabOrder.includes("trips") && (
+                            <SectionTitle id="profile-trips-all-heading" className="mb-3">
+                                {locale === "en" ? `All trips · ${trips.length}` : `すべての旅 · ${trips.length}冊`}
+                            </SectionTitle>
+                        )}
                         {photosResolved
                             ? <TripShelfList trips={trips} userId={userId} isJa={locale !== "en"} />
                             : <LoadingState kind="rows" locale={locale === "en" ? "en" : "ja"} testId="profile-trips-loading" />}

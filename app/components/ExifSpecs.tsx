@@ -153,3 +153,80 @@ export default function ExifSpecs({ specs, locale, className = "", collapsible =
         </div>
     );
 }
+
+/**
+ * **写真の詳細の撮影情報**（iOS の `ExifRow`・2026-10-31 束 1 P8）。札で囲まない1行:
+ *
+ *     📷 撮影情報            75mm · f/4 · 1/100 s · ISO 100  ⌄      ← 当たり 44・印は白（合図ではない）
+ *     ┌ 焦点距離 │ 絞り │ シャッター │ ISO ┐                        ← 開くと 4 つの升（名前 12 text-3・値 20 semibold の等幅数字）
+ *     ├ カメラ                      機種 › ┤                        ← 行 48（名前 12 text-3・値 15 白）。機種は機材の頁へ
+ *     └ レンズ                      レンズ ┘
+ *
+ * 以前は札（角 16・地 #0E0E0F）の中に「詳しく見る」の小さな字のボタンと、2 列の名前と値を並べていた。
+ * iOS に無い項目（ホワイトバランス・画像サイズ・撮影日時）は **Web だけ残す**——升の下に同じ形の行で。
+ * **畳んでも中身は DOM に残す**（`hidden`）。機材の `/camera/` へのリンクは静的 HTML に焼く（内部リンク＝SEO）
+ */
+export function ExifRow({ cells, specs, settings, locale }: {
+    /** 4 つの升（`exifSettingsCells`） */
+    cells: { label: string; value: string }[];
+    /** 行に出す項目（`buildExifSpecs` の結果。升と同じ項目は呼ぶ側で落とさなくてよい——ここで落とす） */
+    specs: ExifSpec[];
+    /** 閉じている間も出す要約（`exifSettingsLine`） */
+    settings?: string;
+    locale: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const en = locale === "en";
+    // 升に出した項目は行に二度出さない（名前は buildExifSpecs の言い方）
+    const inCells = new Set(en ? ["Aperture", "Shutter", "ISO", "Focal Length"] : ["絞り", "シャッター速度", "ISO", "焦点距離"]);
+    const rows = specs.filter((s) => !inCells.has(s.label));
+    if (cells.length === 0 && rows.length === 0) return null;
+    return (
+        <div data-testid="photo-exif">
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-expanded={open}
+                aria-controls="photo-exif-detail"
+                className="w-full flex items-center gap-[10px] text-left text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded-md"
+                style={{ minHeight: "44px", touchAction: "manipulation" }}
+            >
+                <CameraIcon aria-hidden="true" className="flex-shrink-0" style={{ width: 20, height: 20, strokeWidth: 1.2 }} />
+                <span className="flex-shrink-0 font-semibold" style={{ fontSize: "15px", lineHeight: "20px" }}>
+                    {en ? "Shot with" : "撮影情報"}
+                </span>
+                {settings && (
+                    <span className="ml-auto min-w-0 truncate text-right text-text-3 tabular-nums"
+                          data-testid="exif-settings-line"
+                          style={{ fontSize: "13px", lineHeight: "18px" }}>
+                        {settings}
+                    </span>
+                )}
+                <ChevronDownIcon aria-hidden="true" className={`${settings ? "" : "ml-auto "}flex-shrink-0 text-text-3 transition-transform ${open ? "rotate-180" : ""}`}
+                                 style={{ width: 14, height: 14, strokeWidth: 2 }} />
+            </button>
+            <div id="photo-exif-detail" hidden={!open}
+                 className="mt-2 rounded-xl ring-1 ring-inset ring-line overflow-hidden divide-y divide-line">
+                {cells.length > 0 && (
+                    <dl className="m-0 flex divide-x divide-line" data-testid="photo-exif-cells">
+                        {cells.map((c) => (
+                            <div key={c.label} className="flex-1 min-w-0 px-[14px] py-3">
+                                <dt className="text-text-3 truncate" style={{ fontSize: "12px", lineHeight: "16px" }}>{c.label}</dt>
+                                <dd className="m-0 text-white font-semibold tabular-nums truncate" style={{ fontSize: "20px", lineHeight: "26px" }}>{c.value}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                )}
+                {rows.map((s) => (
+                    <div key={s.label} className="flex items-center justify-between gap-2 px-[14px]" style={{ minHeight: "48px" }}>
+                        <span className="flex-shrink-0 text-text-3" style={{ fontSize: "12px", lineHeight: "16px" }}>{s.label}</span>
+                        {s.href
+                            ? <Link href={s.href} prefetch={false} className="min-w-0 text-right text-white break-words hover:text-white/80 inline-flex items-center"
+                                    style={{ fontSize: "15px", lineHeight: "20px", minHeight: "44px" }}>{s.value}<span aria-hidden="true">&nbsp;›</span></Link>
+                            : <span className="min-w-0 text-right text-white break-words" style={{ fontSize: "15px", lineHeight: "20px" }}>{s.value}</span>}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}

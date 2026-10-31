@@ -146,13 +146,15 @@ describe("柱の中身", () => {
         }
     });
 
+    // 2026-10-31 束 1 S5: さがすの面の撮影地の札は枚数を出さなくなった（iOS と同じ）。並べる順（＝数え方）が同じことを見る
     it("🔴 数えた値は面の中と同じ（並べ方と行き先だけが違う）", () => {
         const photos = [photo("a", { location: "東京" }), photo("b", { location: "東京" }), photo("c", { location: "パリ" })];
         const rail = draw(photos);
         expect(rail.container.textContent, "柱で数が変わっている").toContain("2枚");
         rail.unmount();
         const page = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
-        expect(page.container.textContent, "面の中で数が変わっている").toContain("2枚");
+        const order = [...page.container.querySelectorAll('a[href*="/location/"]')].map((a) => a.textContent);
+        expect(order, "面の中で数え方（＝並び）が変わっている").toEqual(["東京", "パリ"]);
     });
 
     it("写真が1枚も無ければ、節ごと出さない（空の枠を置かない）", () => {

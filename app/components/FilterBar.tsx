@@ -9,10 +9,14 @@ import React, {
     useState,
     useTransition,
     memo,
+    useSyncExternalStore,
 } from "react";
+
+const noopSubscribe = () => () => {};
 import debounce from "lodash.debounce";
 import { isImeKey } from "../../lib/utils/ime";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { createPortal } from "react-dom";
 import { getLabels } from "../i18n/labels";
 import type { FilterValues } from "../../lib/types/gallery";
 import { tagKey } from "../../lib/utils/collections";
@@ -30,6 +34,21 @@ type Props = {
     categoryDisplayMap?: Record<string, string>;
     tagDisplayMap?: Record<string, TagInfo>;
     tagCounts?: Record<string, number>;
+    /**
+     * **「さがす」の並び**（2026-10-31 束 1 S1・S2・S9・iOS の `SearchView`）。
+     *
+     *     検索欄（幅いっぱい）→ 対象のチップ（`scopeRow`）→［探している間だけ］カテゴリ → タグ
+     *
+     * 並べ替えは結果の見出しの右（`#search-sort-slot` へ描く）。カテゴリとタグのチップは
+     * 何も探していない間（発見の面を見ている間）は出さない（`showChips`）——iOS の `isDiscovering`
+     */
+    layout?: "default" | "search";
+    /** 検索欄の下に置く対象のチップ（「すべて・写真・人・タグ・撮影地」）。`layout="search"` のときだけ */
+    scopeRow?: React.ReactNode;
+    /** カテゴリのチップを出すか（`layout="search"` のとき） */
+    showCategories?: boolean;
+    /** タグのチップを出すか（`layout="search"` のとき） */
+    showTags?: boolean;
 };
 
 /**
@@ -61,7 +80,19 @@ function FilterBarInner({
     categoryDisplayMap,
     tagDisplayMap = {},
     tagCounts = {},
+    layout = "default",
+    scopeRow,
+    showCategories = true,
+    showTags = true,
 }: Props) {
+    const searchLayout = layout === "search";
+    // 並べ替えを描く先（結果の見出しの右・`GalleryPageClient`）。載ってから探す（静的 HTML には無い操作）
+    // 静的書き出し・水和の最初の回は null（サーバーと同じ）、載ったあとは描く先の要素
+    const sortSlot = useSyncExternalStore(
+        noopSubscribe,
+        () => (searchLayout ? document.getElementById("search-sort-slot") : null),
+        () => null,
+    );
     const safeLocale = locale === "en" ? "en" : "ja";
     const labels = useMemo(() => getLabels(safeLocale), [safeLocale]);
 
@@ -345,19 +376,96 @@ function FilterBarInner({
         return labels.sort.options[values.sort] ?? values.sort;
     }, [labels, values.sort]);
 
+    // 並び替え。PC の柱では縦に積むので、箱をボタンの幅に縮めて（`lg:self-start`）吊る一覧の右端が
+    // 柱の端まで飛ばないようにする。さがすの並びでは結果の見出しの右へ描く（`layout="search"`）
+    const sortNode = (
+                        <div className="relative flex-shrink-0 lg:self-start">
+                            <button
+                                ref={sortButtonRef}
+                                type="button"
+                                onClick={() => setSortOpen((s) => !s)}
+                                aria-haspopup="listbox"
+                                aria-expanded={isSortOpen}
+                                // 開いている間だけ指す（`HeaderNav` と同じ理由）。
+                                // 一覧（`id="sort-menu"`）は `isSortOpen` のときしか
+                                // 描かれないので、無条件だと閉じている間は
+                                // **存在しない id を指す**
+                                aria-controls={isSortOpen ? "sort-menu" : undefined}
+                                className="inline-flex items-center gap-1 text-[13px] text-white/60 hover:text-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 bg-transparent transition-colors"
+                                style={{
+                                    padding: "8px 4px 8px 10px",
+                                    minHeight: 36,
+                                    whiteSpace: "nowrap",
+                                    touchAction: "manipulation",
+                                    WebkitTapHighlightColor: "transparent",
+                                }}
+                            >
+                                <span>{sortLabel}</span>
+                                <svg className={`h-3.5 w-3.5 transition-transform ${isSortOpen ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="none" aria-hidden>
+                                    <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+    
+                            {isSortOpen && (
+                                <div
+                                    ref={sortMenuRef}
+                                    id="sort-menu"
+                                    role="listbox"
+                                    aria-label={labels.sort.label}
+                                    /* **PC の柱では左に揃える。** 柱では箱が
+                                       ボタンの幅（約76px）まで縮むので、`right-0`
+                                       のまま吊ると幅 130px の一覧が左へはみ出す
+                                       ——実測で左端が **x=-14**（英語は -23）、
+                                       しかも `scrollWidth == innerWidth` なので
+                                       スクロールしても出てこない（レビューが計測） */
+                                    className="absolute right-0 lg:right-auto lg:left-0 mt-1 z-50 shadow-xl"
+                                    style={{ minWidth: 130, borderRadius: 12, overflow: "hidden", background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.10)" }}
+                                >
+                                    {sortOptions.map((opt) => {
+                                        const isActive = values.sort === opt;
+                                        return (
+                                            <button
+                                                key={opt}
+                                                role="option"
+                                                data-value={opt}
+                                                aria-selected={isActive}
+                                                onClick={() => {
+                                                    onChange({ sort: opt as "new" | "old" | "popular" });
+                                                    setSortOpen(false);
+                                                    setTimeout(() => sortButtonRef.current?.focus(), 0);
+                                                }}
+                                                className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-white/5 transition-colors"
+                                                style={{
+                                                    background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                                                    color: isActive ? "#fff" : "rgba(255,255,255,0.7)",
+                                                    touchAction: "manipulation",
+                                                    WebkitTapHighlightColor: "transparent",
+                                                }}
+                                            >
+                                                {labels.sort.options[opt] ?? opt}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+    );
+
     return (
         <section className={`mb-2 ${className}`}>
             <div className="space-y-2.5 lg:space-y-3">
                 {/* カテゴリ: 1行横スクロールのピル（PC の柱では折り返す） */}
+                {!searchLayout && (
                 <div className={`flex gap-1.5 ${WRAPPING_ROW}`}>
                     {renderAllButton}
                     {renderCategoryButtons}
                 </div>
+                )}
 
                 {/* 検索 + 並び替え。**PC の柱では縦に積む**——248px の柱に
                     検索欄と並び替えを横に並べると、検索欄が語句を1つ置くのも
                     苦しい幅（約150px）になる */}
-                <div className="flex items-center gap-1.5 lg:flex-col lg:items-stretch">
+                <div className={searchLayout ? "flex items-center gap-1.5" : "flex items-center gap-1.5 lg:flex-col lg:items-stretch"}>
                     <div className="relative flex-1">
                         <label htmlFor="filter-query" className="sr-only">
                             {labels.search.placeholder}
@@ -404,84 +512,23 @@ function FilterBarInner({
                         )}
                     </div>
 
-                    {/* 並び替え。PC の柱では縦に積むので、箱をボタンの幅に
-                        縮めて（`lg:self-start`）吊る一覧の右端が柱の端まで
-                        飛ばないようにする */}
-                    <div className="relative flex-shrink-0 lg:self-start">
-                        <button
-                            ref={sortButtonRef}
-                            type="button"
-                            onClick={() => setSortOpen((s) => !s)}
-                            aria-haspopup="listbox"
-                            aria-expanded={isSortOpen}
-                            // 開いている間だけ指す（`HeaderNav` と同じ理由）。
-                            // 一覧（`id="sort-menu"`）は `isSortOpen` のときしか
-                            // 描かれないので、無条件だと閉じている間は
-                            // **存在しない id を指す**
-                            aria-controls={isSortOpen ? "sort-menu" : undefined}
-                            className="inline-flex items-center gap-1 text-[13px] text-white/60 hover:text-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 bg-transparent transition-colors"
-                            style={{
-                                padding: "8px 4px 8px 10px",
-                                minHeight: 36,
-                                whiteSpace: "nowrap",
-                                touchAction: "manipulation",
-                                WebkitTapHighlightColor: "transparent",
-                            }}
-                        >
-                            <span>{sortLabel}</span>
-                            <svg className={`h-3.5 w-3.5 transition-transform ${isSortOpen ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="none" aria-hidden>
-                                <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                        </button>
-
-                        {isSortOpen && (
-                            <div
-                                ref={sortMenuRef}
-                                id="sort-menu"
-                                role="listbox"
-                                aria-label={labels.sort.label}
-                                /* **PC の柱では左に揃える。** 柱では箱が
-                                   ボタンの幅（約76px）まで縮むので、`right-0`
-                                   のまま吊ると幅 130px の一覧が左へはみ出す
-                                   ——実測で左端が **x=-14**（英語は -23）、
-                                   しかも `scrollWidth == innerWidth` なので
-                                   スクロールしても出てこない（レビューが計測） */
-                                className="absolute right-0 lg:right-auto lg:left-0 mt-1 z-50 shadow-xl"
-                                style={{ minWidth: 130, borderRadius: 12, overflow: "hidden", background: "var(--color-surface)", border: "1px solid rgba(255,255,255,0.10)" }}
-                            >
-                                {sortOptions.map((opt) => {
-                                    const isActive = values.sort === opt;
-                                    return (
-                                        <button
-                                            key={opt}
-                                            role="option"
-                                            data-value={opt}
-                                            aria-selected={isActive}
-                                            onClick={() => {
-                                                onChange({ sort: opt as "new" | "old" | "popular" });
-                                                setSortOpen(false);
-                                                setTimeout(() => sortButtonRef.current?.focus(), 0);
-                                            }}
-                                            className="w-full text-left px-4 py-2.5 text-[13px] hover:bg-white/5 transition-colors"
-                                            style={{
-                                                background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
-                                                color: isActive ? "#fff" : "rgba(255,255,255,0.7)",
-                                                touchAction: "manipulation",
-                                                WebkitTapHighlightColor: "transparent",
-                                            }}
-                                        >
-                                            {labels.sort.options[opt] ?? opt}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
+                    {!searchLayout && sortNode}
                 </div>
+
+                {searchLayout && scopeRow}
+                {searchLayout && showCategories && (
+                <div className={`flex gap-1.5 ${WRAPPING_ROW}`} data-testid="search-category-chips">
+                    {renderAllButton}
+                    {renderCategoryButtons}
+                </div>
+                )}
+                {/* 並べ替えは結果の見出しの右（さがすの並び）。描く先が無い間は出さない */}
+                {searchLayout && sortSlot && createPortal(sortNode, sortSlot)}
 
                 {/* タグ: よく使うものだけを1行で。全件（数十個）並べても選べないので、
                     残りは検索で探してもらう */}
-                <div className={`flex items-center gap-1.5 ${WRAPPING_ROW}`}>
+                {(!searchLayout || showTags) && (
+                <div className={`flex items-center gap-1.5 ${WRAPPING_ROW}`} data-testid="filter-tag-chips">
                     {renderTagChips}
 
                     {values.selectedTags && values.selectedTags.length > 0 && (
@@ -500,6 +547,7 @@ function FilterBarInner({
                         </button>
                     )}
                 </div>
+                )}
             </div>
         </section>
     );

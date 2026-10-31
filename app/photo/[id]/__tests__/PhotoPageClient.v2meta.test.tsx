@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
+import type { SpotLink } from "@/lib/data/spotLink";
 
 /**
  * 写真の詳細の v2 の形（板 `PhotoDetail.dc.html`）: 撮影情報の要約と機材の行・
@@ -40,37 +41,61 @@ const EXIF = { camera: "Canon EOS R6", lens: "RF24-70mm", aperture: "f/8", expos
 const NEAR = { id: "n1", src: "https://cdn.example.com/uploads/bob/n.webp", title: "近くの橋" } as unknown as Photo;
 const related = (nearby: Photo[]) => ({ author: [], location: [], prev: null, next: null, nearby });
 
-describe("写真ページ: v2 の撮影情報", () => {
-    it("畳んだ見出しに「24mm · f/8 · 1/125 s · ISO 100」、下に 機種 · レンズ", async () => {
+// 2026-10-31 束 1 P8: iOS の `ExifRow`。札で囲まない1行（要約つき）、開くと 4 つの升とカメラ・レンズの行
+describe("写真ページ: 撮影情報（iOS の形）", () => {
+    it("閉じた行に「24mm · f/8 · 1/125 s · ISO 100」。札（角 16 の地）で囲まない", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...BASE, exif: EXIF } as Photo} />);
         expect((await screen.findByTestId("exif-settings-line")).textContent).toBe("24mm · f/8 · 1/125 s · ISO 100");
-        expect(screen.getByTestId("exif-gear-line").textContent).toBe("Canon EOS R6 · RF24-70mm");
+        const row = screen.getByTestId("photo-exif");
+        expect(row.className).not.toMatch(/rounded-2xl|bg-surface/);
+        expect(screen.getByRole("button", { name: /^撮影情報/ }).style.minHeight).toBe("44px");
     });
 
-    it("開くと機材の行は消える（下の升目が同じ機種・レンズを出すので二度言わない）", async () => {
+    it("開くと 4 つの升（焦点距離・絞り・シャッター・ISO）と、カメラ・レンズの行（升と同じ項目は行に出さない）", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...BASE, exif: EXIF } as Photo} />);
-        await screen.findByTestId("exif-gear-line");
-        fireEvent.click(screen.getByRole("button", { name: "詳しく見る" }));
-        expect(screen.queryByTestId("exif-gear-line")).toBeNull();
-        expect(screen.getByTestId("exif-settings-line"), "要約は開いても残る").toBeTruthy();
+        const btn = await screen.findByRole("button", { name: /^撮影情報/ });
+        expect(btn.getAttribute("aria-expanded")).toBe("false");
+        fireEvent.click(btn);
+        expect(btn.getAttribute("aria-expanded")).toBe("true");
+        const cells = screen.getByTestId("photo-exif-cells");
+        expect([...cells.querySelectorAll("dt")].map((d) => d.textContent)).toEqual(["焦点距離", "絞り", "シャッター", "ISO"]);
+        expect([...cells.querySelectorAll("dd")].map((d) => d.textContent)).toEqual(["24mm", "f/8", "1/125 s", "100"]);
+        const detail = document.getElementById("photo-exif-detail")!;
+        expect(detail.textContent).toContain("Canon EOS R6");
+        expect(detail.textContent).toContain("RF24-70mm");
+        expect(detail.textContent).not.toContain("シャッター速度");
     });
 
-    it("撮影情報の無い写真には要約を出さない", async () => {
+    it("撮影設定の無い写真は要約も升も出さず、機種の行だけ", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...BASE, exif: { camera: "X-T5" } } as Photo} />);
         await screen.findByText("朝の湖");
         expect(screen.queryByTestId("exif-settings-line")).toBeNull();
-        expect(screen.getByTestId("exif-gear-line").textContent).toBe("X-T5");
+        expect(screen.queryByTestId("photo-exif-cells")).toBeNull();
+        expect(document.getElementById("photo-exif-detail")!.textContent).toContain("X-T5");
     });
 });
 
+// 2026-10-31 束 1 P2: iOS の `placeRow`（「📍 撮影地 · 撮影地の詳細」・写真の上の白い字・下線・当たり 44）
 describe("写真ページ: 道しるべ", () => {
-    it("写真の上に「撮影地 · この撮影地の写真 ›」（撮影地の集約ページへ・押す的は 44px）", async () => {
+    it("写真の裾に「撮影地 · 撮影地の詳細」（撮影地の頁へ・押す的は 44px・黒い札で囲まない）", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
         await screen.findByText("朝の湖");
-        const link = screen.getByRole("link", { name: "銀山温泉 · この撮影地の写真" });
+        const link = screen.getByRole("link", { name: "銀山温泉 · 撮影地の詳細" });
         expect(link.getAttribute("href")).toContain("/location/");
-        expect(link.textContent).toContain("この撮影地の写真 ›");
+        expect(link.textContent).toContain("撮影地の詳細");
         expect(link.style.minHeight).toBe("44px");
+        expect(link.innerHTML).not.toMatch(/bg-black/);
+    });
+
+    it("台帳の撮影スポットを指す写真は「撮影スポット · 名前 ›」の行も出す（撮影スポットの頁へ）", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={BASE}
+                                spotLink={{ slug: "ginzan-onsen", name: "銀山温泉", region: "山形県 尾花沢市" } as unknown as SpotLink} />);
+        await screen.findByText("朝の湖");
+        const row = screen.getByTestId("photo-spot-guide");
+        expect(row.getAttribute("href")).toBe("/spots/ginzan-onsen");
+        expect(row.textContent).toContain("撮影スポット · 銀山温泉");
+        // 2行の当たり（44 ずつ）を負の余白で重ねない（束 1 の確かめの直し）
+        for (const a of [row, screen.getByTestId("photo-place-link")]) expect(a.className).not.toMatch(/-my-/);
     });
 });
 

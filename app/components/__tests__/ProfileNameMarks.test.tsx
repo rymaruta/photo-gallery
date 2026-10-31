@@ -117,7 +117,7 @@ describe("人のメダルの棚（2026-10-11）", () => {
 
     it("持っているものだけを棚に並べる（まだのものは出さない）", () => {
         render(<MedalsButton badges={badges} ownerName="旅人" locale="ja" />);
-        fireEvent.click(screen.getByRole("button", { name: "メダル 2 →" }));
+        fireEvent.click(screen.getByRole("button", { name: "メダル 2" /* 束 1 U9: 「→」をやめ、印の › は飾り（読み上げに出さない） */ }));
         const dialog = screen.getByRole("dialog", { name: "旅人のメダル" });
         const items = [...dialog.querySelectorAll("[data-testid=medal-shelf-item]")];
         expect(items.map((li) => li.querySelector("p")?.textContent)).toEqual(["最初の一枚", "朝の光（銀）"]);

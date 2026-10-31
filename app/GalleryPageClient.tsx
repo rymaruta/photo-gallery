@@ -4,7 +4,6 @@ import React from "react";
 import { tagKey } from "@/lib/utils/collections";
 import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
-import ColorJourney from "./components/ColorJourney";
 import DiscoverSections from "./search/DiscoverSections";
 import SpotSearchResults from "./search/SpotSearchResults";
 import DiscoverRail from "./components/DiscoverRail";
@@ -22,12 +21,15 @@ import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
 import HomeMosaic from "./components/HomeMosaic";
 import { EmptyState } from "./components/StateViews";
-import QuizEntry from "./components/QuizEntry";
+import HomeTopCards from "./components/HomeTopCards";
 import SpotsEntry from "./components/SpotsEntry";
 import type { HomeSeasonal } from "../lib/data/spotTopics";
 import { useMySaves } from "../lib/hooks/useMySaves";
 import { nextTabIndex } from "../lib/utils/tabKeys";
 import { TAB_ON, TAB_OFF, TAB_BASE, TAB_ROW } from "./components/tabStyles";
+import Link from "next/link";
+import { ROUTES } from "../lib/routes";
+import { CHIP_ON, CHIP_OFF, CHIP_SIZE, CHIP_HIT } from "./components/chipStyles";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -87,6 +89,16 @@ const HOME_PANEL_ID = "home-tabpanel";
  * 外側をまとめて包まないのは、`surface === "search"` の枝まで
  * 「ホームのタブの面」にしてしまうため。
  */
+type SearchScopeKey = "all" | "photos" | "tags" | "places";
+/** 「さがす」の対象のチップ（iOS の `SearchScope.allCases` の順） */
+const SEARCH_SCOPES: ReadonlyArray<{ key: SearchScopeKey | "people"; ja: string; en: string }> = [
+  { key: "all", ja: "すべて", en: "All" },
+  { key: "photos", ja: "写真", en: "Photos" },
+  { key: "people", ja: "人", en: "People" },
+  { key: "tags", ja: "タグ", en: "Tags" },
+  { key: "places", ja: "撮影地", en: "Places" },
+];
+
 function HomePanel({ scope, children }: { scope: string; children: React.ReactNode }) {
   return <div id={HOME_PANEL_ID} role="tabpanel" aria-labelledby={`home-tab-${scope}`}>{children}</div>;
 }
@@ -159,6 +171,20 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
     // ホームの新着は投稿日の新しい順（iOS の新着・api-user の /feed と同じ・2026-10-30）
     postedOrderOnNew: surface === "home",
   });
+
+  /**
+   * 「さがす」の対象（iOS の `SearchScope`・2026-10-31 束 1 S1）。「人」は人を探す頁へのリンクなので状態に持たない。
+   * 写真の並びは `filteredPhotos`（語・カテゴリ・タグで絞ったもの）から、対象で更に絞る:
+   *   タグ … タグを持つ写真だけ　撮影地 … 撮影地を持つ写真だけ
+   */
+  const [searchScope, setSearchScope] = React.useState<SearchScopeKey>("all");
+  const searchDiscovering = filters.query.trim() === "" && (filters.category ?? "all") === "all"
+    && (filters.selectedTags?.length ?? 0) === 0 && searchScope === "all";
+  const scopedPhotos = React.useMemo(() => {
+    if (searchScope === "tags") return filteredPhotos.filter((p) => (p.tags ?? []).length > 0);
+    if (searchScope === "places") return filteredPhotos.filter((p) => typeof p.location === "string" && p.location.trim() !== "");
+    return filteredPhotos;
+  }, [filteredPhotos, searchScope]);
 
   /**
    * **ログイン中の既定は「自分」**（owner:「デフォルトは自分のみがいい」）。
@@ -596,7 +622,11 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
       {/* タイトル: モバイルでは見せない（ヘッダーナビにサイト名がある） */}
       <div className="sm:flex sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:mb-4">
         <div className="sm:flex-1">
-          <h1 id="site-title" className="sr-only sm:not-sr-only text-2xl sm:text-3xl font-bold mb-0">
+          {/* 探すは**狭い画面でも見せる**明朝 30（アプリ v2 の探すの題・板 Search の h1）。
+              トップはこれまでどおり（ヘッダーにサイト名がある） */}
+          <h1 id="site-title" className={isSearch
+              ? "font-serif font-bold m-0 mb-3 sm:mb-0 text-[32px] leading-[1.25]" /* 束 1: iOS の探すの題（`JPFont.photoTitle` 32） */
+              : "sr-only sm:not-sr-only text-2xl sm:text-3xl font-bold mb-0"}>
             {heading}
           </h1>
           {!isSearch && <div className="hidden sm:block">{renderSubtitle(labels.site?.subtitle)}</div>}
@@ -650,10 +680,11 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
         </div>
       )}
 
-      {/* 今日の一問への入口（1行・タブの直下＝どのタブでも同じ位置）。`QuizEntry` の注記 */}
-      {surface === "home" && <QuizEntry locale={locale === "en" ? "en" : "ja"} />}
-      {/* 撮影スポットのガイドへの入口（同じ1行の形・一問の直下）。`SpotsEntry` の注記 */}
-      {surface === "home" && <SpotsEntry locale={locale === "en" ? "en" : "ja"} seasonal={seasonalSpots} />}
+      {/* **上段のめくる札**（今日のテーマ・今日の一問・撮影スポット・2026-10-31 束 1 H2・iOS の `HomeTopCardView`）。
+          タブの直下＝どのタブでも同じ位置。以前は文字だけの帯 3 本（`QuizEntry`・`SpotsEntry`・`ThemeEntry`） */}
+      {surface === "home" && <HomeTopCards locale={locale === "en" ? "en" : "ja"} photos={PHOTOS} seasonal={seasonalSpots} />}
+      {/* いまの季節の撮影スポットの段（iOS の #417 ④⑤⑥ が出るまで今の形・束 5）。帯の行は上の札へ移した */}
+      {surface === "home" && <SpotsEntry locale={locale === "en" ? "en" : "ja"} seasonal={seasonalSpots} showRow={false} />}
 
       {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
@@ -727,87 +758,101 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
         </HomeColumns></HomePanel>
       ) : (
       /**
-       * **「さがす」の PC は2カラム**（owner の指示書 4・11・17:
-       * 「PCではスマートフォン画面をそのまま横に引き伸ばすのではなく、
-       * Webサイトとして最適なレイアウトを設計してください」）。
+       * **「さがす」は電話と同じ 1 列の順**（2026-10-31 束 1 S1・S2・S9・W7・iOS の `SearchView`）:
        *
-       *   < 1024px … 最終版モックのまま（絞り込み → 発見の節 → 結果）
-       *   ≥ 1024px … **左に絞り込みの柱**（画面に貼り付く）／右に写真の面
+       *     検索欄 → 対象のチップ（すべて・写真・人・タグ・撮影地）
+       *     ［何も探していない間］発見の面（撮影地・おすすめ・色・機材）
+       *     ［探している間］カテゴリ・タグのチップ → 撮影スポットの結果
+       *     結果の見出し（件数・右に並べ替え）→ 写真の札（縦 3:4・2 列〜）
        *
-       * 柱にするのは、この画面がいちばん長くなる面だから——結果が
-       * 数十枚あるとスクロールの先で絞り込みが画面から消え、条件を
-       * 変えるたびに上まで戻ることになる。マップ（左に一覧／右に地図）と
-       * 同じ考え方。
-       *
-       * 柱はヘッダー（`--header-h`・安全領域込み）の下 16px に貼り付く。
-       * **`overflow-y-auto` は付けない**——並び替えの一覧が
-       * `absolute` で吊り下がるので、切り取られる箱を作ると隠れる。
+       * 以前は ≥1024px で左に絞り込みの柱を置いた 2 カラムで、カテゴリのチップが検索欄より上、
+       * タグのチップがいつも出ていた。PC も同じ順を中央に（容器 72rem）——節の中の札が横に増えるだけ
        */
-      <div className="lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:gap-8 lg:items-start">
-      <div className="lg:sticky lg:top-[calc(var(--header-h)_+_16px)]">
+      <div data-testid="search-surface">
       <FilterBar
         categories={categories}
         tags={tags}
         values={filters}
         onChange={setFilters}
-        className="mb-4 lg:mb-0"
+        className="mb-6"
         locale={locale}
         categoryDisplayMap={categoryDisplayMap}
         tagCounts={tagCounts}
+        layout="search"
+        // カテゴリは「人」以外で出す（iOS の `SearchView`: `showsPhotos`）。「人」は頁へのリンクなので選ばれた状態にならない。
+        // 2026-10-31 束 1 の確かめの直し: 以前は「タグ」「撮影地」でカテゴリのチップを消し、選んだカテゴリが
+        // 見えないまま効いていた（外す手立てが無かった）
+        showCategories={!searchDiscovering}
+        // タグは「撮影地」では出さない（iOS の `showsTagChips`）。撮影地へ切り替えるときに選んだタグを外す（下の onClick）
+        showTags={!searchDiscovering && searchScope !== "places"}
+        scopeRow={
+          // 対象のチップ（iOS の `SearchScope`・C5 の形）。「人」は人を探す頁へ（Web は別の頁で同じことができる）
+          <div role="group" aria-label={locale === "en" ? "Search in" : "探す対象"}
+               className="flex gap-1.5 -mx-1 px-1 py-[5px] -my-[5px] overflow-x-auto no-scrollbar" data-testid="search-scope">
+            {SEARCH_SCOPES.map((sc) => {
+              const label = locale === "en" ? sc.en : sc.ja;
+              const cls = `${CHIP_HIT} inline-flex items-center justify-center rounded-full text-[13px] transition-colors flex-shrink-0`;
+              if (sc.key === "people") {
+                // 打った語を人を探す頁へ運ぶ（あちらが `q` を読んで初めから探す）
+                const q = filters.query.trim();
+                return (
+                  <Link key={sc.key} href={q ? `${ROUTES.USER_SEARCH}?q=${encodeURIComponent(q)}` : ROUTES.USER_SEARCH} prefetch={false}
+                        className={`${cls} ${CHIP_OFF}`} style={{ ...CHIP_SIZE, touchAction: "manipulation" }} data-scope="people">
+                    {label}
+                  </Link>
+                );
+              }
+              const on = searchScope === sc.key;
+              return (
+                <button key={sc.key} type="button" aria-pressed={on} onClick={() => {
+                          const next = sc.key as SearchScopeKey;
+                          // タグの段が消える対象へ移るとき、選んだタグを残さない（見えないまま絞り込みが効かないように）
+                          if (next === "places" && (filters.selectedTags?.length ?? 0) > 0) setFilters({ selectedTags: [] });
+                          setSearchScope(next);
+                        }} data-scope={sc.key}
+                        className={`${cls} ${on ? CHIP_ON : CHIP_OFF}`} style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        }
       />
-      </div>
 
-      <div className="min-w-0">
-      {/* **撮影スポットの結果**（語を打ったときだけ・当たりが無ければ何も出さない）。
-          写真の結果とは別の節で、件数も混ぜない。写真が0枚でも撮影地ガイドへ案内する
-          （2026-09-30 のレビュー: 「銀山温泉」で写真0件・ガイドが案内されない）。
-          **発見の面より上**——探しに来た人の答えを、絞り込みに連動しない節の下に埋めない */}
-      <SpotSearchResults query={filters.query} locale={locale} />
+      {/* **撮影スポットの結果**（語を打ったときだけ・当たりが無ければ何も出さない・対象が「すべて」「撮影地」のとき）。
+          写真の結果とは別の節で、件数も混ぜない。写真が0枚でも撮影地ガイドへ案内する（2026-09-30 のレビュー） */}
+      {(searchScope === "all" || searchScope === "places") && <SpotSearchResults query={filters.query} locale={locale} />}
 
-      {/* 色でさがす（Color Journey）。**この部品は写真を取りに行かない**——
-          絞り込み後の一覧・モーダルを開く関数・カテゴリ名の地図を、下の
-          グリッドと同じものとして渡す。以前は `/search` の上に独立して置いて
-          `usePhotos()` を2つ動かしていた（PR #72 の積み残し3件をここで解く）。
-          色を持つ写真が1枚も無ければ丸ごと描かない */}
-      {/* 発見の面（最終版モックの中段・指示書 7）。**絞り込みに連動させない**
-          ——「いま何があるか」を出す面なので、絞り込んだ結果で節が消えると
-          探しに来た人の手がかりが無くなる。実データが無い節は丸ごと出さない */}
-      <DiscoverSections photos={PHOTOS} locale={locale} categoryDisplayMap={categoryDisplayMap} />
-
-      <ColorJourney
-        photos={filteredPhotos}
-        locale={locale}
-        categoryDisplayMap={categoryDisplayMap}
-        onOpenPhoto={openById}
-      />
+      {/* 発見の面（何も探していない間だけ・iOS の `isDiscovering`）。**絞り込みに連動させない**——「いま何があるか」を出す面 */}
+      {searchDiscovering && (
+        <DiscoverSections photos={PHOTOS} locale={locale} categoryDisplayMap={categoryDisplayMap} onOpenPhoto={openById} />
+      )}
 
       <>
-        <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
-            {/* 語で探しているときは「写真」と名乗る——上に撮影スポットの節が出るので、
-                「結果: 0件」だとスポットまで0件に読める */}
+        {/* 結果の見出し: 件数（13・text-2・等幅の数字）と、右に並べ替え（`FilterBar` が `#search-sort-slot` へ描く） */}
+        <div className="flex items-center justify-between gap-3 mb-2" data-testid="search-results-head">
+          <p className="m-0 text-text-2 tabular-nums" style={{ fontSize: "13px", lineHeight: "18px" }}>
+            {/* 語で探しているときは「写真」と名乗る——上に撮影スポットの節が出るので、「結果: 0件」だとスポットまで0件に読める */}
             {filters.query.trim()
-              ? (locale === "en" ? `Photos: ${filteredPhotos.length}` : `写真: ${filteredPhotos.length} 件`)
+              ? (locale === "en" ? `Photos: ${scopedPhotos.length}` : `写真: ${scopedPhotos.length} 件`)
               : locale === "en"
-                ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
-                : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
+                ? `${labels.gallery?.resultsCount ?? "Results"}: ${scopedPhotos.length}`
+                : `${labels.gallery?.resultsCount ?? "結果"}: ${scopedPhotos.length} 件`}
+          </p>
+          <div id="search-sort-slot" className="relative min-h-[44px] flex items-center" />
         </div>
 
-        {filteredPhotos.length === 0 && PHOTOS.length === 0 ? (
-          // **絞り込んでいないのに「該当」と言わない。**
-          // この分岐が無かったので、写真が1枚も無い環境（新しい環境・
-          // 公開が全部消えた）は下の `GalleryGrid` の既定文言
-          // 「該当する写真がありません。」に落ちていた。絞り込んでいない
-          // 人に「該当」と言うと、条件を外そうとして探し回ることになる。
+        {scopedPhotos.length === 0 && PHOTOS.length === 0 ? (
+          // **絞り込んでいないのに「該当」と言わない。**（写真が1枚も無い環境）
           <EmptyState className="py-16" message={locale === "en" ? "No photos yet." : "まだ写真がありません。"} testId="gallery-empty" />
-        ) : filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
+        ) : scopedPhotos.length === 0 && PHOTOS.length > 0 ? (
           <EmptyState
             className="py-16"
             message={locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
-            // `scope` も戻す。「さがす」にはタブが無いので、URL から来た
-            // `?scope=following`（一覧が空になる）をここでしか外せない
+            // `scope` も戻す。「さがす」にはタブが無いので、URL から来た `?scope=following`（一覧が空になる）をここでしか外せない
             action={{
               label: locale === "en" ? "Reset filters" : "フィルターをリセット",
-              onClick: () => setFilters({ category: "all", selectedTags: [], query: "", sort: "new", scope: "all" }),
+              onClick: () => { setSearchScope("all"); setFilters({ category: "all", selectedTags: [], query: "", sort: "new", scope: "all" }); },
             }}
             testId="gallery-no-match"
           />
@@ -815,14 +860,14 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
           <GalleryGrid
             sizes={GRID_SIZES_SEARCH}
             columnsClassName={GRID_COLUMNS_SEARCH}
-            photos={filteredPhotos}
+            photos={scopedPhotos}
             locale={locale}
             categoryDisplayMap={categoryDisplayMap}
             onOpenPhoto={openById}
+            searchTiles
           />
         )}
       </>
-      </div>
       </div>
       )}
 

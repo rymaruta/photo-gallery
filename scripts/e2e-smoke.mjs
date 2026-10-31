@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { chromium, webkit } from "playwright-core";
 import { stubImageFor } from "./lib/smokeStubImages.mjs";
 import { heroKeys } from "./lib/smokeHero.mjs";
+import { gotoSettled } from "./lib/smokeGoto.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, "..", "out");
@@ -249,6 +250,32 @@ async function expectMenuWorks(page, label) {
     }
 }
 
+/**
+ * **スマホでサイトの見出しを外す頁**（写真の詳細・人のページ・2026-10-31 束 1 P1・U1）。
+ * iOS と同じく写真（カバー）を画面の上端から敷き、戻る・「…」を写真の上のガラスの丸に置く
+ * （`globals.css` の `data-chromeless-phone`）。メニューの確かめの代わりに、見出しが本当に消えて
+ * 頁の戻る（ホームへ）が覆われずに押せることを見る。メニューそのものは PC の幅（下のデスクトップ）で見る
+ */
+async function expectChromelessPhone(page, label, backSelector) {
+    const r = await page.evaluate((sel) => {
+        const header = document.querySelector("[data-site-header]");
+        const back = document.querySelector(sel);
+        let covered = "no-back";
+        if (back) {
+            const b = back.getBoundingClientRect();
+            const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+            covered = top && (back === top || back.contains(top)) ? "ok" : `covered-by:${top?.tagName}`;
+        }
+        return {
+            marked: !!document.querySelector("[data-chromeless-phone]"),
+            headerHidden: !!header && getComputedStyle(header).display === "none",
+            back: covered,
+        };
+    }, backSelector);
+    check(`${label}: スマホではサイトの見出しを出さない`, r.marked && r.headerHidden, JSON.stringify(r));
+    check(`${label}: 戻るが写真の上で押せる`, r.back === "ok", r.back);
+}
+
 // 1エンジン分の検査一式（モバイル context + デスクトップ context）。
 async function runChecks(browser, eng) {
     // ── モバイル（タッチ）context ──
@@ -265,7 +292,7 @@ async function runChecks(browser, eng) {
     const bag = attachDiagnostics(page);
 
     console.log(`\n[${eng}][1] ホーム（モバイル・タッチ）`);
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+    await gotoSettled(page, `http://localhost:${PORT}/`);
     const hydrated = await waitForHydration(page);
     check(`[${eng}] Reactがハイドレーションを完了する`, hydrated);
     if (!hydrated) reportDiagnostics(`${eng}/home`, bag); // 無反応の主因診断
@@ -310,11 +337,12 @@ async function runChecks(browser, eng) {
                 h1Detail = `url=${page.url()} 写真=${pid} h1=${found.length}件${found.length ? ` [${found.join(", ")}]` : ""}`;
             }
             check(`[${eng}] 個別ページが表示される`, h1, h1Detail);
-            await expectMenuWorks(page, `[${eng}] 個別ページ`);
+            // 写真の詳細はスマホでサイトの見出しを外す（束 1 P1）。メニューは PC の幅（下のデスクトップ）で見る
+            await expectChromelessPhone(page, `[${eng}] 個別ページ`, "[data-testid='photo-top-bar'] a[href='/']");
         }
 
         // ビルド前の新着写真フォールバック: /?photo=<id> でモーダルが開く
-        await page.goto(`http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`);
         await waitForHydration(page);
         const modal = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
         check(`[${eng}] ?photo= フォールバックでモーダルが開く`, modal);
@@ -386,7 +414,7 @@ async function runChecks(browser, eng) {
                 // 同じ写真をもう一度開けること。
                 // 「閉じた覚え」を解除し忘れると、2回目が無反応になる
                 // （静的ページの無い新着写真にとっては唯一の閲覧手段）。
-                await page.goto(`http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`, { waitUntil: "domcontentloaded" });
+                await gotoSettled(page, `http://localhost:${PORT}/?photo=${encodeURIComponent(pid ?? "")}`);
                 await waitForHydration(page);
                 const reopened = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 10000 }).then(() => true).catch(() => false);
                 check(`[${eng}] 同じ写真をもう一度開ける`, reopened);
@@ -410,7 +438,7 @@ async function runChecks(browser, eng) {
         : [];
     if (profiles.length > 0) {
         console.log(`\n[${eng}][2] プロフィール`);
-        await page.goto(`http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`);
         check(`[${eng}] プロフィール: ハイドレーション完了`, await waitForHydration(page));
         const clicked = await page.evaluate(() => {
             const tabs = [...document.querySelectorAll("button[data-profile-tab][aria-pressed]")];
@@ -427,7 +455,7 @@ async function runChecks(browser, eng) {
             ).then(() => true).catch(() => false);
             check(`[${eng}] プロフィールのタブが切り替わる`, switched);
         }
-        await expectMenuWorks(page, `[${eng}] プロフィール`);
+        await expectChromelessPhone(page, `[${eng}] プロフィール`, "main[data-chromeless-phone] a[href='/'][aria-label]");
     }
 
     // 撮影地マップ（`/map`）。**このスモークが一度も開いていなかった**のに、
@@ -441,7 +469,7 @@ async function runChecks(browser, eng) {
     // （手元は0件・本番は16件）、どちらでも成り立つことだけ見る。
     if (fs.existsSync(path.join(OUT, "map.html"))) {
         console.log(`\n[${eng}][3] 撮影地マップ`);
-        await page.goto(`http://localhost:${PORT}/map`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/map`);
         check(`[${eng}] 地図: ハイドレーション完了`, await waitForHydration(page));
         const m = await page.evaluate(() => ({
             h1: document.querySelector("h1")?.textContent?.trim() ?? "",
@@ -470,7 +498,7 @@ async function runChecks(browser, eng) {
     if (photoPages.length > 0) {
         console.log(`\n[${eng}][4] 写真ページ`);
         const id = photoPages[0].replace(/\.html$/, "");
-        await page.goto(`http://localhost:${PORT}/photo/${encodeURIComponent(id)}`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/photo/${encodeURIComponent(id)}`);
         check(`[${eng}] 写真ページ: ハイドレーション完了`, await waitForHydration(page));
         // 主役の鍵: 写真の id と、画像のファイル名（今の投稿は別の名前・`smokeHero.mjs`）
         const keys = heroKeys(id, JSON.parse(fs.readFileSync(path.join(__dirname, "..", "app", "data", "photos.json"), "utf8")));
@@ -499,7 +527,7 @@ async function runChecks(browser, eng) {
         check(`[${eng}] 写真ページ: 壊れた画像が無い`, detail.broken === 0, `broken=${detail.broken}`);
         check(`[${eng}] 写真ページ: 回遊の導線がある`, detail.outLinks > 0, `links=${detail.outLinks}`);
         check(`[${eng}] 写真ページ: ほかの写真への導線がある`, detail.otherPhotos > 0, `links=${detail.otherPhotos}`);
-        await expectMenuWorks(page, `[${eng}] 写真ページ`);
+        await expectChromelessPhone(page, `[${eng}] 写真ページ`, "[data-testid='photo-top-bar'] a[href='/']");
     }
 
     // 集約ページ（タグ／カテゴリ／撮影地／機材）。**生成の 86/140 がここ**で、
@@ -518,7 +546,7 @@ async function runChecks(browser, eng) {
     if (tags.length > 0) {
         console.log(`\n[${eng}][5] 集約ページ`);
         const slug = tags[0].replace(/\.html$/, "");
-        await page.goto(`http://localhost:${PORT}/tag/${encodeURIComponent(slug)}`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/tag/${encodeURIComponent(slug)}`);
         check(`[${eng}] 集約ページ: ハイドレーション完了`, await waitForHydration(page));
         const grid = await page.evaluate(() => ({
             h1: document.querySelector("h1")?.textContent?.trim() ?? "",
@@ -546,7 +574,7 @@ async function runChecks(browser, eng) {
      */
     if (fs.existsSync(path.join(OUT, "category.html"))) {
         console.log(`\n[${eng}][5d] 索引ページ`);
-        await page.goto(`http://localhost:${PORT}/category`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/category`);
         check(`[${eng}] 索引ページ: ハイドレーション完了`, await waitForHydration(page));
         const idx = await page.evaluate(() => ({
             h1: document.querySelector("h1")?.textContent?.trim() ?? "",
@@ -559,7 +587,7 @@ async function runChecks(browser, eng) {
 
         // **トップから実際に辿れること。** 部品が描いていても、柱が
         // PC でしか出ない・節ごと消えている、で届かなくなる
-        await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/`);
         await waitForHydration(page);
         const fromHome = await page.evaluate(() =>
             ["/category", "/location", "/camera"].filter((h) => !!document.querySelector(`a[href="${h}"]`)));
@@ -592,7 +620,7 @@ async function runChecks(browser, eng) {
     if (locs.length > 0) {
         console.log(`\n[${eng}][5b] 撮影スポット詳細`);
         const slug = locs[0].replace(/\.html$/, "");
-        await page.goto(`http://localhost:${PORT}/location/${encodeURIComponent(slug)}`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/location/${encodeURIComponent(slug)}`);
         check(`[${eng}] スポット詳細: ハイドレーション完了`, await waitForHydration(page));
         const spot = await page.evaluate(() => ({
             h1: document.querySelector("h1")?.textContent?.trim() ?? "",
@@ -662,13 +690,16 @@ async function runChecks(browser, eng) {
      */
     {
         console.log(`\n[${eng}][5c] さがす`);
-        await page.goto(`http://localhost:${PORT}/search`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/search`);
         check(`[${eng}] さがす: ハイドレーション完了`, await waitForHydration(page));
         const all = await page.evaluate(() => document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length);
         check(`[${eng}] さがす: 写真が並ぶ`, all > 0, `links=${all}`);
-        // カテゴリで絞る（URL から読む経路）。**件数が減ること**まで見る
+        // 2026-10-31 束 1 S1・S2: カテゴリのチップは何かを探している間だけ出る（iOS と同じ）。
+        // 対象の「写真」を押してチップを出してから、カテゴリで絞る（URL から読む経路）。**件数が減ること**まで見る
+        await tapOrClick(page, `[data-testid="search-scope"] [data-scope="photos"]`).catch(() => {});
+        await page.waitForSelector(`[data-testid="search-category-chips"]`, { timeout: 10000 }).catch(() => {});
         const cat = await page.evaluate(() => {
-            const b = [...document.querySelectorAll("button[aria-pressed]")].find((x) => x.getAttribute("aria-pressed") === "false");
+            const b = [...document.querySelectorAll('[data-testid="search-category-chips"] button[aria-pressed]')].find((x) => x.getAttribute("aria-pressed") === "false");
             return b ? (b.getAttribute("aria-label") ?? b.textContent ?? "").trim() : null;
         });
         // **見つからなければ赤にする。** `if (cat)` で包むと、チップの形が
@@ -676,7 +707,7 @@ async function runChecks(browser, eng) {
         // 「見えたら押す」を死んだ分岐として消したのと同じ形）
         check(`[${eng}] さがす: 絞り込みのチップがある`, !!cat, `cat=${cat}`);
         if (cat) {
-            await tapOrClick(page, `button[aria-pressed="false"]`);
+            await tapOrClick(page, `[data-testid="search-category-chips"] button[aria-pressed="false"]`);
             // 件数が動くまで待つ（固定の待ちにしない）
             const narrowed = await page
                 .waitForFunction((n) => document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length !== n, all, { timeout: 10000 })
@@ -706,7 +737,7 @@ async function runChecks(browser, eng) {
              *   「直った」と言えない）。
              */
             const direct = page.url();
-            await page.goto(direct, { waitUntil: "domcontentloaded" });
+            await gotoSettled(page, direct);
             await waitForHydration(page);
             await page.waitForTimeout(600);
             const reopened = await page.evaluate(() =>
@@ -729,14 +760,14 @@ async function runChecks(browser, eng) {
      */
     if (fs.existsSync(path.join(OUT, "spots", "ginzan-onsen.html"))) {
         console.log(`\n[${eng}][5d] 探す → ガイド → 投稿`);
-        await page.goto(`http://localhost:${PORT}/search?q=${encodeURIComponent("銀山温泉")}`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/search?q=${encodeURIComponent("銀山温泉")}`);
         await waitForHydration(page);
         const spotLink = await page
             .waitForSelector("[data-testid='search-spot-results'] a[href='/spots/ginzan-onsen']", { timeout: 10000 })
             .then(() => true).catch(() => false);
         check(`[${eng}] さがす: 「銀山温泉」で撮影スポットの節からガイドへ行ける`, spotLink);
 
-        await page.goto(`http://localhost:${PORT}/spots/ginzan-onsen`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/spots/ginzan-onsen`);
         await waitForHydration(page);
         const uploadHrefs = await page.evaluate(() =>
             [...document.querySelectorAll("a")].filter((a) => /ここで撮った写真を投稿する/.test(a.textContent ?? "")).map((a) => a.getAttribute("href")));
@@ -749,7 +780,7 @@ async function runChecks(browser, eng) {
             lightRows === 12 && rawHtml.includes("spot-light") && rawHtml.includes("撮影の光"), `行=${lightRows}`);
 
         if (fs.existsSync(path.join(OUT, "map.html"))) {
-            await page.goto(`http://localhost:${PORT}/map`, { waitUntil: "domcontentloaded" });
+            await gotoSettled(page, `http://localhost:${PORT}/map`);
             await waitForHydration(page);
             // 地図（Leaflet）は後から読み込まれる
             await page.waitForSelector(".leaflet-container", { timeout: 10000 }).catch(() => {});
@@ -773,10 +804,10 @@ async function runChecks(browser, eng) {
      */
     if (fs.existsSync(path.join(OUT, "q.html"))) {
         console.log(`\n[${eng}][5e] 今日の一問`);
-        await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/`);
         await waitForHydration(page);
         check(`[${eng}] 今日の一問: トップから入口で行ける`, !!(await page.$("[data-testid='home-quiz-entry'][href='/q']")));
-        await page.goto(`http://localhost:${PORT}/q`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `http://localhost:${PORT}/q`);
         await waitForHydration(page);
         const choices = await page
             .waitForSelector("[role='group'] button", { timeout: 10000 })
@@ -811,13 +842,19 @@ async function runChecks(browser, eng) {
     });
     const dpage = await dctx.newPage();
     const dbag = attachDiagnostics(dpage);
-    await dpage.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+    await gotoSettled(dpage, `http://localhost:${PORT}/`);
     check(`[${eng}] デスクトップ: ハイドレーション完了`, await waitForHydration(dpage));
     await expectMenuWorks(dpage, `[${eng}] 初期表示(デスクトップ)`);
     if (profiles.length > 0) {
-        await dpage.goto(`http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(dpage, `http://localhost:${PORT}/users/${profiles[0].replace(/\.html$/, "")}`);
         await waitForHydration(dpage);
         await expectMenuWorks(dpage, `[${eng}] プロフィール(デスクトップ)`);
+    }
+    // 写真ページは**スマホでは見出しを外す**ので（`expectChromelessPhone`）、メニューは PC の幅で見る
+    if (photoPages.length > 0) {
+        await gotoSettled(dpage, `http://localhost:${PORT}/photo/${encodeURIComponent(photoPages[0].replace(/\.html$/, ""))}`);
+        await waitForHydration(dpage);
+        await expectMenuWorks(dpage, `[${eng}] 写真ページ(デスクトップ)`);
     }
     const dRealErrors = dbag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
     check(`[${eng}] デスクトップ: 実行時のJSエラーがない`, dRealErrors.length === 0, dRealErrors.slice(0, 3).join(" / "));
@@ -1041,7 +1078,7 @@ async function runSignedInChecks(browser, eng) {
             const page = await ctx.newPage();
             const tag = `[${eng}] ${w}px 同意画面`;
             try {
-                await page.goto(`http://localhost:${PORT}/user/settings`, { waitUntil: "domcontentloaded" });
+                await gotoSettled(page, `http://localhost:${PORT}/user/settings`);
                 const dialog = page.getByRole("dialog", { name: "はじめる前に" });
                 await dialog.waitFor({ state: "visible", timeout: 15000 });
                 const button = page.getByRole("button", { name: "同意してはじめる" });
@@ -1072,7 +1109,7 @@ async function runSignedInChecks(browser, eng) {
             const tag = `[${eng}] ${w}px ${label}`;
             let audit = null;
             try {
-                await page.goto(`http://localhost:${PORT}${url}`, { waitUntil: "domcontentloaded" });
+                await gotoSettled(page, `http://localhost:${PORT}${url}`);
                 // 認証の確定 → 取得 → 描画、と段があるので「ログイン画面が
                 // 消える」まで待つ（固定の待ちにしない）
                 await page.waitForFunction(() => !document.querySelector('#login-email'), null, { timeout: 15000 }).catch(() => {});
