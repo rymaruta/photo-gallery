@@ -4,7 +4,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { removePhotoFromAlbum, addPhotoToAlbum, isAlbumMember } from "./albums";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate, sanitizeAudience, sanitizeSpotId } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate, sanitizeAudience, sanitizeSpotId, sanitizeSpotAuto } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
@@ -39,7 +39,8 @@ type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl:
 // 本文に入っていても「何も送られていない」と見なされる
 // `spotId` は撮影スポットの画面から本人が選んだ紐付け（null・空で外す）
 // `inspiredBy` は「この写真を見て撮影」の元の写真（null・空で外す。`inspired.ts`）
-const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords", "focalPoint", "spotId", "inspiredBy"] as const;
+// `spotAuto` は自動の結びを本人が外した印（`"off"` で外す・null・空で戻す。2026-10-31 journey.photo-ios#425）
+const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords", "focalPoint", "spotId", "inspiredBy", "spotAuto"] as const;
 
 // YouTube URL の検証（フル再生MV用）。youtube.com/watch?v= と youtu.be/ を許可。
 // lib/utils/music.ts の parseYouTube と同等の安全策（ホワイトリスト + ID書式）。
@@ -131,7 +132,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
         title?: unknown; description?: unknown; location?: unknown;
         category?: unknown; tags?: unknown; date?: unknown; coords?: unknown; focalPoint?: unknown;
-        audience?: unknown; spotId?: unknown; inspiredBy?: unknown;
+        audience?: unknown; spotId?: unknown; inspiredBy?: unknown; spotAuto?: unknown;
         replace?: ReplaceBody;
     };
     try {
@@ -238,6 +239,14 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         && !(typeof body.spotId === "string" && body.spotId.trim() === "")
         && !sanitizeSpotId(body.spotId)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影スポットの指定が正しくありません" }) };
+    }
+
+    // **自動の結びを外した印も同じ。** 書けるのは `"off"`、戻すのは null・空文字だけ。形の違う値は断る
+    // （`"on"`・`true` を「戻す」に倒すと、送り損ねで外した印が黙って消える）
+    const hasSpotAuto = "spotAuto" in body;
+    const spotAutoValue = hasSpotAuto ? sanitizeSpotAuto(body.spotAuto) : undefined;
+    if (hasSpotAuto && spotAutoValue === undefined) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影スポットの自動のまとめの指定が正しくありません" }) };
     }
 
     // **「この写真を見て撮影」も同じ。** 外すのは null・空文字だけ。形の違う値は断る
@@ -516,6 +525,9 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         applyMeta("focalPoint", "focalPoint" in body, sanitizeFocalPoint(body.focalPoint) ?? undefined);
         applyMeta("spotId", "spotId" in body, sanitizeSpotId(body.spotId));
         applyMeta("inspiredBy", hasInspired, inspiredValue);
+        // 外した・戻したで静的な頁（撮影スポットの頁・写真の詳細・iOS の表）が変わるので、
+        // 変わったときは `applyMeta` が作り直しを頼む（`metaChanged`）
+        applyMeta("spotAuto", hasSpotAuto, spotAutoValue ?? undefined);
         const newCoords = sanitizeCoords(body.coords) ?? undefined;
         applyMeta("coords", "coords" in body, newCoords);
         // **地名から補った座標（geoApprox）は地名に付随する。**
