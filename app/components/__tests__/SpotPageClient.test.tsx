@@ -64,6 +64,14 @@ vi.mock("../GalleryModal", () => ({
         </div>
     ),
 }));
+// **サムネは先読みの頼み方だけ出す**（2026-10-31 束 2）。中身は `Thumb` 自身のテストが見る。
+// この環境では本物の `<img>` が読めずに失敗の絵へ替わるので、帯に「先読みしない」を頼んでいるかを見られない
+vi.mock("../Thumb", () => ({
+    default: ({ alt, priority, sizes }: { alt: string; priority?: boolean; sizes?: string }) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img alt={alt} data-priority={String(!!priority)} data-sizes={sizes} />
+    ),
+}));
 /** `onOpenPhoto` の戻り値を試験から覗くための箱 */
 const lastOpenResult = vi.hoisted(() => ({ value: undefined as boolean | undefined }));
 
@@ -153,8 +161,8 @@ describe("撮影スポット詳細", () => {
         const { container } = render(<SpotPageClient {...base} coords={{ lat: 48.86, lng: 2.34, approx: true }} />);
         expect(container.textContent).toContain(base.description);          // 概要
         expect(container.textContent).toContain("撮影時期");                 // 統計
-        expect(screen.getByTestId("grid")).toBeTruthy();                     // 写真
-        expect(screen.getByRole("link", { name: "撮影地マップを開く" })).toBeTruthy(); // 地図
+        expect(screen.getByTestId("spot-photo-strip")).toBeTruthy();         // 写真（iOS と同じ横の帯・束 2）
+        expect(screen.getByRole("link", { name: "地図で見る" })).toBeTruthy();   // 地図（iOS の行動の札・束 2）
     });
 
     // **タブという仕掛けごと持たない。** 残っていると「隠す入れ物」が
@@ -246,7 +254,8 @@ describe("地図タブ", () => {
     });
 });
 
-describe("周辺のスポット", () => {
+// 2026-10-31 束 2: 呼び名を「近くの撮影地」に（写真から導く場所＝撮影地）。札は iOS の `nearbyCard` を横に流す
+describe("近くの撮影地", () => {
     const nearby = [
         { label: "ヴェルサイユ", count: 2, path: "/location/v", km: 17.3, approx: true, cover: null },
         { label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null },
@@ -254,7 +263,7 @@ describe("周辺のスポット", () => {
 
     it("渡された順（距離順）でそのまま並べる", () => {
         render(<SpotPageClient {...base} nearby={nearby} />);
-        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        const list = screen.getByRole("heading", { name: "近くの撮影地" }).closest("section")!;
         const labels = within(list).getAllByRole("link").map((a) => a.textContent);
         expect(labels[0]).toContain("ヴェルサイユ");
         expect(labels[1]).toContain("山中湖");
@@ -264,7 +273,7 @@ describe("周辺のスポット", () => {
     // 推定に基づくぶんには「約」を付ける
     it("推定に基づく距離には「約」を付ける", () => {
         render(<SpotPageClient {...base} nearby={nearby} />);
-        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        const list = screen.getByRole("heading", { name: "近くの撮影地" }).closest("section")!;
         const links = within(list).getAllByRole("link");
         expect(links[0].textContent).toContain("約17km");
         expect(links[1].textContent).toContain("0.8km");
@@ -273,7 +282,7 @@ describe("周辺のスポット", () => {
 
     it("0件なら節ごと出ない", () => {
         render(<SpotPageClient {...base} />);
-        expect(screen.queryByRole("heading", { name: "周辺のスポット" })).toBeNull();
+        expect(screen.queryByRole("heading", { name: "近くの撮影地" })).toBeNull();
     });
 });
 
@@ -351,10 +360,22 @@ describe("撮影スポット詳細: ヘッダーと代表画像", () => {
  * **2つ目のビューアを作らない**（`GalleryModal` を使い回す）。
  * ここで見たいのは「頼み方」と「開けなかったときに黙らないこと」。
  */
+/**
+ * 2026-10-31 束 2: 「この撮影地の写真」は iOS と同じ**横に流す帯**（`spot-photo-strip`）。
+ * 帯の写真は全部この画面の写真なので、以前の「知らない写真なら false」（格子の約束）の筋は無くなった
+ */
+const strip = () => screen.getByTestId("spot-photo-strip");
+const stripLink = (id: string) => strip().querySelector(`a[data-photo-id="${id}"]`) as HTMLAnchorElement;
+
 describe("撮影スポット詳細: その場で拡大", () => {
-    it("グリッドに「その場で開く」を頼んでいる", () => {
+    it("帯の写真を押すと遷移を止めてその場で開く（`href` は写真ページのまま）", async () => {
         render(<SpotPageClient {...base} />);
-        expect(screen.getByTestId("grid").getAttribute("data-open-in-place")).toBe("true");
+        const link = stripLink("p2");
+        expect(link.getAttribute("href")).toContain("p2");
+        const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+        fireEvent(link, ev);
+        expect(ev.defaultPrevented).toBe(true);
+        expect((await screen.findByTestId("modal")).getAttribute("data-current")).toBe("p2");
     });
 
     it("最初はビューアを描かない", () => {
@@ -367,7 +388,7 @@ describe("撮影スポット詳細: その場で拡大", () => {
     // 結果が左右されるテストになる
     it("押した写真でビューアが開き、閉じると消える", async () => {
         render(<SpotPageClient {...base} />);
-        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p2" }));
+        fireEvent.click(stripLink("p2"));
         expect((await screen.findByTestId("modal")).getAttribute("data-current")).toBe("p2");
         fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
         expect(screen.queryByTestId("modal")).toBeNull();
@@ -375,7 +396,7 @@ describe("撮影スポット詳細: その場で拡大", () => {
 
     it("ビューアの送りは端で折り返す", async () => {
         render(<SpotPageClient {...base} />);
-        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        fireEvent.click(stripLink("p1"));
         await screen.findByTestId("modal");
         fireEvent.click(screen.getByRole("button", { name: "前へ" }));
         expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p2");
@@ -383,8 +404,6 @@ describe("撮影スポット詳細: その場で拡大", () => {
         expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p1");
     });
 
-    // 🔴 **開けないのに遷移を止めると、タップが無反応になる。**
-    // 写真ページへ行く方が、何も起きないよりずっと良い
     /**
      * 🔴 **端末の「戻る」でビューアが閉じる**（ページごと離脱しない）。
      *
@@ -395,23 +414,18 @@ describe("撮影スポット詳細: その場で拡大", () => {
      */
     it("戻るでビューアが閉じる（ページごと離脱しない）", async () => {
         render(<SpotPageClient {...base} />);
-        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        fireEvent.click(stripLink("p1"));
         expect(await screen.findByTestId("modal")).toBeTruthy();
         fireEvent(window, new PopStateEvent("popstate"));
         expect(screen.queryByTestId("modal"), "戻るで閉じていない＝ページごと離脱する").toBeNull();
     });
 
-    it("知らない写真なら false を返す（遷移を止めさせない）", () => {
+    it("新しいタブで開く操作は止めない", () => {
         render(<SpotPageClient {...base} />);
-        fireEvent.click(screen.getByRole("button", { name: "居ない写真を開く" }));
-        expect(lastOpenResult.value).toBe(false);
+        const ev = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+        fireEvent(stripLink("p1"), ev);
+        expect(ev.defaultPrevented).toBe(false);
         expect(screen.queryByTestId("modal")).toBeNull();
-    });
-
-    it("見つかった写真では true を返す（その場で開く）", () => {
-        render(<SpotPageClient {...base} />);
-        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
-        expect(lastOpenResult.value).toBe(true);
     });
 });
 
@@ -429,7 +443,7 @@ describe("撮影スポット詳細: 地図と周辺のスポット", () => {
     // 読み上げの木からは外れる）。既存の地図タブのテストと同じく id で取る
     it("「地図で見る」はこの場所に寄せて開く（#ズーム/緯度/経度）", () => {
         render(<SpotPageClient {...base} coords={coords} />);
-        const link = screen.getByRole("link", { name: "撮影地マップを開く" });
+        const link = screen.getByRole("link", { name: "地図で見る" });
         // ズームは PHOTO_LINK_ZOOM（12）。座標は小数4桁（約11m）まで
         expect(link.getAttribute("href")).toBe("/map#12/35.4234/138.8765");
     });
@@ -448,7 +462,7 @@ describe("撮影スポット詳細: 地図と周辺のスポット", () => {
             cover: { id: "n1", src: "https://x/uploads/n1.jpg", title: "湖", location: "山中湖" },
         }] as never;
         render(<SpotPageClient {...base} nearby={nearby} />);
-        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        const list = screen.getByRole("heading", { name: "近くの撮影地" }).closest("section")!;
         expect(within(list).getAllByRole("img").length).toBe(1);
     });
 
@@ -457,7 +471,7 @@ describe("撮影スポット詳細: 地図と周辺のスポット", () => {
     it("絵を持たないスポットのカードには、絵の枠ごと出さない", () => {
         const nearby = [{ label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null }] as never;
         render(<SpotPageClient {...base} nearby={nearby} />);
-        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        const list = screen.getByRole("heading", { name: "近くの撮影地" }).closest("section")!;
         expect(within(list).queryAllByRole("img").length).toBe(0);
         // 名前・距離・枚数は出る（カードそのものは消さない）
         expect(list.textContent).toContain("山中湖");
@@ -470,7 +484,7 @@ describe("撮影スポット詳細: 地図と周辺のスポット", () => {
     it("カードに評価も「行きたい」も出さない", () => {
         const nearby = [{ label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null }] as never;
         render(<SpotPageClient {...base} nearby={nearby} />);
-        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        const list = screen.getByRole("heading", { name: "近くの撮影地" }).closest("section")!;
         expect(list.textContent).not.toMatch(/★|☆|4\.\d|評価/);
         expect(within(list).queryByRole("button")).toBeNull();
     });
@@ -531,9 +545,15 @@ describe("撮影スポット詳細: ふりがなと概要", () => {
 describe("撮影スポット詳細: ヒーローと格子", () => {
     // **格子は折り返しのずっと下**（実測 y=1064 / 画面 844・390px）。
     // 既定の8枚 `priority` は、画面に出ていない写真で LCP と帯域を奪い合う
-    it("格子に「先読みしない」を頼んでいる", () => {
-        render(<SpotPageClient {...base} />);
-        expect(screen.getByTestId("grid").getAttribute("data-priority")).toBe("0");
+    it("帯の写真は先読みしない（遅延読み込み）", () => {
+        render(<SpotPageClient {...base} photos={[{ id: "p1", src: "https://x/uploads/p1.jpg" }, { id: "p2", src: "https://x/uploads/p2.jpg" }] as never} />);
+        const imgs = Array.from(strip().querySelectorAll("img"));
+        expect(imgs).toHaveLength(2);
+        for (const img of imgs) {
+            expect(img.getAttribute("data-priority")).toBe("false");
+            // iOS と同じ幅 118 の1枚
+            expect(img.getAttribute("data-sizes")).toBe("118px");
+        }
     });
 
     // **同じ画面で同じ写真の振る舞いを2通りにしない。**
@@ -552,5 +572,122 @@ describe("撮影スポット詳細: ヒーローと格子", () => {
     it("代表画像の `href` は写真ページのまま", () => {
         render(<SpotPageClient {...base} />);
         expect(screen.getByRole("link", { name: "この写真を開く" }).getAttribute("href")).toContain("p1");
+    });
+});
+
+/**
+ * ── iOS の `SpotDetailView` にそろえた形（2026-10-31 束 2 L1〜L7）─────
+ * どれも直しを戻すと落ちる
+ */
+describe("撮影地の頁: iOS の形", () => {
+    it("L1 戻る・共有・⋯ は代表写真の上のガラスの丸（見出しの下に別の行を作らない）", () => {
+        render(<SpotPageClient {...base} />);
+        const row = screen.getByTestId("spot-top-row");
+        expect(row.closest("section")).not.toBeNull();   // 代表写真の節の中
+        expect(row.className).toContain("absolute");
+        const back = screen.getByRole("link", { name: "ギャラリーに戻る" });
+        expect(back.className).toContain("w-[44px]");
+        expect(back.className).toContain("bg-black/55");
+    });
+
+    it("L1 写真の無い撮影地は見出しの下の素の行のまま", () => {
+        render(<SpotPageClient {...base} photos={[] as never} />);
+        expect(screen.getByTestId("spot-top-row").className).not.toContain("absolute");
+    });
+
+    it("L2 代表写真は 4:3、数の札は右下（右上は操作の丸）", () => {
+        render(<SpotPageClient {...base} />);
+        const box = screen.getByRole("link", { name: "この写真を開く" }).firstElementChild as HTMLElement;
+        expect(box.style.paddingTop).toBe("75%");
+        const count = screen.getByTestId("spot-hero-count");
+        expect(count.className).toContain("bottom-3");
+        expect(count.className).toContain("bg-black/55");
+    });
+
+    it("L3 題は明朝 32、所在地は 15 を「・」で区切る", () => {
+        render(<SpotPageClient {...base} broader={[{ label: "フランス", count: 5, path: "/location/f" }, { label: "ヨーロッパ", count: 9, path: "/location/e" }]} />);
+        const h1 = screen.getByRole("heading", { level: 1 });
+        expect(h1.className).toContain("font-serif");
+        expect(h1.style.fontSize).toBe("32px");
+        const line = screen.getByTestId("spot-place-line");
+        expect(line.style.fontSize).toBe("15px");
+        expect(line.textContent).toContain("フランス・ヨーロッパ");
+    });
+
+    it("L4 行動の札は「行きたい・シェア・地図で見る」の3枚（高さ 64）", () => {
+        render(<SpotPageClient {...base} coords={{ lat: 48.86, lng: 2.34, approx: false }} />);
+        const row = screen.getByTestId("spot-actions");
+        expect(row.className).toContain("grid-cols-3");
+        const items = Array.from(row.children) as HTMLElement[];
+        expect(items.map((el) => el.textContent)).toEqual(["行きたい", "シェア", "地図で見る"]);
+        for (const el of items) expect(el.style.minHeight).toBe("64px");
+    });
+
+    it("L4 座標が無ければ地図の札を置かず2枚", () => {
+        render(<SpotPageClient {...base} />);
+        const row = screen.getByTestId("spot-actions");
+        expect(row.className).toContain("grid-cols-2");
+        expect(row.children).toHaveLength(2);
+    });
+
+    it("L5 数は札の面に値（17）を上、名前（12）を下", () => {
+        render(<SpotPageClient {...base} />);
+        const facts = screen.getByTestId("spot-facts");
+        const first = facts.firstElementChild as HTMLElement;
+        expect(first.className).toContain("flex-col-reverse");
+        expect(first.className).toContain("rounded-2xl");
+        expect((first.querySelector("dd") as HTMLElement).style.fontSize).toBe("17px");
+    });
+
+    it("L6 チップは押せるチップの型（`chipStyles`）、節の見出しは明朝 22", () => {
+        render(<SpotPageClient {...base} related={[{ label: "東京", count: 3, path: "/location/t" }]}
+            facts={{ ...base.facts, tags: [{ slug: "paris", label: "paris", count: 2 }] } as never} />);
+        const tag = screen.getByRole("link", { name: /#paris/ });
+        expect(tag.className).toContain("bg-chip");
+        expect(tag.style.minHeight).toBe("34px");
+        const related = screen.getByRole("heading", { level: 2, name: "他の撮影地" });
+        expect(related.className).toContain("font-serif");
+        expect(related.style.fontSize).toBe("22px");
+    });
+
+    it("L7 写真は幅 118・3:4 の帯、近くの撮影地は幅 180 の札を横に流す", () => {
+        const nearby = [{ label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null }] as never;
+        render(<SpotPageClient {...base} nearby={nearby} />);
+        const first = screen.getByTestId("spot-photo-strip").firstElementChild as HTMLElement;
+        expect(first.style.width).toBe("118px");
+        expect((first.querySelector("a") as HTMLElement).style.aspectRatio).toBe("3 / 4");
+        const card = screen.getByTestId("spot-nearby").firstElementChild as HTMLElement;
+        expect(card.style.width).toBe("180px");
+        expect(screen.getByRole("heading", { level: 2, name: "この撮影地の写真（2）" })).toBeTruthy();
+    });
+});
+
+/**
+ * **帯のリンクと絵の数**（2026-10-31 束 2 の確かめ）。リンクは写真の数だけ・絵は最初の 60 枚だけ
+ */
+describe("撮影地の頁: 帯のリンクと絵の数", () => {
+    it("写真が3枚以上でも、写真ページへのリンク（/photo/）は写真の数と同じ", async () => {
+        const { default: index } = await import("@/app/data/photo-index.json");
+        const ids = (index as { photoIds: string[] }).photoIds.slice(0, 5);
+        render(<SpotPageClient {...base} photos={ids.map((id) => ({ id, src: `https://x/uploads/${id}.jpg` })) as never} />);
+        const links = screen.getByTestId("spot-photo-strip").querySelectorAll('a[href^="/photo/"]');
+        expect(links).toHaveLength(5);
+    });
+
+    it("61 枚以上でもリンクは全部出し、絵は最初の 60 枚だけ読む（監視できる環境）", () => {
+        const io = vi.fn(function (this: unknown) { return { observe: vi.fn(), unobserve: vi.fn(), disconnect: vi.fn(), takeRecords: () => [] }; });
+        vi.stubGlobal("IntersectionObserver", io);
+        try {
+            const many = Array.from({ length: 65 }, (_, i) => ({ id: `m${i}`, src: `https://x/uploads/m${i}.jpg` }));
+            render(<SpotPageClient {...base} photos={many as never} />);
+            const strip = screen.getByTestId("spot-photo-strip");
+            expect(strip.querySelectorAll("a[data-photo-id]")).toHaveLength(65);
+            expect(strip.querySelectorAll("img")).toHaveLength(60);
+            // 絵の無い札もリンクの名前を持つ
+            expect(strip.querySelectorAll("a[data-photo-id]")[64].textContent).not.toBe("");
+            expect(io).toHaveBeenCalled();
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 });

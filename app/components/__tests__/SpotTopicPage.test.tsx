@@ -185,3 +185,45 @@ describe("スポットの頁 → 切り口の頁", () => {
         expect(screen.queryByRole("link", { name: /海外の撮影スポットをすべて見る/ })).toBeNull();
     });
 });
+
+/**
+ * **撮影スポットの一覧・県・季節・テーマの頁の字と節**（2026-10-31 束 2 P1〜P5・iOS の字の段 Display 32／節の見出し 22）。
+ * どれも直しを戻すと落ちる
+ */
+describe("撮影スポットの一覧の頁の字と節（束 2）", () => {
+    it("P1・P3 切り口の頁: 題は明朝 32（text-4xl）、関連の節は明朝 22、導入文は 15", () => {
+        const view = themeView("temples-shrines", "kyoto")!;
+        render(<SpotTopicPage view={view} eyebrow="x" />);
+        const h1 = screen.getByRole("heading", { level: 1 });
+        expect(h1.className).toContain("text-4xl");
+        expect(h1.className).not.toContain("text-2xl");
+        expect(screen.getByText(view.intro).style.fontSize).toBe("15px");
+        if (view.related.length > 0) {
+            const h2 = screen.getAllByRole("heading", { level: 2 })[0];
+            expect(h2.style.fontSize).toBe("22px");
+        }
+    });
+
+    it("P4 カードの写真は 16:10、名前は明朝 18", () => {
+        const view = themeView("temples-shrines", "kyoto")!;
+        const { container } = render(<SpotTopicPage view={view} eyebrow="x" />);
+        const card = container.querySelector("ul.grid > li > div > a")!;
+        expect(card.querySelector("div.aspect-\\[16\\/10\\]")).toBeTruthy();
+        expect((card.querySelector("p.font-serif") as HTMLElement).style.fontSize).toBe("18px");
+    });
+
+    it("P1・P3・P5 県の頁: 題は明朝 32、戻り道は当たり 44", async () => {
+        const el = await SpotAreaPage({ params: Promise.resolve({ area: "kyoto" }) });
+        render(el);
+        expect(screen.getByRole("heading", { level: 1 }).className).toContain("text-4xl");
+        expect(screen.getByTestId("spots-back").className).toContain("min-h-[44px]");
+    });
+
+    it("P1・P3 入口（/spots）: 題は明朝 32、地方と季節・テーマの節は明朝 22", () => {
+        render(SpotIndexPage());
+        expect(screen.getByRole("heading", { level: 1 }).className).toContain("text-4xl");
+        for (const name of ["近畿", "季節でさがす", "テーマでさがす"]) {
+            expect(screen.getByRole("heading", { level: 2, name }).style.fontSize, name).toBe("22px");
+        }
+    });
+});

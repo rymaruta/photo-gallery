@@ -14,6 +14,8 @@ import { useToast } from "@/lib/hooks/useToast";
 import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
 import SpotRows, { type SpotRow } from "./SpotRows";
+import SectionHead, { MoreLink } from "./SectionHead";
+import { CARD, ROW_TALL, ROW_ICON_BOX, ROW_ICON, ROW_TITLE, ROW_SUB, ROW_CHEVRON } from "./rowStyles";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON, TILE_MIN_H } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
 import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
@@ -112,14 +114,13 @@ const TIME_LABEL: Record<string, string> = {
     dawn: "夜明け", morning: "朝", day: "日中", goldenHour: "夕方の斜光", dusk: "日没後", night: "夜",
 };
 
-/** 節の見出し。ホームと同じ声（`font-serif`）＝新しい字体を持ち込まない */
-function Head({ id, children }: { id: string; children: React.ReactNode }) {
-    return (
-        <h2 id={id} className="m-0 mb-3 font-serif font-bold text-white tracking-wide"
-            style={{ fontSize: "18px", lineHeight: "24px" }}>
-            {children}
-        </h2>
-    );
+/**
+ * 節の見出し（iOS の `SpotDetailParts.sectionHeader`＝`JPSectionHeading`: 眉＋明朝 22・2026-10-31 束 2）。
+ * 眉は iOS が付けている節だけ（光の時刻 LIGHT・作例 EXAMPLES・魅力 ABOUT・撮影ガイド GUIDE）。
+ * 以前は明朝 18 の題だけだった。部品は共通の `SectionHead`
+ */
+function Head({ id, eyebrow, children }: { id: string; eyebrow?: string; children: string }) {
+    return <SectionHead id={id} eyebrow={eyebrow} title={children} testId={`head-${id}`} />;
 }
 
 /** 時刻帯の短い言い方（表の注記）。日本は「日本時間」、ほかは都市名 */
@@ -147,9 +148,9 @@ function LightTable({ light, sky, isJa }: { light: LightCalendar; sky: SpotSky |
     };
     return (
         <section className="pt-8" aria-labelledby="spot-light" data-testid="spot-light">
-            <Head id="spot-light">{isJa ? "撮影の光" : "Light through the year"}</Head>
+            <Head id="spot-light" eyebrow="LIGHT">{isJa ? "撮影の光" : "Light through the year"}</Head>
             {swing && (
-                <p className="m-0 mb-3 text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }} data-testid="spot-light-swing">{swing}</p>
+                <p className="m-0 mb-3 text-white/85" style={{ fontSize: "15px", lineHeight: "24px" }} data-testid="spot-light-swing">{swing}</p>
             )}
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left" style={{ fontSize: "13px", lineHeight: "18px" }}>
@@ -208,7 +209,7 @@ function NightSky({ sky, isJa }: { sky: SpotSky; isJa: boolean }) {
     return (
         <section className="pt-8" aria-labelledby="spot-night-sky" data-testid="spot-night-sky">
             <Head id="spot-night-sky">{isJa ? "星空の暦" : "Night sky"}</Head>
-            <p className="m-0 mb-3 text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }} data-testid="spot-milky-way-summary">
+            <p className="m-0 mb-3 text-white/85" style={{ fontSize: "15px", lineHeight: "24px" }} data-testid="spot-milky-way-summary">
                 {milkyWaySummary(sky, isJa)}
             </p>
             {mw.months.length > 0 && (
@@ -313,7 +314,7 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
     };
     return (
         <section className="pt-8" aria-labelledby="spot-today-light" data-testid="spot-today-light">
-            <Head id="spot-today-light">{isJa ? "光の時刻" : "Light"}</Head>
+            <Head id="spot-today-light" eyebrow="LIGHT">{isJa ? "光の時刻" : "Light"}</Head>
             {/* 日付の帯の高さ（矢印 44px）を水和の前から取っておく */}
             {!sheet && <div className="h-11 mb-2" aria-hidden data-testid="spot-today-light-date-placeholder" />}
             {sheet && (
@@ -362,7 +363,7 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
                                                       style={{ fontSize: "12px", padding: "2px 10px", height: "22px" }}>
                                                     {TIME_LABEL[t.time] ?? t.time}
                                                 </span>
-                                                <span className="text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }}>{t.text}</span>
+                                                <span className="text-white/85" style={{ fontSize: "15px", lineHeight: "24px" }}>{t.text}</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -416,7 +417,7 @@ function Samples({ samples, isJa, spot }: { samples: SpotSample[]; isJa: boolean
     const hosted = sources.filter((n) => !free.includes(n));
     return (
         <section className="pt-8" aria-labelledby="spot-samples" data-testid="spot-samples">
-            <Head id="spot-samples">{isJa ? `作例（${from} より）` : `Example photos (from ${from})`}</Head>
+            <Head id="spot-samples" eyebrow="EXAMPLES">{isJa ? `作例（${from} より）` : `Example photos (from ${from})`}</Head>
             <p className="m-0 mb-3 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
                 {isJa
                     ? [
@@ -610,7 +611,7 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                 </>
             ) : (
                 <div className="rounded-xl bg-surface ring-1 ring-line p-5 text-center">
-                    <p className="m-0 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
+                    <p className="m-0 text-white/70" style={{ fontSize: "15px", lineHeight: "24px" }}>
                         {isJa
                             ? "この撮影地の写真は、まだ投稿されていません。"
                             : "No photos have been shared for this spot yet."}
@@ -646,7 +647,7 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                 {mapHero ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface">
                         <p className="m-0 font-serif font-bold text-white text-center px-6"
-                           style={{ fontSize: "clamp(22px, 5vw, 36px)", lineHeight: "1.2" }}>{spot.name}</p>
+                           style={{ fontSize: "32px", lineHeight: "1.25" }}>{spot.name}</p>
                         {region && <p className="m-0 text-white/60" style={{ fontSize: "13px" }}>{region}</p>}
                         <p className="m-0 mt-1 text-white/60" style={{ fontSize: "12px" }}>
                             {isJa ? "代表写真はまだありません" : "No guide photo yet"}
@@ -724,8 +725,9 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                        className={`m-0 mb-1.5 eyebrow ${verified ? "text-accent" : "text-white/60"}`}>
                         {verified ? (isJa ? "撮影スポット" : "Photo spot") : (isJa ? "下書き・未確認" : "Draft · Unreviewed")}
                     </p>
+                    {/* 題は iOS の `JPFont.photoTitle`（明朝 32・どの幅でも同じ＝PC の幅の決まり W2）。以前は clamp(24〜38) */}
                     <h1 className="m-0 font-serif font-bold text-white wrap-anywhere"
-                        style={{ fontSize: "clamp(24px, 4.5vw, 38px)", lineHeight: "1.18" }}>
+                        style={{ fontSize: "32px", lineHeight: "1.25" }}>
                         {spot.name}
                     </h1>
                     {(spot.reading || spot.nameEn) && (
@@ -799,7 +801,7 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                         {/* ── 4. この場所の魅力 ───────────────── */}
                         {(spot.description || (spot.highlights ?? []).length > 0) && (
                             <section className="pt-6" aria-labelledby="spot-charm">
-                                <Head id="spot-charm">{isJa ? "この撮影スポットの魅力" : "What makes it special"}</Head>
+                                <Head id="spot-charm" eyebrow="ABOUT">{isJa ? "この撮影スポットの魅力" : "What makes it special"}</Head>
                                 {spot.description && (
                                     <p className="m-0 mb-3 text-white/85" style={{ fontSize: "15px", lineHeight: "26px" }}>
                                         {spot.description}
@@ -832,10 +834,10 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                             || (spot.compositionTips ?? []).length > 0
                             || showsField(spot, "safetyNotes")) && (
                             <section className="pt-8" aria-labelledby="spot-guide">
-                                <Head id="spot-guide">{isJa ? "撮影ガイド" : "Shooting guide"}</Head>
+                                <Head id="spot-guide" eyebrow="GUIDE">{isJa ? "撮影ガイド" : "Shooting guide"}</Head>
 
                                 {guideLead && (
-                                    <p className="m-0 mb-5 text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }} data-testid="spot-guide-lead">
+                                    <p className="m-0 mb-5 text-white/85" style={{ fontSize: "15px", lineHeight: "24px" }} data-testid="spot-guide-lead">
                                         {guideLead}
                                     </p>
                                 )}
@@ -852,7 +854,7 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                                                           style={{ fontSize: "12px", padding: "2px 10px", height: "22px" }}>
                                                         {SEASON_LABEL[s.season] ?? s.season}
                                                     </span>
-                                                    <span className="text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }}>{s.text}</span>
+                                                    <span className="text-white/85" style={{ fontSize: "15px", lineHeight: "24px" }}>{s.text}</span>
                                                 </li>
                                             ))}
                                         </ul>
@@ -871,7 +873,7 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                                                           style={{ fontSize: "12px", padding: "2px 10px", height: "22px" }}>
                                                         {TIME_LABEL[t.time] ?? t.time}
                                                     </span>
-                                                    <span className="text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }}>{t.text}</span>
+                                                    <span className="text-white/85" style={{ fontSize: "15px", lineHeight: "24px" }}>{t.text}</span>
                                                 </li>
                                             ))}
                                         </ul>
@@ -885,7 +887,7 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                                         </p>
                                         <ul className="m-0 p-0 flex flex-col gap-1.5" style={{ listStyle: "none" }}>
                                             {spot.compositionTips!.map((c) => (
-                                                <li key={c} className="text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }}>・{c}</li>
+                                                <li key={c} className="text-white/85" style={{ fontSize: "15px", lineHeight: "24px" }}>・{c}</li>
                                             ))}
                                         </ul>
                                     </div>
@@ -968,15 +970,15 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                         {spot.coords && (
                             <section className="mb-7" aria-labelledby="spot-map">
                                 <Head id="spot-map">{isJa ? "地図" : "Map"}</Head>
-                                <Link href={mapHref} prefetch={false}
-                                      className="block rounded-xl bg-surface ring-1 ring-line p-4 hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                                    <p className="m-0 text-white/85" style={{ fontSize: "13px", lineHeight: "20px" }}>
-                                        {isJa ? "撮影地マップでこの撮影スポットを開く" : "Open on the map"} <span aria-hidden="true">›</span>
-                                    </p>
-                                    {/* **正確な GPS は出さない。** 台帳の座標は約1km に丸めてある */}
-                                    <p className="m-0 mt-1 text-white/60" style={{ fontSize: "12px" }}>
-                                        {isJa ? "位置はおおよそです（約1km）" : "Approximate location (~1km)"}
-                                    </p>
+                                {/* 札の行（`rowStyles` の二行の行 64・印 → 題 → 副 → ›・2026-10-31 束 2）。以前は文字だけの札 */}
+                                <Link href={mapHref} prefetch={false} className={`${ROW_TALL} ${CARD}`} data-testid="spot-map-row">
+                                    <span className={ROW_ICON_BOX}><MapIcon className={ROW_ICON} aria-hidden /></span>
+                                    <span className="min-w-0 flex-1 py-2">
+                                        <span className={ROW_TITLE}>{isJa ? "撮影地マップでこの撮影スポットを開く" : "Open on the map"}</span>
+                                        {/* **正確な GPS は出さない。** 台帳の座標は約1km に丸めてある */}
+                                        <span className={ROW_SUB}>{isJa ? "位置はおおよそです（約1km）" : "Approximate location (~1km)"}</span>
+                                    </span>
+                                    <ChevronRightIcon className={ROW_CHEVRON} aria-hidden />
                                 </Link>
                             </section>
                         )}
@@ -998,18 +1000,13 @@ export default function SpotGuideClient({ spot, photos, autoNote = false, nearby
                                     : spot.region?.country === "日本" && area ? `More spots in ${area.nameEn}` : "More photo spots"}</Head>
                                 <SpotRows rows={sameArea.spots} isJa={isJa} />
                                 {/* 海外は国の頁へ（区画の頁は国の一覧で、スポットは並ばない） */}
+                                {/* 「すべて見る ›」は共通の `MoreLink`（13・text-2・当たり 44・2026-10-31 束 2）。以前は 12 の字だけ */}
                                 {country ? (
-                                    <Link href={country.href} prefetch={false}
-                                          className="mt-2 inline-flex items-center text-white/60 hover:text-white transition-colors"
-                                          style={{ fontSize: "12px" }}>
-                                        {isJa ? `${country.name}の撮影スポットをすべて見る` : `See all spots in ${country.nameEn}`} <span aria-hidden="true" className="ml-1">›</span>
-                                    </Link>
+                                    <div className="flex justify-end"><MoreLink href={country.href}
+                                        label={isJa ? `${country.name}の撮影スポットをすべて見る` : `See all spots in ${country.nameEn}`} /></div>
                                 ) : area && (
-                                    <Link href={ROUTES.SPOT_AREA(area.slug)} prefetch={false}
-                                          className="mt-2 inline-flex items-center text-white/60 hover:text-white transition-colors"
-                                          style={{ fontSize: "12px" }}>
-                                        {isJa ? `${area.name}の撮影スポットをすべて見る` : `See all spots in ${area.nameEn}`} <span aria-hidden="true" className="ml-1">›</span>
-                                    </Link>
+                                    <div className="flex justify-end"><MoreLink href={ROUTES.SPOT_AREA(area.slug)}
+                                        label={isJa ? `${area.name}の撮影スポットをすべて見る` : `See all spots in ${area.nameEn}`} /></div>
                                 )}
                             </section>
                         )}

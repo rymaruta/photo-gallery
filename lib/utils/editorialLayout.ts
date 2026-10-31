@@ -40,6 +40,21 @@ export function editorialRows<T>(items: readonly T[]): EditorialRow<T>[] {
 }
 
 /**
+ * **大きく出す写真の番号**（並びの何番目か）。`editorialRows` の段を、写真1枚ごとの印に開いたもの。
+ * 写真1枚ごとに `<li>` を作る並び（ホームの `HomeMosaic`・集約の頁の `GalleryGrid` の `editorial`）が使う。
+ * id で引かない——同じ写真が2回入ったときに両方とも大きく出て、2枚の段に穴が空く
+ */
+export function editorialLargeIndexes<T>(items: readonly T[]): Set<number> {
+    const at = new Set<number>();
+    let i = 0;
+    for (const r of editorialRows(items)) {
+        if (r.kind === "hero") at.add(i);
+        i += r.kind === "hero" ? 1 : 2;
+    }
+    return at;
+}
+
+/**
  * 写真に重ねる撮影地の短い名前（iOS の `HomeTileText.place`）。**最初の区切りまで**
  * （「パリ, フランス」→「パリ」）。無ければ空。
  */

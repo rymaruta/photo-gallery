@@ -91,7 +91,8 @@ describe("ビューアに渡す写真の項目", () => {
             tags: ["x"], date: "2026-01-01", createdAt: "2026-01-01", updatedAt: "2026-01-02",
         } as unknown as Photo;
         const kept = Object.keys(slimForViewer(photo));
-        for (const k of ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "tags", "date", "createdAt", "updatedAt"]) {
+        // `date`・`createdAt` は格子の絞りが持つ（2026-10-31 束 2・集約の頁の並べ替え）ので、ここでは見ない
+        for (const k of ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "tags", "updatedAt"]) {
             expect(kept, `${k} が素通りしている`).not.toContain(k);
         }
         // 残るのは一覧に在るものだけ（新しい項目が黙って載らない）
@@ -109,9 +110,11 @@ describe("ビューアに渡す写真の項目", () => {
         const grid = Object.keys(slimForGrid(photo));
         const viewer = Object.keys(slimForViewer(photo));
         expect(viewer.length).toBeGreaterThan(grid.length);
-        for (const k of ["description", "exif", "userId", "song", "commentCount", "likes", "srcAvif"]) {
+        for (const k of ["description", "exif", "userId", "song", "commentCount", "srcAvif"]) {
             expect(viewer, `${k} が落ちている`).toContain(k);
             expect(grid, `${k} は格子の絞りには入らないはず`).not.toContain(k);
         }
+        // `likes` は 2026-10-31（束 2）から格子も持つ（集約の頁の「人気」の並べ替え）。ビューアには変わらず渡る
+        expect(viewer).toContain("likes");
     });
 });

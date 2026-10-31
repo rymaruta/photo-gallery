@@ -181,3 +181,37 @@ export function comparePosted(a: Photo, b: Photo): number {
     const diff = cmp(kb, ka);
     return diff !== 0 ? diff : cmp(String(a.id ?? ""), String(b.id ?? ""));
 }
+
+/**
+ * **集約の頁（タグ・カテゴリ・機材）の並べ替え**（iOS の `GallerySort.collectionChoices`・板 12・2026-10-31 束 2）。
+ * チップは「人気・新着・撮影日」の3つで、iOS と同じく**人気が既定**。
+ *
+ *   popular … いいねの多い順。同点は投稿の新しい順（`comparePosted`）——押すたびに並びが変わって見えない
+ *   new     … 投稿の新しい順（`comparePosted`・iOS の `byDate` は `createdAt`）
+ *   taken   … 撮った日（`date`、無ければ EXIF の撮影日時の日付）の新しい順。持たない写真は末尾、
+ *             同じ日・どちらも無いときは投稿の新しい順（iOS の `GallerySort.takenDay`）
+ */
+export type CollectionSort = "popular" | "new" | "taken";
+export const COLLECTION_SORTS: readonly CollectionSort[] = ["popular", "new", "taken"];
+
+function takenDay(p: Photo): string {
+    const raw = String(p.date || p.exif?.dateTimeOriginal || "").trim();
+    // EXIF は「2024:10:11 10:00:00」の形。日付の10文字だけ見る（時刻・タイムゾーンは比べない）
+    const m = /^(\d{4})[-:/](\d{2})[-:/](\d{2})/.exec(raw);
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : "";
+}
+
+export function sortForCollection<T extends Photo>(photos: readonly T[], sort: CollectionSort): T[] {
+    const out = [...photos];
+    if (sort === "new") return out.sort(comparePosted);
+    if (sort === "popular") {
+        return out.sort((a, b) => ((b.likes ?? 0) - (a.likes ?? 0)) || comparePosted(a, b));
+    }
+    return out.sort((a, b) => {
+        const da = takenDay(a), db = takenDay(b);
+        if (da && db && da !== db) return da < db ? 1 : -1;
+        if (da && !db) return -1;
+        if (!da && db) return 1;
+        return comparePosted(a, b);
+    });
+}

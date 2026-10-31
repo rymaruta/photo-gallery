@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/24/outline";
+import { ChevronRightIcon } from "@heroicons/react/24/outline";
+import { CameraIcon } from "@heroicons/react/24/solid";
 import type { SpotPin } from "../../lib/data/spotLink";
 import { ROUTES } from "../../lib/routes";
 
@@ -55,7 +56,7 @@ export default function MapSpotList({ spots, total = spots.length, categoryActiv
             <section aria-labelledby="map-spot-list-heading" style={{ marginTop: "12px" }}>
                 <h2 id="map-spot-list-heading" className="m-0 font-serif font-bold text-white"
                     style={{ fontSize: "14px", lineHeight: "20px", marginBottom: "4px" }}>
-                    {en ? "Official shooting spots" : "公式撮影スポット"}
+                    {en ? "Photo spots" : "撮影スポット"}
                 </h2>
                 <p className="m-0 text-white/70" style={{ fontSize: "13px", lineHeight: "20px" }} data-testid="map-spot-empty">
                     {categoryActive
@@ -80,52 +81,57 @@ export default function MapSpotList({ spots, total = spots.length, categoryActiv
                 {/* 全部が下書きなら見出しもそう名乗る（「公式」は人が確かめた行だけ） */}
                 {spots.every((s) => s.stage !== "published")
                     ? (en ? "Shooting spots (drafts)" : "撮影スポット（下書き）")
-                    : (en ? "Official shooting spots" : "公式撮影スポット")}
+                    : (en ? "Photo spots" : "撮影スポット")}
             </h2>
+            {/* iOS の地図のリストの行（`PhotoMapView.spotRow`・板 MapList・2026-10-31 束 2 M1）:
+                札に入れず黒地に直に、行の下に白8%の線・高さ 64。左に地図のピンと同じ印（写真があれば写真の丸 40・
+                真鍮の縁 2、無ければ真鍮の丸に墨のカメラ・白92%の縁 2）→ 明朝 18 の名前 → 12 の副（text-3）→ ›。
+                以前は面の札（角 16）に 56 の四角い写真・14 の名前だった */}
             <ul className="list-none m-0 p-0" data-testid="map-spot-list">
                 {shown.map((s) => (
-                    <li key={s.slug} style={{ marginBottom: "8px" }}>
+                    <li key={s.slug}>
                         <Link
                             href={`${ROUTES.SPOTS}/${s.slug}`}
                             prefetch={false}
-                            className="flex items-center rounded-2xl bg-surface-2/70 ring-1 ring-line hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                            style={{ gap: "12px", padding: "8px" }}
+                            className="flex items-center min-h-[64px] py-3 border-b border-line hover:bg-white/5 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                            style={{ gap: "12px" }}
+                            data-testid="map-spot-row"
                         >
                             {/* 代表写真。**権利の判断はサーバー側で済んでいる**ので、
-                                在れば出す・無ければ地図の印を置くだけ */}
-                            <span
-                                className="flex-shrink-0 flex items-center justify-center overflow-hidden rounded-xl bg-surface"
-                                style={{ width: "56px", height: "56px" }}
-                            >
-                                {s.cover ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
+                                在れば出す・無ければ真鍮の丸にカメラの印を置くだけ */}
+                            {s.cover ? (
+                                <span className="flex-shrink-0 block overflow-hidden rounded-full bg-accent ring-2 ring-inset ring-accent"
+                                      style={{ width: "40px", height: "40px" }}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={s.cover.src}
                                         alt=""
-                                        width={56}
-                                        height={56}
+                                        width={40}
+                                        height={40}
                                         loading="lazy"
                                         decoding="async"
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover rounded-full"
+                                        style={{ padding: "2px" }}
                                     />
-                                ) : (
-                                    <MapPinIcon className="w-5 h-5 text-white/50" aria-hidden="true" />
-                                )}
-                            </span>
+                                </span>
+                            ) : (
+                                <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-accent text-ink"
+                                      style={{ width: "40px", height: "40px", boxShadow: "inset 0 0 0 2px rgb(255 255 255 / 0.92)" }}>
+                                    <CameraIcon className="w-[16px] h-[16px]" aria-hidden="true" />
+                                </span>
+                            )}
                             <span className="min-w-0 flex-1">
-                                <span className="block truncate font-semibold text-white" style={{ fontSize: "14px", lineHeight: "20px" }}>
+                                <span className="block truncate font-serif font-bold text-white" style={{ fontSize: "18px", lineHeight: "24px" }}>
                                     {s.name}
                                 </span>
-                                <span className="block text-white/70" style={{ fontSize: "12px", lineHeight: "18px" }}>
+                                <span className="block truncate text-text-3 tabular-nums" style={{ fontSize: "12px", lineHeight: "16px", marginTop: "2px" }}>
                                     {s.stage === "published"
                                         ? (en ? "Photo spot" : "撮影スポット")
                                         : (en ? "Photo spot (draft)" : "撮影スポット（下書き）")}
                                     {s.region ? ` ・ ${s.region}` : ""}
                                 </span>
                             </span>
-                            {/* 濃さは `MapPhotoList` の同じ矢印に揃える（`/40` は
-                                黒地で約3.7:1 で、見張りが落とす） */}
-                            <ChevronRightIcon aria-hidden="true" className="flex-shrink-0 text-white/50" style={{ width: "18px", height: "18px" }} />
+                            <ChevronRightIcon aria-hidden="true" className="flex-shrink-0 text-text-3" style={{ width: "14px", height: "14px", strokeWidth: 2 }} />
                         </Link>
                     </li>
                 ))}

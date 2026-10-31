@@ -336,7 +336,12 @@ const GRID_FIELDS = ["focalPoint", "category", "alt", "location",
     // 枚数が出ない（画面は正しく出るので気づけない——`Thumb` の props を
     // 絞りすぎて水和後にサムネが消えた `24f9df2c` と同じ形）。
     // **これは一覧が読む項目**なので `GRID_FIELDS` 側に置く
-    "extraImages"] as const;
+    "extraImages",
+    // **集約の頁の並べ替えと先頭の1枚の字**（2026-10-31 束 2・iOS の板 12）。
+    //   `likes` … 「人気」の並べ替えと、先頭の1枚の右下のいいねの数
+    //   `createdAt` / `date` … 「新着」「撮影日」の並べ替え（EXIF は重いので載せない＝`date` の無い写真は撮影日の末尾）
+    //   `displayName` … 先頭の1枚の「@撮った人」
+    "likes", "createdAt", "date", "displayName"] as const;
 
 function pick(p: Photo, keys: readonly string[]): Photo {
     const out: Record<string, unknown> = {};

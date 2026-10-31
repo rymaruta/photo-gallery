@@ -230,7 +230,8 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
                     ] }} />
             </ToastProvider>,
         );
-        const list = screen.getByRole("heading", { name: "香川県の撮影スポット" }).nextElementSibling!;
+        // 見出しは節の見出しの部品（`SectionHead`・2026-10-31 束 2）の中なので、節から引く
+        const list = screen.getByRole("heading", { name: "香川県の撮影スポット" }).closest("section")!.querySelector("ul")!;
         expect(list.tagName).toBe("UL");
         expect(list.className.split(/\s+/)).toEqual(expect.arrayContaining(["bg-surface", "rounded-2xl", "ring-line"]));
         const rows = Array.from(list.querySelectorAll("a"));
@@ -244,5 +245,52 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
             expect(a.className.split(/\s+/)).toContain("min-h-[64px]");
             expect(a.querySelectorAll("svg")).toHaveLength(2);   // 印と矢印
         }
+    });
+});
+
+/**
+ * **束 2（2026-10-31）で iOS の `OfficialSpotView` にそろえた所。** どれも直しを戻すと落ちる
+ */
+describe("撮影スポットの頁の字と節（束 2）", () => {
+    it("題は明朝 32（どの幅でも同じ・iOS の `JPFont.photoTitle`）", () => {
+        view();
+        const h1 = screen.getByRole("heading", { level: 1, name: "高屋神社" });
+        expect(h1.style.fontSize).toBe("32px");
+    });
+
+    it("節の見出しは眉＋明朝 22（iOS の `sectionHeader`）。眉は iOS と同じ節だけ", () => {
+        view();
+        const about = screen.getByRole("heading", { level: 2, name: "この撮影スポットの魅力" });
+        expect(about.style.fontSize).toBe("22px");
+        const head = screen.getByTestId("head-spot-charm");
+        expect(head.querySelector("p.eyebrow")!.textContent).toBe("ABOUT");
+        // 地図の節は眉なし
+        expect(screen.getByTestId("head-spot-map").querySelector("p.eyebrow")).toBeNull();
+    });
+
+    it("撮影ガイドの文も本文 15（iOS の `JPFont.body`。以前は 14）", () => {
+        view({ ...SPOT, timeOfDayGuide: [{ time: "night", text: "ガス灯の夜景" }] } as Spot);
+        expect(screen.getByText("ガス灯の夜景").style.fontSize).toBe("15px");
+    });
+
+    it("地図の札は行の形（二行の行 64・印 → 題 → 副 → ›）", () => {
+        view();
+        const row = screen.getByTestId("spot-map-row");
+        expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["min-h-[64px]", "rounded-2xl", "ring-line"]));
+        expect(row.querySelectorAll("svg")).toHaveLength(2);
+        expect(row.textContent).toContain("位置はおおよそです");
+    });
+
+    it("「すべて見る ›」は共通の当たり 44（`MoreLink`）", () => {
+        render(
+            <ToastProvider>
+                <SpotGuideClient spot={SPOT} photos={[]} nearby={[]} locationPath={null} pageUrl={PAGE}
+                    area={{ slug: "kagawa", name: "香川県", nameEn: "Kagawa" }}
+                    sameArea={{ label: "香川県", spots: [{ slug: "a", name: "父母ヶ浜" }] }} />
+            </ToastProvider>,
+        );
+        const more = screen.getByRole("link", { name: "香川県の撮影スポットをすべて見る" });
+        expect(more.className).toContain("min-h-[44px]");
+        expect(more.getAttribute("href")).toBe("/spots/area/kagawa");
     });
 });
