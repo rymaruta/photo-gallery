@@ -27,6 +27,8 @@ const FULL = {
     focalPoint: { x: 0.5, y: 0.3 }, alt: { ja: "代替テキスト" },
     // 1投稿に複数枚の「1/N」。同じ理由でフィクスチャに要る
     extraImages: [{ src: "https://cdn/b.jpg" }],
+    // 集約の頁の先頭の1枚の「@撮った人」（2026-10-31 束 2）。同じ理由でフィクスチャに要る
+    displayName: "丸田",
     // ここから下は回遊リンクが読まない
     description: { ja: ["長い説明".repeat(20)] }, exif: { camera: "SONY ILCE-7M3", lens: "FE 24-70" },
     tags: ["雲海", "神社"], category: "landscape", location: "高屋神社",
@@ -143,7 +145,8 @@ describe("集約ページのグリッドに渡す写真を絞る", () => {
 
     it("読まない項目は落とす", () => {
         const out = slimForGrid(FULL) as unknown as Record<string, unknown>;
-        for (const k of ["description", "exif", "tags", "userId", "createdAt", "likes", "commentCount"]) {
+        // `likes`・`createdAt` は 2026-10-31（束 2）から残す: 集約の頁の並べ替え（人気・新着）と先頭の1枚のいいね
+        for (const k of ["description", "exif", "tags", "userId", "updatedAt", "commentCount"]) {
             expect(k in out, `${k} が残っている`).toBe(false);
         }
     });

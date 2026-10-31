@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { MapPinIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { CameraIcon } from "@heroicons/react/24/solid";
 import type { SpotPin } from "../../lib/data/spotLink";
 import { ROUTES } from "../../lib/routes";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
@@ -57,64 +58,72 @@ export default function MapSpotSheet({
                 className="pointer-events-auto mx-auto rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50 lg:shadow-none"
                 style={{ maxWidth: "560px", padding: "12px 12px 14px" }}
             >
-                <div className="flex items-start gap-2">
-                    {/* 代表写真。**権利の判断はサーバー側で済んでいる**
-                        （`lib/data/spotLink.ts` の `toSpotLink`）ので、
-                        ここは在れば出す・無ければ枠ごと出さないだけ */}
-                    {spot.cover && (
-                        <span className="flex-shrink-0 block overflow-hidden rounded-xl bg-surface relative"
-                              style={{ width: "72px", height: "72px" }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={spot.cover.src} alt={spot.cover.alt} width={72} height={72}
-                                 loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                            {spot.cover.credit && (
-                                <span className="absolute bottom-0 right-0 bg-black/60 text-white/85"
-                                      style={{ fontSize: "8px", lineHeight: "12px", padding: "0 3px" }}
-                                      data-testid="map-spot-credit">
-                                    {spot.cover.credit}
-                                </span>
-                            )}
-                        </span>
-                    )}
+                {/* iOS の撮影スポットの札（`PhotoMapView.officialCard`・板 MapPlace・2026-10-31 束 2 M5）:
+                    写真があれば札の頭に大きく（高さ 150・角 16）→ ピンと同じ印・眉（白・札はガラス）・明朝 22 の名前・
+                    13 の地域・12 の出典 → 白の主ボタンと副ボタン（高さ 44）。
+                    以前は 72 の四角い写真の上に 8px の出典を重ね、名前は明朝 17、主ボタンは真鍮の塗りだった。
+                    **出典は写真と必ず一緒に**（CC BY・CC BY-SA の条件）。代表写真の権利の判断はサーバー側で済んでいる
+                    （`lib/data/spotLink.ts` の `toSpotLink`）ので、ここは在れば出す・無ければ枠ごと出さないだけ */}
+                {spot.cover && (
+                    <span className="block overflow-hidden rounded-2xl bg-surface mb-3" style={{ height: "150px" }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={spot.cover.src} alt={spot.cover.alt}
+                             loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    </span>
+                )}
+                <div className="flex items-start gap-3">
+                    {/* 地図のピンと同じ印（真鍮の丸に墨のカメラ・白92%の縁）。飾りなので読み上げから外す */}
+                    <span aria-hidden="true" className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-accent text-ink"
+                          style={{ width: "32px", height: "32px", boxShadow: "inset 0 0 0 2px rgb(255 255 255 / 0.92)" }}>
+                        <CameraIcon className="w-[14px] h-[14px]" />
+                    </span>
                     <div className="min-w-0 flex-1">
-                        <p className="m-0 flex items-center gap-1.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
-                            <MapPinIcon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                            {/* **「公式」と名乗るのは、人が確かめたものだけ**（`stage`）。
-                                運営未確認の下書きは「下書き」と名乗る。利用者の投稿から
-                                作った撮影地ページと見分けが付くようにする */}
+                        {/* 眉。**札はガラス（地図が透ける）なので白**——真鍮は黒地の上だけ。
+                            「撮影スポット」と名乗るのは人が確かめたものだけ（`stage`）。下書きは「下書き・未確認」 */}
+                        <p className="m-0 eyebrow text-white/70">
                             {spot.stage === "published"
-                                ? (en ? "Official spot" : "公式撮影スポット")
-                                : (en ? "Spot (draft)" : "撮影スポット（下書き）")}
+                                ? (en ? "Photo spot" : "撮影スポット")
+                                : (en ? "Draft · Unreviewed" : "下書き・未確認")}
                         </p>
-                        <p className="m-0 mt-1 font-serif font-bold text-white wrap-anywhere"
-                           style={{ fontSize: "17px", lineHeight: "23px" }}>
+                        <p className="m-0 mt-1 font-serif font-bold text-white wrap-anywhere line-clamp-2"
+                           style={{ fontSize: "22px", lineHeight: "1.3" }}>
                             {spot.name}
                         </p>
                         {spot.region && (
-                            <p className="m-0 mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "17px" }}>
+                            <p className="m-0 mt-1 text-white/70" style={{ fontSize: "13px", lineHeight: "18px" }}>
                                 {spot.region}
+                            </p>
+                        )}
+                        {spot.cover?.credit && (
+                            <p className="m-0 mt-1 text-white/60 truncate" style={{ fontSize: "12px", lineHeight: "16px" }}
+                               data-testid="map-spot-credit">
+                                {spot.cover.credit}
                             </p>
                         )}
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-shrink-0 rounded-full text-white/70 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                        style={{ minWidth: "32px", minHeight: "32px", touchAction: "manipulation" }}
+                        className="flex-shrink-0 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60"
+                        style={{ width: "44px", height: "44px", marginTop: "-6px", marginRight: "-6px", touchAction: "manipulation" }}
                         aria-label={en ? "Close" : "閉じる"}
                     >
-                        <XMarkIcon className="w-5 h-5 mx-auto" aria-hidden="true" />
+                        <span className="inline-flex items-center justify-center rounded-full bg-white/8" style={{ width: "30px", height: "30px" }}>
+                            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
+                        </span>
                     </button>
                 </div>
 
                 <div className="flex flex-wrap items-start gap-2" style={{ marginTop: "12px" }}>
+                    {/* 主ボタンは白の塗りに墨（札はガラスの地＝写真のある画面と同じ扱い・iOS の `jpPillButton(.primary)`） */}
                     <Link
                         href={`${ROUTES.SPOTS}/${spot.slug}`}
                         prefetch={false}
-                        className="inline-flex items-center rounded-full bg-accent-fill text-ink font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                        style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-primary text-ink font-semibold hover:brightness-110 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
+                        style={{ fontSize: "15px", padding: "0 18px", minHeight: "44px", touchAction: "manipulation" }}
                         data-testid="map-spot-guide-link"
                     >
+                        <MapPinIcon className="w-[18px] h-[18px]" aria-hidden="true" />
                         {en ? "See photo spot" : "撮影スポットを見る"}
                     </Link>
                     {/* 保存の鍵の形は `lib/utils/savedSpotKey.ts` が1か所で持つ

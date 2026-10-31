@@ -774,7 +774,8 @@ describe("公式撮影地ガイドのピン", () => {
         const sheet = screen.getByTestId("map-spot-sheet");
         expect(within(sheet).getByText("高屋神社")).toBeTruthy();
         expect(within(sheet).getByText("香川県 観音寺市")).toBeTruthy();
-        expect(within(sheet).getByText("公式撮影スポット")).toBeTruthy();
+        // 眉は「撮影スポット」（iOS の札と同じ。「公式」は付けない・2026-10-31 束 2）
+        expect(within(sheet).getByText("撮影スポット")).toBeTruthy();
     });
 
     /// 🔴 **「公式」と名乗るのは人が確かめた行だけ。** 運営未確認の下書きは
@@ -786,8 +787,8 @@ describe("公式撮影地ガイドのピン", () => {
         render(<MapPage />);
         await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
         const sheet = screen.getByTestId("map-spot-sheet");
-        expect(within(sheet).getByText("撮影スポット（下書き）")).toBeTruthy();
-        expect(within(sheet).queryByText("公式撮影スポット")).toBeNull();
+        expect(within(sheet).getByText("下書き・未確認")).toBeTruthy();
+        expect(within(sheet).queryByText("撮影スポット")).toBeNull();
         expect(screen.queryByText("公式撮影スポット")).toBeNull();
         // 一覧の行も同じ名乗り（2026-10-30・束 0a で「撮影地ガイド（下書き）」から札とそろえた）
         expect(screen.getAllByText("撮影スポット（下書き）", { exact: false }).length).toBeGreaterThanOrEqual(2);

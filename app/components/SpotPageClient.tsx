@@ -3,14 +3,17 @@
 import React from "react";
 import Link from "next/link";
 import {
-    MapPinIcon, ArrowLeftIcon, ShareIcon, ChevronLeftIcon, ChevronRightIcon,
+    MapPinIcon, MapIcon, ArrowLeftIcon, ShareIcon, ArrowUpOnSquareIcon, ChevronLeftIcon, ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import GalleryGrid from "./GalleryGrid";
 import dynamic from "next/dynamic";
 import MoreMenu from "./MoreMenu";
 import Thumb from "./Thumb";
-import { GRID_SIZES_6XL, SPOT_HERO_SIZES, SPOT_NEARBY_SIZES } from "./gridSizes";
-import SaveSpotButton from "./SaveSpotButton";
+import { EDITORIAL_HERO_SIZES, EDITORIAL_PAIR_SIZES, SPOT_HERO_SIZES, SPOT_NEARBY_SIZES, SPOT_STRIP_SIZES } from "./gridSizes";
+import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON, TILE_MIN_H } from "./SaveSpotButton";
+import SectionHead, { SectionTitle } from "./SectionHead";
+import { CARD } from "./rowStyles";
+import { CHIP_OFF, CHIP_SIZE, CHIP_HIT, CHIP_ROW } from "./chipStyles";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import { useToast } from "../../lib/hooks/useToast";
@@ -37,6 +40,17 @@ import { GLASS_BTN, GLASS_ICON_STYLE } from "./buttonStyles";
  * するため（静的書き出しの HTML には最初から出さない ＝ 開くまで
  * 存在しない、が正しい姿）。
  */
+/**
+ * 帯の絵を一度に読む枚数（格子の `GRID_INITIAL_VISIBLE`／`GRID_STEP` と同じ 60）。
+ * `GalleryGrid` から読まないのは、試験が `GalleryGrid` ごと差し替えるため（数だけのために部品を読み込まない）
+ */
+const STRIP_INITIAL = 60;
+const STRIP_STEP = 60;
+
+/** 写真の無い撮影地の戻る・共有（見出しの下の素の行・40 の的・22 の絵） */
+const TOP_PLAIN = "inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors";
+const TOP_PLAIN_STYLE = { width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as const;
+
 const GalleryModal = dynamic(() => import("./GalleryModal"), { ssr: false });
 
 type SpotLink = { label: string; count: number; path: string };
@@ -195,8 +209,72 @@ export default function SpotPageClient({
         return true;
     }, [photos]);
 
+    /**
+     * **帯の絵は最初の 60 枚だけ読む**（`STRIP_INITIAL`・2026-10-31 束 2 の確かめ）。
+     * リンク（`<a href="/photo/<id>">`）は全部の写真ぶん最初から出す——検索に載る頁の内部リンクを減らさない。
+     * 絵の無い札が帯の右の端に近づいたら（帯の中で 800px 手前）、次の 60 枚の絵を読む。
+     * 監視できない環境では全部読む（読まない方に倒すと、その環境では 61 枚目から絵が出ない）
+     */
+    const [stripShown, setStripShown] = React.useState(STRIP_INITIAL);
+    const stripMoreRef = React.useRef<HTMLLIElement>(null);
+    React.useEffect(() => {
+        if (stripShown >= photos.length) return;
+        if (typeof IntersectionObserver === "undefined") { setStripShown(photos.length); return; }
+        const el = stripMoreRef.current;
+        if (!el) return;
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) setStripShown((v) => Math.min(v + STRIP_STEP, photos.length));
+        }, { root: el.parentElement, rootMargin: "0px 800px" });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [stripShown, photos.length]);
+
+    /** 戻る・共有・⋯ の行。`overPhoto` は代表写真の上（ガラスの丸）、そうでなければ見出しの下の素の行 */
+    const topRow = (overPhoto: boolean) => (
+        <div className={overPhoto
+            ? "absolute top-3 inset-x-3 z-10 flex items-center justify-between gap-2 pointer-events-none"
+            : "flex items-center justify-between gap-2 -mx-2 mb-1"}
+             data-testid="spot-top-row">
+            <Link
+                href="/"
+                prefetch={false}
+                aria-label={en ? "Back to Gallery" : "ギャラリーに戻る"}
+                className={overPhoto ? `pointer-events-auto ${GLASS_BTN}` : TOP_PLAIN}
+                style={overPhoto ? { touchAction: "manipulation" } : TOP_PLAIN_STYLE}
+            >
+                <ArrowLeftIcon aria-hidden="true" style={overPhoto ? GLASS_ICON_STYLE : { width: "22px", height: "22px" }} />
+            </Link>
+            <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => void handleShare()}
+                    aria-label={en ? "Share" : "共有"}
+                    className={overPhoto ? `pointer-events-auto ${GLASS_BTN}` : TOP_PLAIN}
+                    style={overPhoto ? { touchAction: "manipulation" } : TOP_PLAIN_STYLE}
+                >
+                    <ShareIcon aria-hidden="true" style={overPhoto ? GLASS_ICON_STYLE : { width: "22px", height: "22px" }} />
+                </button>
+                {/* **⋯ は共通部品を使い回す**（`MoreMenu`。写真ページが既に使っている）。
+                    中身は**この画面に本当にある操作だけ**——通報・ブロック・非表示は
+                    「人」や「投稿」に対するもので、**場所には相手が居ない**ので置かない
+                    （`MoreMenu` は `items` が空ならボタンごと出さない作り）。 */}
+                <MoreMenu
+                    className={overPhoto ? "pointer-events-auto" : ""}
+                    buttonClassName={overPhoto ? GLASS_BTN : undefined}
+                    buttonSize={overPhoto ? 44 : 40}
+                    label={en ? "More" : "その他"}
+                    items={[
+                        { key: "copy", label: en ? "Copy link" : "リンクをコピー", onSelect: () => void handleCopyLink() },
+                        { key: "x", label: en ? "Share on X" : "Xで共有", onSelect: () => shareToTwitter(canonicalUrl, shareText) },
+                        ...(en ? [] : [{ key: "line", label: "LINEで共有", onSelect: () => shareToLine(canonicalUrl, shareText) }]),
+                    ]}
+                />
+            </div>
+        </div>
+    );
+
     return (
-        <main className="mx-auto max-w-6xl px-4 py-8 pb-28">
+        <main className={`mx-auto max-w-6xl px-4 ${hero ? "pt-0 sm:pt-6" : "pt-6"} pb-28`}>
             {/* ── ヘッダー行（モック①: 戻る・シェア・⋯）──────────────
                 **全体ヘッダー（ロゴ・ハンバーガー）は layout のもの**なので、
                 この行はその下に置く（重ねない）。寸法は `PhotoPageClient` の
@@ -208,46 +286,7 @@ export default function SpotPageClient({
                 写真ページが同じ理由で `<Link href="/">` にしている
                 （`history.length` を見る書き方は `/users/search` と
                 `/user/upload` に既に2つあり、3つ目を作らない）。 */}
-            <div className="flex items-center justify-between gap-2 -mx-2 mb-1">
-                <Link
-                    href="/"
-                    prefetch={false}
-                    aria-label={en ? "Back to Gallery" : "ギャラリーに戻る"}
-                    className="inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors"
-                    style={{ width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                >
-                    <ArrowLeftIcon aria-hidden="true" style={{ width: "22px", height: "22px" }} />
-                </Link>
-                <div className="flex items-center gap-1">
-                    <button
-                        type="button"
-                        onClick={() => void handleShare()}
-                        aria-label={en ? "Share" : "共有"}
-                        className="inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors"
-                        style={{ width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                    >
-                        <ShareIcon aria-hidden="true" style={{ width: "22px", height: "22px" }} />
-                    </button>
-                    {/* **⋯ は共通部品を使い回す**（`MoreMenu`。写真ページが既に使っている）。
-                        中身は**この画面に本当にある操作だけ**——通報・ブロック・非表示は
-                        「人」や「投稿」に対するもので、**場所には相手が居ない**ので置かない
-                        （`MoreMenu` は `items` が空ならボタンごと出さない作り）。 */}
-                    <MoreMenu
-                        label={en ? "More" : "その他"}
-                        items={[
-                            { key: "copy", label: en ? "Copy link" : "リンクをコピー", onSelect: () => void handleCopyLink() },
-                            { key: "x", label: en ? "Share on X" : "Xで共有", onSelect: () => shareToTwitter(canonicalUrl, shareText) },
-                            ...(en ? [] : [{ key: "line", label: "LINEで共有", onSelect: () => shareToLine(canonicalUrl, shareText) }]),
-                        ]}
-                    />
-                </div>
-            </div>
-
-            <nav aria-label="パンくずリスト" className="mb-3 text-sm text-white/60">
-                <Link href="/" prefetch={false} className="hover:text-white/90">ホーム</Link>
-                <span className="mx-2" aria-hidden>/</span>
-                <span className="text-white/80">{breadcrumb}</span>
-            </nav>
+            {!hero && topRow(false)}
 
             {/* ── 代表画像（モック②）───────────────────────────
                 「そのスポットを象徴する写真を大きく表示。複数あれば枚数と
@@ -291,12 +330,11 @@ export default function SpotPageClient({
                         }}
                     >
                         {/* **比で枠を予約する**（読み込み後に高さが伸びて下がガタつかない）。
-                            `slimForGrid` は `width` / `height` を渡さないので、
-                            3:2 の既定に倒す */}
+                            比は iOS の `heroPager` と同じ 4:3（2026-10-31 束 2 L2。以前は 3:2） */}
                         <div
                             className="relative w-full overflow-hidden"
                             style={{
-                                paddingTop: "66.6667%",
+                                paddingTop: "75%",
                                 backgroundColor: hero.dominantColor ?? "var(--color-surface)",
                                 fontSize: 0,
                                 lineHeight: 0,
@@ -315,15 +353,19 @@ export default function SpotPageClient({
                         </div>
                     </Link>
 
+                    {topRow(true)}
+
                     {photos.length > 1 && (
                         <>
                             {/* 「N/M」（モックの「1/10」）。**送るたびに読み上げが
                                 割り込むと邪魔**なので、バッジは `aria-hidden` にして
                                 下の `aria-live` で伝える（写真ページと同じ形） */}
+                            {/* iOS の数の札（黒55%・12 semibold・等幅の数字）。右上は戻る・共有・⋯ が在るので右下に置く */}
                             <p
-                                className="absolute top-3 right-3 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
-                                style={{ fontSize: "12px", lineHeight: "14px", padding: "4px 10px" }}
+                                className="absolute bottom-3 right-3 rounded-full bg-black/55 text-white font-semibold tabular-nums pointer-events-none"
+                                style={{ fontSize: "12px", lineHeight: "14px", padding: "5px 10px" }}
                                 aria-hidden="true"
+                                data-testid="spot-hero-count"
                             >
                                 {shown + 1}/{photos.length}
                             </p>
@@ -355,14 +397,22 @@ export default function SpotPageClient({
                 </section>
             )}
 
+            {/* パンくず（iOS には無い。構造化データの道で「ホーム」への内部リンク）。12・text-3 で静かに（集約の頁と同じ） */}
+            <nav aria-label="パンくずリスト" className="mb-2 text-text-3" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                <Link href="/" prefetch={false} className="hover:text-white">ホーム</Link>
+                <span className="mx-1.5" aria-hidden>/</span>
+                <span>{breadcrumb}</span>
+            </nav>
+
             {/* 見出し（スポット名）。**`heading` はそのまま使う**
                 （「◯◯の写真」という既存の文言。title・JSON-LD と同じ字） */}
-            <h1 className="mb-1 text-2xl font-semibold tracking-tight">{heading}</h1>
+            {/* 題は iOS の `JPFont.photoTitle`（明朝 32・2026-10-31 束 2 L3）。以前はゴシック 24 */}
+            <h1 className="m-0 mb-1 font-serif font-bold text-white wrap-anywhere" style={{ fontSize: "32px", lineHeight: 1.25 }}>{heading}</h1>
 
             {/* ふりがな（モック③）。**書かれていなければ行ごと出さない。**
                 読みを機械で当てに行かない——地名の読みは当てると外れる
                 （「高屋」は たかや／こうや、「山中湖」は やまなかこ） */}
-            {reading && <p data-testid="spot-reading" className="mb-1 text-sm text-white/60">{reading}</p>}
+            {reading && <p data-testid="spot-reading" className="m-0 mb-1 text-text-2" style={{ fontSize: "13px", lineHeight: "18px" }}>{reading}</p>}
 
             {/* 所在地。**推測しない**——同じ一覧にある「この場所を含む撮影地」
                 だけを出す（書かれている字から読み取れるぶん）。
@@ -374,18 +424,21 @@ export default function SpotPageClient({
                 互いに含まず、どちらが広いかをこのデータは知らない。
                 住所の形に描くと、知らない順序を主張することになる。 */}
             {broader.length > 0 && (
-                <p className="mb-3 flex flex-wrap items-center gap-2 text-sm text-white/60">
-                    <MapPinIcon className="w-4 h-4 shrink-0" aria-hidden />
+                // iOS の `placeLine`（印＋15・text-2、「・」で区切る）
+                <p className="m-0 mt-1 mb-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-text-2" style={{ fontSize: "15px", lineHeight: "22px" }} data-testid="spot-place-line">
+                    <MapPinIcon className="w-4 h-4 shrink-0 text-white/50" aria-hidden />
                     <span className="sr-only">{en ? "Part of" : "この撮影地を含む広い撮影地"}</span>
-                    {broader.map((b) => (
-                        <Link
-                            key={b.path}
-                            href={b.path}
-                            prefetch={false}
-                            className="hover:text-white/90 underline underline-offset-4 decoration-white/20"
-                        >
-                            {b.label}
-                        </Link>
+                    {broader.map((b, i) => (
+                        <React.Fragment key={b.path}>
+                            {i > 0 && <span aria-hidden="true">・</span>}
+                            <Link
+                                href={b.path}
+                                prefetch={false}
+                                className="hover:text-white underline underline-offset-4 decoration-white/20"
+                            >
+                                {b.label}
+                            </Link>
+                        </React.Fragment>
                     ))}
                 </p>
             )}
@@ -408,19 +461,28 @@ export default function SpotPageClient({
                   - **シェア** … ヘッダー行に在る（2つ置かない）
                   - ~~保存~~ … **置かない。** 場所に対する「保存」の実体が無く、
                     「行きたい」と同じものが2つ並ぶだけになる */}
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-                <SaveSpotButton slug={slug} name={name} locale={locale} />
+            {/* iOS の行動の札（`SpotDetailParts.actionLabel`: 同じ幅の札を 8 の隙間で・高さ 64・角 14・印 18 の下に 13 の字）。
+                並びも iOS と同じ「行きたい・シェア・地図で見る」（2026-10-31 束 2 L4）。以前は丸い札が2つ（行きたい・撮影地マップを開く）。
+                PC は本文の列の幅（36rem）で止める——撮影スポットの頁と同じ */}
+            <div className={`mb-3 grid ${coords ? "grid-cols-3" : "grid-cols-2"} gap-2 max-w-xl`} data-testid="spot-actions">
+                <SaveSpotButton slug={slug} name={name} locale={locale} variant="tile" />
+                <button type="button" onClick={() => void handleShare()}
+                        className={`${TILE} ${TILE_OFF} min-w-0`}
+                        style={{ minHeight: TILE_MIN_H, touchAction: "manipulation" }}>
+                    <ArrowUpOnSquareIcon className={TILE_ICON} aria-hidden />
+                    <span className={TILE_TEXT}>{en ? "Share" : "シェア"}</span>
+                </button>
                 {coords && (
                     <Link
                         // **この場所に寄せて開く**（`#ズーム/緯度/経度`）。
                         // 受け取るのは `PhotoMap` の `chooseInitialView`
                         href={mapHref}
                         prefetch={false}
-                        className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-white/10 ring-1 ring-white/20 hover:bg-white/20 active:scale-95 transition"
-                        style={{ touchAction: "manipulation", minHeight: 44 }}
+                        className={`${TILE} ${TILE_OFF} min-w-0`}
+                        style={{ minHeight: TILE_MIN_H, touchAction: "manipulation" }}
                     >
-                        <MapPinIcon className="w-5 h-5" aria-hidden />
-                        {en ? "Open the map" : "撮影地マップを開く"}
+                        <MapIcon className={TILE_ICON} aria-hidden />
+                        <span className={TILE_TEXT}>{en ? "Map" : "地図で見る"}</span>
                     </Link>
                 )}
             </div>
@@ -454,7 +516,7 @@ export default function SpotPageClient({
                 **人が書いたものだけ**（`content/spot-master.json`）。生成しない
                 ——owner の指示で、`lib/utils/spot.ts` が「無い情報を作らない
                 境界」と書いている通り。**書かれていなければ枠ごと出ない。** */}
-            {summary && <p data-testid="spot-summary" className="text-sm text-white/80 mb-4 whitespace-pre-line">{summary}</p>}
+            {summary && <p data-testid="spot-summary" className="m-0 mb-4 text-white/85 whitespace-pre-line" style={{ fontSize: "15px", lineHeight: "24px" }}>{summary}</p>}
 
             {/* **公式撮影地ガイドへ**（2026-09-30 のレビュー: 正式なスポットが確定している写真は、
                 そのスポットへ自然に辿れるように）。出すのは写真が `spotId` を持つときだけ */}
@@ -468,13 +530,13 @@ export default function SpotPageClient({
             {/* **その場所の説明**は、既にあるページ固有の文（`collectionCopy`）。
                 ここで新しい紹介文を作らない。**1回だけ出す**——タブだった頃は
                 概要と写真の両方に出ていたが、節にすると同じ文が2回並ぶ */}
-            <p className="text-sm text-white/70 mb-5">{description}</p>
+            <p className="m-0 mb-5 text-text-2" style={{ fontSize: "15px", lineHeight: 1.6 }}>{description}</p>
 
             {/* ── 統計（モック⑦）─────────────────────────────
                 出せるのは**数えられるものだけ**。「行きたい人数」は
                 `spots#<uid>` に逆引きが無いので数えられず、評価は仕組みが
                 無い——**枠ごと出さない**（`docs/spot-master.md` の3節） */}
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+            <dl className="grid grid-cols-3 gap-2 mb-6 max-w-xl" data-testid="spot-facts">
                 <Fact label={en ? "Photos" : "写真"} value={`${facts.photoCount}${en ? "" : "枚"}`} />
                 <Fact
                     label={en ? "Photographers" : "撮った人"}
@@ -526,69 +588,62 @@ export default function SpotPageClient({
                 />
             )}
 
-            {/* ── この場所の写真（モック⑧）───────────────────────
-                **格子のまま。横スクロールの帯にしない。**
-                モックの帯には「すべて見る」が付いているが、その行き先は
-                **このページ自身**（撮影地ページが「その場所の全部」）。
-                帯にすると**見える枚数が減って、行き先が自分自身**の
-                「すべて見る」を置くことになる。格子は既に
-                `<a href="/photo/<id>">` で全部に内部リンクを張っており、
-                押せばその場で拡大する（③）。 */}
-            <section aria-labelledby="spot-photos-heading" className="mt-10 pt-5 border-t border-line">
-                <h2 id="spot-photos-heading" className="text-sm font-semibold text-white/70 mb-3">
-                    {en ? "Photos here" : "この撮影地の写真"}
-                    <span className="ml-1 whitespace-nowrap text-white/50">
-                        {en ? `（${photos.length}）` : `（${photos.length}枚）`}
-                    </span>
-                </h2>
-                <GalleryGrid
-                    photos={photos}
-                    locale={locale}
-                    sizes={GRID_SIZES_6XL}
-                    // **先読みしない。** 上にヒーローが在るので、格子の1枚目は
-                    // 折り返しのずっと下（実測 y=1064 / 画面 844・390px）。
-                    // 既定の8枚 `priority` は、画面に出ていない写真で LCP と
-                    // 帯域を奪い合う（レビューの指摘3）
-                    priorityCount={0}
-                    // モック⑧「タップで拡大表示に切り替わる」。
-                    // **`<Link href="/photo/<id>">` は残る**ので、
-                    // 検索に載っているこのページからの内部リンクは消えない
-                    onOpenPhoto={openById}
-                    openInPlace
-                />
-
-                {/* **写真が少ないページにだけ。** 既存の `CollectionPage` と同じ扱い */}
-                {nearbyPhotos.length > 0 && (
-                    <section className="mt-10 pt-5 border-t border-line">
-                        <h2 className="text-sm font-semibold text-white/70 mb-3">
-                            {en ? "You might also like" : "ほかにこんな写真も"}
-                        </h2>
-                        {/* **ここも先読みしない。** ページのいちばん下で、
-                            折り返しから2画面ぶん下に在る */}
-                        <GalleryGrid photos={nearbyPhotos} locale={locale} sizes={GRID_SIZES_6XL} priorityCount={0} />
-                    </section>
-                )}
+            {/* ── この撮影地の写真 ───────────────────────────────
+                2026-10-31 判断（束 2 L7）: **iOS の `SpotDetailView.spotPhotos` と同じ横に流す帯**（幅 118・3:4・角 12・隙間 8）。
+                以前は「すべて見る」の行き先が自分自身になるのを避けて格子にしていたが、帯にも「すべて見る」は置かない
+                （iOS も置かない）。**全部の写真を帯に並べる**ので、`<a href="/photo/<id>">` の内部リンクは減らない。
+                押すとその場で拡大する（ヒーローと同じ）。先読みしない（ヒーローが LCP） */}
+            <section aria-labelledby="spot-photos-heading" className="mt-8">
+                <SectionHead id="spot-photos-heading" title={en ? `Photos here (${photos.length})` : `この撮影地の写真（${photos.length}）`} />
+                <ul className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 m-0 p-0 snap-x" style={{ listStyle: "none" }} data-testid="spot-photo-strip">
+                    {photos.map((p, i) => (
+                        <li key={p.id} className="m-0 p-0 flex-shrink-0 snap-start" style={{ width: 118 }}
+                            ref={i === stripShown ? stripMoreRef : undefined}>
+                            <Link
+                                href={ROUTES.PHOTO(p.id)}
+                                prefetch={false}
+                                data-photo-id={p.id}
+                                onClick={(e) => {
+                                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                                    if (openById(p.id)) e.preventDefault();
+                                }}
+                                className="relative block overflow-hidden rounded-field focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                                style={{ aspectRatio: "3 / 4", backgroundColor: p.dominantColor ?? "var(--color-surface)", touchAction: "manipulation" }}
+                            >
+                                {i < stripShown
+                                    ? <Thumb photo={p} alt={photoAltText(p, locale)} sizes={SPOT_STRIP_SIZES} cellAspect={3 / 4} />
+                                    // まだ絵を読まない札。リンクの名前だけ持たせる（読み上げ・検索のリンクは減らさない）
+                                    : <span className="sr-only">{photoAltText(p, locale)}</span>}
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
             </section>
 
-            {/* ── 周辺のスポット（距離順）───────────────────────
-                **タブの外に出す。** どのタブから来ても次へ行ける導線にする。
-                座標を持つスポットどうしでしか出せないので、出ない断面がある */}
+            {/* **写真が少ないページにだけ。** 既存の `CollectionPage` と同じ扱い（並びもタグの頁と同じ）。
+                **ここも先読みしない。** ページの下の方に在る */}
+            {nearbyPhotos.length > 0 && (
+                <section aria-labelledby="spot-more-photos" className="mt-8">
+                    <SectionHead id="spot-more-photos" title={en ? "You might also like" : "ほかにこんな写真も"} />
+                    <GalleryGrid photos={nearbyPhotos} locale={locale} layout="editorial" sizes={EDITORIAL_PAIR_SIZES} heroSizes={EDITORIAL_HERO_SIZES} priorityCount={0} />
+                </section>
+            )}
+
+            {/* ── 近くの撮影地（距離順）───────────────────────
+                iOS の `SpotDetailParts.nearbyCard`（幅 180・写真 16:10・角 14・白8%の縁・名前 15 semibold・距離 12）を横に流す。
+                呼び名は「近くの撮影地」（写真から導く場所＝撮影地。以前の「周辺のスポット」は呼び名の決まりに外れていた）。
+                **評価も♡も出さない**——出せるのは**サムネ・名前・距離・枚数**の4つだけ */}
             {nearby.length > 0 && (
-                <section className="mt-10 pt-5 border-t border-line">
-                    <h2 className="text-sm font-semibold text-white/70 mb-3">
-                        {en ? "Nearby spots" : "周辺のスポット"}
-                    </h2>
-                    {/* モック⑨のカード。**評価も♡も出さない**——評価の仕組みが
-                        無く、「行きたい」は本人しか読めない（公開の集計が無い）。
-                        出せるのは**サムネ・名前・距離・枚数**の4つだけ */}
-                    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <section aria-labelledby="spot-nearby-heading" className="mt-8">
+                    <SectionHead id="spot-nearby-heading" title={en ? "Nearby places" : "近くの撮影地"} />
+                    <ul className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4 m-0 p-0 snap-x" style={{ listStyle: "none" }} data-testid="spot-nearby">
                         {nearby.map((n) => (
-                            <li key={n.path}>
+                            <li key={n.path} className="m-0 p-0 flex-shrink-0 snap-start" style={{ width: 180 }}>
                                 <Link
                                     href={n.path}
                                     prefetch={false}
-                                    className="block rounded-xl overflow-hidden bg-surface ring-1 ring-line hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                    style={{ touchAction: "manipulation" }}
+                                    className={`block h-full ${CARD} hover:bg-white/5 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent`}
+                                    style={{ borderRadius: 14, touchAction: "manipulation" }}
                                 >
                                     {/* **絵が無ければ枠ごと出さない。** 代わりの絵を
                                         置くと「写真がある場所」のカードで、持って
@@ -596,30 +651,20 @@ export default function SpotPageClient({
                                     {n.cover && (
                                         <div
                                             className="relative w-full overflow-hidden"
-                                            style={{
-                                                paddingTop: "66.6667%",
-                                                backgroundColor: n.cover.dominantColor ?? "var(--color-surface)",
-                                                fontSize: 0,
-                                                lineHeight: 0,
-                                            }}
+                                            style={{ aspectRatio: "16 / 10", backgroundColor: n.cover.dominantColor ?? "var(--color-surface)" }}
                                         >
-                                            <Thumb photo={n.cover} alt={photoAltText(n.cover, locale)} sizes={SPOT_NEARBY_SIZES} />
+                                            <Thumb photo={n.cover} alt={photoAltText(n.cover, locale)} sizes={SPOT_NEARBY_SIZES} cellAspect={16 / 10} />
                                         </div>
                                     )}
-                                    <div className="px-2.5 py-2">
-                                        <p className="text-sm text-white/90 truncate">{n.label}</p>
-                                        <p className="mt-0.5 flex items-center gap-1 text-xs text-white/60">
-                                            <MapPinIcon className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                                    <div className="p-2.5">
+                                        <p className="m-0 text-white font-semibold truncate" style={{ fontSize: "15px", lineHeight: "20px" }}>{n.label}</p>
+                                        <p className="m-0 mt-0.5 text-white/60 tabular-nums truncate" style={{ fontSize: "12px", lineHeight: "16px" }}>
                                             {/* **距離の粒度を偽らない。** 元の座標が約1kmに
                                                 丸めてあるので、小数第1位までしか出さない。
                                                 推定に基づくぶんは「約」を付ける */}
-                                            <span className="tabular-nums">
-                                                {n.approx && (en ? "~" : "約")}{n.km < 10 ? n.km.toFixed(1) : Math.round(n.km)}km
-                                            </span>
-                                            <span aria-hidden>·</span>
-                                            <span className="tabular-nums">
-                                                {en ? `${n.count} photo${n.count === 1 ? "" : "s"}` : `${n.count}枚`}
-                                            </span>
+                                            {n.approx && (en ? "~" : "約")}{n.km < 10 ? n.km.toFixed(1) : Math.round(n.km)}km
+                                            <span aria-hidden> · </span>
+                                            {en ? `${n.count} photo${n.count === 1 ? "" : "s"}` : `${n.count}枚`}
                                         </p>
                                     </div>
                                 </Link>
@@ -629,28 +674,27 @@ export default function SpotPageClient({
                 </section>
             )}
 
-            {/* 同タイプの他ページへの相互リンク（**既存のまま**・孤立防止・SEO） */}
+            {/* 同タイプの他ページへの相互リンク（孤立防止・SEO）。押せるチップ（`chipStyles`） */}
             {related.length > 0 && (
-                <section className="mt-10 pt-5 border-t border-line">
-                    <h2 className="text-sm font-semibold text-white/70 mb-3">
-                        {en ? "More locations" : "他の撮影地"}
-                    </h2>
-                    <div className="flex flex-wrap gap-1.5">
+                <section aria-labelledby="spot-related-heading" className="mt-8">
+                    <SectionHead id="spot-related-heading" title={en ? "More locations" : "他の撮影地"} />
+                    <ul className={CHIP_ROW}>
                         {related.map((r) => (
                             // **先読みしない**（一覧で何本も出るリンク。理由は
                             // `GalleryGrid` のカードのコメント）
-                            <Link
-                                key={r.path}
-                                href={r.path}
-                                prefetch={false}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-line text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
-                                style={{ touchAction: "manipulation" }}
-                            >
-                                {r.label}
-                                <span className="text-white/50">{r.count}</span>
-                            </Link>
+                            <li key={r.path} className="m-0 p-0">
+                                <Link
+                                    href={r.path}
+                                    prefetch={false}
+                                    className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full transition-colors ${CHIP_OFF}`}
+                                    style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
+                                >
+                                    {r.label}
+                                    <span className="text-white/60 tabular-nums" style={{ fontSize: "12px" }}>{r.count}</span>
+                                </Link>
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 </section>
             )}
             {/* **その場で拡大**（モック⑧）。`GalleryModal` を使い回す。
@@ -670,33 +714,38 @@ export default function SpotPageClient({
 }
 
 /** 概要の1項目。**値が無ければ「—」と書く**（0 や推測で埋めない） */
+// iOS の `SpotDetailParts.statPill`（札の面・値 17 semibold を上・名前 12 を下・中央寄せ・2026-10-31 束 2 L5）。
+// 以前は名前が上・値 14 の左寄せの札
 function Fact({ label, value }: { label: string; value: string | null }) {
     return (
-        <div className="rounded-xl bg-surface ring-1 ring-line px-3 py-2">
-            <dt className="text-[12px] text-white/50">{label}</dt>
-            <dd className="text-sm text-white/90 mt-0.5">{value ?? <span className="text-white/60">—</span>}</dd>
+        <div className={`${CARD} flex flex-col-reverse items-center justify-center gap-0.5 px-2 py-3 text-center`}>
+            <dt className="text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>{label}</dt>
+            <dd className="m-0 text-white font-semibold tabular-nums wrap-anywhere" style={{ fontSize: "17px", lineHeight: "22px" }}>{value ?? <span className="text-white/60">—</span>}</dd>
         </div>
     );
 }
 
+// 押せるチップの並び（`chipStyles`・2026-10-31 束 2 L6）。見出しは札の上の静かな型（`SectionTitle`）。
+// 以前は 12 の字・当たり 24 の小さなチップだった
 function Chips({ heading, items }: { heading: string; items: Array<{ key: string; label: string; count: number; path: string }> }) {
     return (
         <section className="mt-5">
-            <h2 className="text-sm font-semibold text-white/70 mb-2">{heading}</h2>
-            <div className="flex flex-wrap gap-1.5">
+            <SectionTitle>{heading}</SectionTitle>
+            <ul className={CHIP_ROW}>
                 {items.map((i) => (
-                    <Link
-                        key={i.key}
-                        href={i.path}
-                        prefetch={false}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-line text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
-                        style={{ touchAction: "manipulation" }}
-                    >
-                        {i.label}
-                        <span className="text-white/50 tabular-nums">{i.count}</span>
-                    </Link>
+                    <li key={i.key} className="m-0 p-0">
+                        <Link
+                            href={i.path}
+                            prefetch={false}
+                            className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full transition-colors ${CHIP_OFF}`}
+                            style={{ ...CHIP_SIZE, touchAction: "manipulation" }}
+                        >
+                            {i.label}
+                            <span className="text-white/60 tabular-nums" style={{ fontSize: "12px" }}>{i.count}</span>
+                        </Link>
+                    </li>
                 ))}
-            </div>
+            </ul>
         </section>
     );
 }

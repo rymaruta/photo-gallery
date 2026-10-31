@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import GalleryGrid from "../GalleryGrid";
-import { GRID_SIZES_5XL, GRID_SIZES_6XL, GRID_SIZES_SEARCH, MOSAIC_HERO_SIZES, MOSAIC_PAIR_SIZES } from "../gridSizes";
+import { GRID_SIZES_5XL, GRID_SIZES_6XL, GRID_SIZES_SEARCH, MOSAIC_HERO_SIZES, MOSAIC_PAIR_SIZES, EDITORIAL_HERO_SIZES, EDITORIAL_PAIR_SIZES } from "../gridSizes";
 import type { Photo } from "@/lib/data/photos";
 
 /**
@@ -87,6 +87,17 @@ const MEASURED_MOSAIC_PAIR: Array<[number, number]> = [
 
 const TOLERANCE = 0.02; // 実測との差は2%まで（式を実測に合わせたので絞れる）
 
+/**
+ * 集約の頁の並び（`GalleryGrid` の `layout="editorial"`・iOS の `PhotoGrid`・2026-10-31 束 2）。
+ * `next dev` を配って `/tag/finland` の `[data-layout=editorial] a[data-photo-id]` の幅を読んだ
+ */
+const MEASURED_EDITORIAL_HERO: Array<[number, number]> = [
+    [320, 300], [390, 370], [767, 747], [768, 363], [1024, 491], [1151, 554.5], [1152, 555], [1280, 555], [1536, 555],
+];
+const MEASURED_EDITORIAL_PAIR: Array<[number, number]> = [
+    [320, 145], [390, 180], [767, 368.5], [768, 176.5], [1024, 240.5], [1151, 272.25], [1152, 272.5], [1280, 272.5], [1536, 272.5],
+];
+
 describe("グリッドの sizes が実際の幅と合っている", () => {
     it.each(MEASURED_5XL)("max-w-5xl の画面: 画面幅 %ipx で実測 %ipx に合う", (vw, actual) => {
         const declared = resolveSizes(GRID_SIZES_5XL, vw);
@@ -102,6 +113,18 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
 
     it.each(MEASURED_SEARCH)("さがす: 画面幅 %ipx で実測 %ipx に合う", (vw, actual) => {
         const declared = resolveSizes(GRID_SIZES_SEARCH, vw);
+        expect(declared).not.toBeNull();
+        expect(Math.abs(declared! - actual) / actual).toBeLessThanOrEqual(TOLERANCE);
+    });
+
+    it.each(MEASURED_EDITORIAL_HERO)("集約の頁の大きい1枚: 画面幅 %ipx で実測 %ipx に合う", (vw, actual) => {
+        const declared = resolveSizes(EDITORIAL_HERO_SIZES, vw);
+        expect(declared).not.toBeNull();
+        expect(Math.abs(declared! - actual) / actual).toBeLessThanOrEqual(TOLERANCE);
+    });
+
+    it.each(MEASURED_EDITORIAL_PAIR)("集約の頁の2枚の段: 画面幅 %ipx で実測 %ipx に合う", (vw, actual) => {
+        const declared = resolveSizes(EDITORIAL_PAIR_SIZES, vw);
         expect(declared).not.toBeNull();
         expect(Math.abs(declared! - actual) / actual).toBeLessThanOrEqual(TOLERANCE);
     });
@@ -152,7 +175,7 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
     });
 
     // **容器に上限があるので、いちばん広いときは vw で申告してはいけない。**
-    it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL], ["さがす", GRID_SIZES_SEARCH], ["ホームの大きい1枚", MOSAIC_HERO_SIZES], ["ホームの2枚の段", MOSAIC_PAIR_SIZES]])("%s: 最後の受け皿は固定px（vw ではない）", (_n, sizes) => {
+    it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL], ["さがす", GRID_SIZES_SEARCH], ["ホームの大きい1枚", MOSAIC_HERO_SIZES], ["ホームの2枚の段", MOSAIC_PAIR_SIZES], ["集約の大きい1枚", EDITORIAL_HERO_SIZES], ["集約の2枚の段", EDITORIAL_PAIR_SIZES]])("%s: 最後の受け皿は固定px（vw ではない）", (_n, sizes) => {
         const last = sizes.split(",").pop()!.trim();
         // 固定幅の計算（rem と px だけの calc）も可。vw を含むものは不可
         expect(last).toMatch(/^([\d.]+(px|rem)|calc\(\s*[\d.]+(px|rem)\s+-\s+[\d.]+(px|rem)\s*\))$/);   // `-` の前後は空白が要る（無いと CSS として無効）
@@ -160,7 +183,7 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
 
     // **境界は Tailwind に合わせて手前で切る。** `sm:` は 640px **から**効くのに
     // `(max-width:640px)` も 640 を含むので、ちょうど 640px で食い違っていた。
-    it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL], ["さがす", GRID_SIZES_SEARCH], ["ホームの大きい1枚", MOSAIC_HERO_SIZES], ["ホームの2枚の段", MOSAIC_PAIR_SIZES]])("%s: 境界に 640px / 1024px を素で使わない", (_n, sizes) => {
+    it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL], ["さがす", GRID_SIZES_SEARCH], ["ホームの大きい1枚", MOSAIC_HERO_SIZES], ["ホームの2枚の段", MOSAIC_PAIR_SIZES], ["集約の大きい1枚", EDITORIAL_HERO_SIZES], ["集約の2枚の段", EDITORIAL_PAIR_SIZES]])("%s: 境界に 640px / 1024px を素で使わない", (_n, sizes) => {
         expect(sizes).not.toMatch(/max-width:\s*(640|768|1024|1152)(px|rem)/);
         expect(sizes).not.toMatch(/max-width:\s*(40|48|64|72)rem/);
     });

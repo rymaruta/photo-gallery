@@ -18,6 +18,7 @@ import type { TopicView } from "@/lib/data/spotTopics";
 import { topicStructuredData } from "@/lib/data/spotTopics";
 import { ROUTES } from "@/lib/routes";
 import { TopicChips, TopicCards, Lang } from "./SpotTopicLists";
+import SectionHead from "./SectionHead";
 
 
 /** JSON-LD を `<script>` に埋める形（`SpotGuidePage.tsx` と同じ。`</script>` で閉じられないように） */
@@ -43,16 +44,16 @@ export default function SpotTopicPage({ view, eyebrow }: { view: TopicView; eyeb
                     ))}
                 </nav>
                 <p aria-hidden className="m-0 mb-1.5 eyebrow text-accent">{eyebrow}</p>
-                <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight"><Lang ja={view.heading} en={view.headingEn} /></h1>
+                <h1 className="font-serif text-4xl font-bold m-0 wrap-anywhere" data-testid="spots-title"><Lang ja={view.heading} en={view.headingEn} /></h1>
                 {view.intro && (
-                    <p className="m-0 mt-2 mb-6 text-white/70 max-w-3xl" style={{ fontSize: "14px", lineHeight: "22px" }}>{view.intro}</p>
+                    <p className="m-0 mt-2 mb-6 text-text-2 max-w-3xl" style={{ fontSize: "15px", lineHeight: "24px" }}>{view.intro}</p>
                 )}
 
                 {view.cards.length > 0 && <TopicCards cards={view.cards} />}
 
-                {view.related.map((g) => (
+                {view.related.map((g, i) => (
                     <section key={g.heading} className="mb-7">
-                        <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}><Lang ja={g.heading} en={g.headingEn} /></h2>
+                        <SectionHead id={`topic-related-${i}`} title={<Lang ja={g.heading} en={g.headingEn} />} />
                         <TopicChips links={g.links} />
                     </section>
                 ))}
