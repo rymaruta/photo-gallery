@@ -35,11 +35,27 @@
  * `CHIP_ON` を「明るい塗り」として数え、その上に白い文字が無いかを見ている。
  */
 export const CHIP_OFF = "bg-chip text-chip-text ring-1 ring-inset ring-line hover:bg-white/15 hover:text-white focus:outline-hidden focus:-outline-offset-2 focus-visible:ring-2 focus-visible:ring-accent";
-export const CHIP_ON = "bg-primary text-ink font-semibold ring-inset focus:outline-hidden focus:-outline-offset-2 focus-visible:ring-2 focus-visible:ring-ink";
+export const CHIP_ON = "chip-check bg-primary text-ink font-semibold ring-inset focus:outline-hidden focus:-outline-offset-2 focus-visible:ring-2 focus-visible:ring-ink";
 
 /**
  * **押せるチップの寸法（v2 の板 `.chip`: 高さ 34・字 13・左右 14）。** iOS も同じ値。
  * **style で渡す**——以前は 640px 未満の root が 14px で、rem の `h-*`・`text-sm` が縮んでいた（2026-10-30 束 0a で外した）。
  * 件数の小さな字も 12px 以上（本文系の最小）。
  */
-export const CHIP_SIZE = { fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" } as const;
+export const CHIP_SIZE = { fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px", minWidth: "44px" } as const;
+
+/**
+ * **選んだチップの ✓**（2026-10-30 束 0b C5・iOS の `PillChip`: 選ぶと白の塗り＋チェックの形）。
+ * 色だけで選んだことを伝えない。印は `CHIP_ON` が付ける `chip-check`（`globals.css`）が `::after` で描き、
+ * `order: -1` で字の前に出す——**チップは flex か inline-flex で組むこと**（そうでないと字の後ろに出る）。
+ * 読み上げは `aria-pressed`／`aria-checked`／`aria-selected` が伝えるので、印は飾り（擬似要素は読まれない）。
+ *
+ * **押せるチップの当たり**（2026-10-11 `SpotTopicLists` から移した）。見た目は 34px のまま、
+ * **上下 5px ずつ外へ当たりを広げて 44px**（iOS の `PillChip.tapSlack`）。並びの縦の隙間は 10px（`CHIP_ROW`）にして、
+ * となりの行の当たりと重ねない。**横に流す並び（overflow-x）では、並びに上下 5px の余白を持たせる**
+ * （無いと当たりがはみ出して縦に揺れる・`FilterBar` の `WRAPPING_ROW`）。
+ * 本文の板の値は 34（DesignSystem 03・iOS `PillChip.height`）。比較の板 C5 の「36」は iOS の実装と食い違うので 34 を取った
+ */
+export const CHIP_HIT = "relative before:absolute before:inset-x-0 before:-inset-y-[5px] before:content-['']";
+/** 折り返すチップの並び（横 6・縦 10＝当たり 44 が重ならない） */
+export const CHIP_ROW = "flex flex-wrap gap-x-1.5 gap-y-2.5 m-0 p-0";

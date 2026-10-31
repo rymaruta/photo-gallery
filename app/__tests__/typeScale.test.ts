@@ -155,7 +155,9 @@ describe("入力欄の角", () => {
 describe("根の字 14px を外したあとの残り（束 0a の確かめ）", () => {
     it("写真の詳細の失敗の見出しは iOS の stateTitle（明朝 20）", () => {
         const src = readFileSync(join(ROOT, "app/photo/[id]/PhotoPageClient.tsx"), "utf8");
-        expect(src.match(/<h1 className="font-serif text-xl font-bold mb-4">/g)?.length).toBe(2);
+        // 読み込めなかった方は共通の失敗の形（`ErrorState`・明朝 20・2026-10-30 束 0b C17）、無い方は h1 のまま
+        expect(src.match(/<h1 className="font-serif text-xl font-bold mb-4">/g)?.length).toBe(1);
+        expect(src).toMatch(/<ErrorState[\s\S]{0,120}headingLevel=\{1\}/);
         expect(src).not.toMatch(/<h1 className="text-3xl font-bold mb-4">/);
     });
 

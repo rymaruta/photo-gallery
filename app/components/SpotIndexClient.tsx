@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { SpotIndexItem } from "@/lib/data/spotLink";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
-import { CHIP_ON, CHIP_OFF, CHIP_SIZE } from "./chipStyles";
+import { CHIP_ON, CHIP_OFF, CHIP_SIZE, CHIP_HIT, CHIP_ROW } from "./chipStyles";
 import { TopicCreditLine } from "./SpotTopicLists";
 
 /**
@@ -85,10 +85,10 @@ export default function SpotIndexClient({ spots, area }: Props) {
             {/* 旅のテーマ＝**台帳に在るカテゴリだけ**。0件のテーマは作らない */}
             {themes.length > 0 && (
                 <div role="group" aria-label={isJa ? "テーマでしぼる" : "Filter by theme"}
-                     className="flex flex-wrap gap-1.5 mb-6">
+                     className={`${CHIP_ROW} mb-6`}>
                     <button type="button" role="switch" aria-checked={theme === null}
                             onClick={() => setTheme(null)}
-                            className={`inline-flex items-center rounded-full transition-colors ${
+                            className={`${CHIP_HIT} inline-flex items-center rounded-full transition-colors ${
                                 theme === null ? CHIP_ON : CHIP_OFF
                             }`}
                             style={CHIP_SIZE}>
@@ -97,7 +97,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                     {themes.map(([c, n]) => (
                         <button key={c} type="button" role="switch" aria-checked={theme === c}
                                 onClick={() => setTheme(theme === c ? null : c)}
-                                className={`inline-flex items-center gap-1.5 rounded-full transition-colors ${
+                                className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full transition-colors ${
                                     theme === c ? CHIP_ON : CHIP_OFF
                                 }`}
                                 style={CHIP_SIZE}>

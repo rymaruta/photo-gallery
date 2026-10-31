@@ -9,7 +9,7 @@ import {
 import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "./Thumb";
-import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
+import { CHIP_OFF, CHIP_SIZE, CHIP_HIT, CHIP_ROW } from "./chipStyles";
 import { placeParts, placeLine } from "../../lib/utils/placeName";
 
 /**
@@ -234,11 +234,11 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                 <section aria-labelledby="rail-cameras">
                     <RailHead id="rail-cameras" title={isJa ? "機材からさがす" : "By camera"}
                               href={collectionIndexPath("camera")} more={more} />
-                    <ul className="flex flex-wrap gap-1.5 m-0 p-0" style={{ listStyle: "none" }}>
+                    <ul className={CHIP_ROW} style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
                             <li key={c.slug}>
                                 <Link href={linkTo(photos, "camera", c.slug)} prefetch={false}
-                                   className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
+                                   className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
                                    style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     {c.label}
                                     <span className="text-white/60" style={{ fontSize: "12px" }}>{c.count}</span>
@@ -253,11 +253,11 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
             {tags.length > 0 && (
                 <section aria-labelledby="rail-tags">
                     <RailHead id="rail-tags" title={isJa ? "タグからさがす" : "By tag"} more={more} />
-                    <ul className="flex flex-wrap gap-1.5 m-0 p-0" style={{ listStyle: "none" }}>
+                    <ul className={CHIP_ROW} style={{ listStyle: "none" }}>
                         {tags.map((t) => (
                             <li key={t.slug}>
                                 <Link href={collectionPath("tag", t.slug)} prefetch={false}
-                                   className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
+                                   className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
                                    style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     #{t.label.replace(/^#/, "")}
                                     <span className="text-white/60" style={{ fontSize: "12px" }}>{t.count}</span>

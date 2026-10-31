@@ -29,6 +29,7 @@
   --color-surface-8: #2c2c2e;    /* つながったセグメントの選んだ側 */
   --color-line: rgb(255 255 255 / 0.08);  /* 区切り線（v2 hairline・白8%）。札の縁・行の間・チップの縁。部品の縁が要る所は line-strong か outline */
   --color-line-strong: rgb(255 255 255 / 0.14); /* 線のボタン・入力欄の縁（v2 line・白14%） */
+  --color-glass-line: rgb(255 255 255 / 0.10); /* 写真の上のガラスの縁（iOS `jpGlass` の白10%・束 0b C12）。黒地の線（line）とは別の役 */
   --color-outline: #666666;      /* 3:1 が要る部品の縁（黒の上で 3.66） */
   --color-primary: #f0f0f0;      /* 白の塗り（白 94%・v1 は 92% の #ebebeb）。上の字は ink */
   --color-ink: #07090a;          /* 白・真鍮の塗りに載せる文字（墨） */
@@ -157,6 +158,36 @@
     height: 1px;
     background: linear-gradient(90deg, rgb(201 166 107 / 0.55), rgb(201 166 107 / 0));
   }
+}
+
+/* **選んだチップの ✓**（2026-10-30 束 0b C5・iOS の `PillChip`）。`chipStyles.ts` の `CHIP_ON` が付ける。
+   字の色（墨）で描く・10px・字との間 4。`order: -1` で字の前へ（チップは flex で組む）。飾りなので読み上げに出ない */
+@utility chip-check {
+  &::after {
+    content: "";
+    order: -1;
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    margin-inline-end: 4px;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  /* 字との間を作る `gap-1.5`（6px）を持つチップでは、✓ と字の間が 6＋4＝10 になる。iOS は 4（`PillChip` の
+     `JPSpace.xxs`）なので、gap のぶん詰める（2026-10-30 束 0b の見直し） */
+  &:where(.gap-1\.5)::after {
+    margin-inline-end: -2px;
+  }
+}
+
+/* **印の線は 1.6**（2026-10-30 束 0b C16・iOS の SF Symbols regular を目で比べた値・板 Components C16）。
+   Heroicons の線の印（`data-slot="icon"`）のうち、**線を既定の 1.5 のまま持つものだけ**を選ぶ。
+   🔴 `[stroke-width="1.5"]` で絞ること——SVG の属性は CSS に負ける（`:where()` の強さ 0 にも負ける）ので、
+   絞らないと `strokeWidth={2.5}` などで太くした小さな札の中の ✓・＋（iOS も太字の所）まで 1.6 に細る。
+   style で決めた線は style が勝つ。手で書いた `<path strokeWidth>` の印は各所で 1.6 に直した */
+:where(svg[data-slot="icon"][fill="none"][stroke-width="1.5"]) {
+  stroke-width: 1.6;
 }
 
 /* `font-mono` は等幅の字ではなく**等幅数字**（上の `--font-mono`）。桁がそろう */
@@ -328,16 +359,6 @@ body {
   .tabbar-capsule {
     background: rgb(40 40 42);
   }
-}
-
-/* ヘッダーの右の「お知らせ・メニュー」を入れるガラスの丸い札（`headerIcon.ts` の HEADER_GLASS）。
-   値は v2 の板の `.glass`（白みの灰 62%・上辺に白24%の髪線・白9%の縁）。
-   🔴 **`backdrop-filter` は付けない。** ヘッダーは透けない黒なのでぼかしても見た目は変わらず、
-   付けると中の要素の `position: fixed` の基準がこの札になり（CSS の仕様）、お知らせの
-   吊る板（`NotificationsBell` の PC 版・札の中に `absolute` で置く）のぼかしも札の中しか見なくなる */
-.header-glass {
-  background: rgb(34 34 36 / 0.62);
-  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.24), inset 0 0 0 0.5px rgb(255 255 255 / 0.09);
 }
 
 /* HeaderNav で使用 */

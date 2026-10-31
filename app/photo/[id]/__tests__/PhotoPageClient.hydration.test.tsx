@@ -65,16 +65,17 @@ describe("写真ページ: ハイドレーション前は隠さない", () => {
         expect(html, "届いている写真を黒い回転で覆う").not.toContain("animate-spin");
     });
 
-    it("クライアント遷移で新しく作った本体は、届くまで隠して回転を出し、届いたら出す", () => {
+    it("クライアント遷移で新しく作った本体は、届くまで隠して骨組みの灰を出し、届いたら出す（2026-10-30 束 0b C17: 回転→灰）", () => {
         setReady(false);
         try {
             const { container } = render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
             const img = mainImage();
             expect(img.className).toContain("opacity-0");
-            expect(container.querySelector(".animate-spin"), "待っているのに回転が無い").not.toBeNull();
+            expect(container.querySelector("[data-testid=photo-skeleton]"), "待っているのに骨組みが無い").not.toBeNull();
+            expect(container.querySelector(".animate-spin"), "回る輪に戻っている").toBeNull();
             fireEvent.load(img);
             expect(img.className).toContain("opacity-100");
-            expect(container.querySelector(".animate-spin")).toBeNull();
+            expect(container.querySelector("[data-testid=photo-skeleton]")).toBeNull();
         } finally { restore(); }
     });
 

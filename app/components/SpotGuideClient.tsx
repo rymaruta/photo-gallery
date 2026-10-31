@@ -14,7 +14,7 @@ import { useToast } from "@/lib/hooks/useToast";
 import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
 import SpotRows, { type SpotRow } from "./SpotRows";
-import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
+import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON, TILE_MIN_H } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
 import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 import { CHIP_HIT, CHIP_ROW } from "./SpotTopicLists";
@@ -764,13 +764,13 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" variant="tile" />
                     <Link href={mapHref} prefetch={false}
                           className={`${TILE} ${TILE_OFF} min-w-0`}
-                          style={{ minHeight: 48, touchAction: "manipulation" }}>
+                          style={{ minHeight: TILE_MIN_H, touchAction: "manipulation" }}>
                         <MapIcon className={TILE_ICON} aria-hidden />
                         <span className={TILE_TEXT}>{isJa ? "地図で見る" : "Map"}</span>
                     </Link>
                     <button type="button" onClick={handleShare}
                             className={`${TILE} ${TILE_OFF} min-w-0`}
-                            style={{ minHeight: 48, touchAction: "manipulation" }}>
+                            style={{ minHeight: TILE_MIN_H, touchAction: "manipulation" }}>
                         <ArrowUpOnSquareIcon className={TILE_ICON} aria-hidden />
                         <span className={TILE_TEXT}>{isJa ? "シェア" : "Share"}</span>
                     </button>

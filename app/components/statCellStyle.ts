@@ -19,6 +19,17 @@
  * 分かれていて、片方だけ直すと同じ行の中で字の大きさが割れる。
  */
 export const STAT_NUMBER_PX = 20;
-export const STAT_LABEL_PX = 13;
-/** 数字の行の縦の区切り線の高さ。モックは行の高さいっぱいではなく、文字の塊ぶんだけ */
-export const STAT_DIVIDER_PX = 28;
+/**
+ * **2026-10-30 束 0b C14: iOS の `ProfileStat` にそろえる。** 数は 20 semibold の等幅数字（`JPFont.statNumber`）、
+ * 名前はその下 2 に 12 の text-3、**左寄せで縦の区切り線なし**（以前は 20 bold・名前 13 白60%・中央寄せ・線あり）。
+ * 名前の 13 は上のモックの実測だったが、iOS の実装は 12（`JPFont.caption`）
+ */
+export const STAT_LABEL_PX = 12;
+/** 数（白・semibold・等幅数字・行の高さ 1） */
+export const STAT_NUMBER_CLASS = "block font-semibold tabular-nums leading-none text-white";
+/** 名前（text-3・数の下 2） */
+export const STAT_LABEL_CLASS = "block text-text-3 mt-[2px] leading-none";
+/** 1つの数の札（左寄せ・押せる高さ 44） */
+export const STAT_CELL_CLASS = "flex-1 text-left";
+/** 大きい数（旅の記録の距離など・iOS `JPTypeScale.figureLarge` 28） */
+export const STAT_FIGURE_LARGE_PX = 28;

@@ -4,13 +4,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
-import { XMarkIcon, Bars3Icon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/outline";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 import NotificationsBell from "./NotificationsBell";
-import { HEADER_GLASS, HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./headerIcon";
+import { HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./headerIcon";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
@@ -131,19 +131,10 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     return (
         <nav aria-label={locale === "en" ? "Site header" : "ヘッダー"}
              className={`site-header__nav flex items-center gap-2 flex-shrink-0 ${className}`}>
-            {/* ユーザーを探す。知り合いを見つけてフォローする導線をどのページからも1タップに */}
-            <button
-                onClick={() => handleNavigation(ROUTES.USER_SEARCH)}
-                aria-label={locale === "en" ? "Find people" : "ユーザーを探す"}
-                title={locale === "en" ? "Find people" : "ユーザーを探す"}
-                className={HEADER_ICON_BTN}
-                style={HEADER_ICON_BTN_STYLE}
-            >
-                <MagnifyingGlassIcon aria-hidden="true" style={HEADER_ICON_STYLE} />
-            </button>
-            {/* **お知らせとメニューは1つのガラスの丸い札に入れる**（2026-10-15・iOS v2 の
-                バーの右の項目と同じ）。探すは札の外（iOS もホームだけの別の入口） */}
-            <div className={HEADER_GLASS} data-header-glass>
+            {/* **右はお知らせ（ログイン中）とメニューの2つだけ・地を持たない**（2026-10-30 判断・束 0b C2・
+                iOS のホームのバーと同じ）。以前は左に「ユーザーを探す」の虫眼鏡を置き、お知らせとメニューを
+                地の付いたガラスの丸い札（`.header-glass`）に入れていた。探すは下の札（`BottomNav`）に任せる。
+                「ユーザーを探す」の行き先は消さず、メニューの1行に移した（下） */}
             {/* 通知ベル: 「あなたの写真が誰かを旅立たせました」が届く */}
             {isAuthenticated && <NotificationsBell />}
             {/* **自分のアバターは出さない**（iOS のヘッダーは 探す・お知らせ・メニュー の3つ）。
@@ -172,7 +163,6 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
             >
                 {open ? <XMarkIcon aria-hidden="true" style={HEADER_ICON_STYLE} /> : <Bars3Icon aria-hidden="true" style={HEADER_ICON_STYLE} />}
             </button>
-            </div>
 
             {/* メニューは body へポータルする。以前ヘッダーが backdrop-blur を持っていた頃、
                 backdrop-filter は CSS 仕様で position:fixed の包含ブロックになるため、
@@ -217,6 +207,12 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                 <li style={{ margin: 0, padding: 0 }}>
                                     <button onClick={() => handleNavigation(ROUTES.MAP)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                         {navLabels.map || "Map"}
+                                    </button>
+                                </li>
+                                {/* ユーザーを探す（2026-10-30 束 0b C2）: ヘッダーの虫眼鏡から移した。行き先は消さない */}
+                                <li style={{ margin: 0, padding: 0 }}>
+                                    <button onClick={() => handleNavigation(ROUTES.USER_SEARCH)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                        {locale === "en" ? "Find people" : "ユーザーを探す"}
                                     </button>
                                 </li>
                                 {/* いいねした写真: 未ログインの初回訪問者には出さない（空ページになるため）。

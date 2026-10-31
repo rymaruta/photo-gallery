@@ -3,6 +3,7 @@
 // 写真ページのコメント欄。公開閲覧、認証ユーザーが投稿でき、
 // 投稿者本人または写真オーナーが削除できる。
 
+import { FIELD } from "./fieldStyles";
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChatBubbleOvalLeftIcon, TrashIcon } from "@heroicons/react/24/outline";
@@ -201,7 +202,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                         rows={1}
                         maxLength={500}
                         aria-label={locale === "en" ? "Comment" : "コメント"}
-                        className="flex-1 min-w-0 bg-surface-2 border border-line-strong rounded-[22px] px-4 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
+                        className={`flex-1 min-w-0 px-[14px] py-[9px] resize-none ${FIELD}`}
                         style={{ fontSize: "16px", minHeight: "44px", maxHeight: "120px", lineHeight: "26px" }}
                     />
                     <button
@@ -227,7 +228,8 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                     href={loginHref}
                     prefetch={false}
                     data-testid="comment-login"
-                    className="flex items-center w-full rounded-full bg-surface-2 ring-1 ring-inset ring-line-strong px-4 text-text-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    // 入力欄と同じ形（角 12・白8%の縁・2026-10-30 束 0b C6）
+                    className="flex items-center w-full rounded-field bg-surface-2 ring-1 ring-inset ring-line px-[14px] text-text-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     style={{ minHeight: "44px", fontSize: "15px", touchAction: "manipulation" }}
                 >
                     {locale === "en" ? "Log in to comment" : "ログインしてコメント"}

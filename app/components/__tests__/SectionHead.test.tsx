@@ -23,8 +23,11 @@ describe("SectionHead", () => {
     });
 
     it("「すべて見る」は灰（真鍮にしない）・当たり 44", () => {
-        render(<SectionHead id="h1" eyebrow="GEAR" title="機材" href="/camera" moreLabel="すべて見る ›" />);
-        const a = screen.getByRole("link", { name: "すべて見る ›" });
+        render(<SectionHead id="h1" eyebrow="GEAR" title="機材" href="/camera" moreLabel="すべて見る" />);
+        const a = screen.getByRole("link", { name: "すべて見る" });
+        // › は印で1つだけ（字に書かない・iOS の MoreLink・2026-10-30 束 0b C10）
+        expect(a.textContent).toBe("すべて見る");
+        expect(a.querySelectorAll("svg")).toHaveLength(1);
         expect(a.getAttribute("href")).toBe("/camera");
         expect(a.className).not.toContain("text-accent");
         expect(a.className).toContain("min-h-[44px]");

@@ -4,10 +4,11 @@
 // 他人のプロフィールにはフォローボタン。
 
 import React, { useRef, useState } from "react";
-import { UserPlusIcon, CheckIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { INLINE_BTN, INLINE_BTN_STYLE, FOLLOW_ON, FOLLOW_OFF, FOLLOW_LIST_MIN_W, PROFILE_FOLLOW_BTN, PROFILE_FOLLOW_STYLE, PROFILE_FOLLOW_OFF, PROFILE_FOLLOW_ON } from "./buttonStyles";
 import { useFollow } from "../../lib/hooks/useFollow";
 import { useToast } from "../../lib/hooks/useToast";
-import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "./statCellStyle";
+import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_NUMBER_CLASS, STAT_LABEL_CLASS, STAT_CELL_CLASS } from "./statCellStyle";
 import FollowingSheet, { type FollowListKind } from "./FollowingSheet";
 
 type Props = {
@@ -19,18 +20,20 @@ type Props = {
      * どの場面のボタンか。**大きさと文言だけが違う**（押したときの処理・
      * 楽観更新・エラーの返し分けは `useFollow` の1本で共有する）。
      *
-     * - `profile` … プロフィールのアクション行。行幅いっぱい・44px
-     * - `outline` … 写真ページ（最終版モック 03）。青の枠線・塗らない・伸びない・36px
-     * - `followBack` … 通知一覧の「フォローバック」（モック 05 の注釈③）。
-     *   行の中に収まる小さい錠剤。**文言も変える**——通知の文脈では
+     * - `profile` … プロフィールのアクション行。「フォローする」
+     * - `outline` … 写真ページ。短い「フォロー」（名前は以前の形の名残。形はもう線ではない）
+     * - `followBack` … 通知一覧の「フォローバック」（モック 05 の注釈③）。**文言も変える**——通知の文脈では
      *   「フォロー」ではなく、相手のフォローに返す操作だから
+     * - `list` … 人を探すの一覧の行。「フォローする」・幅の下限 96（押し替えで揺れない）
+     * 形は2つ（2026-10-30 束 0b C8）: `profile` は人のページの大きい札（iOS `ProfileFollowButtonLabel`・40・15）、
+     * ほかは行の中の小ボタン（iOS `FollowPill`・36・13・`INLINE_BTN`）
      *
      * **2つ目のフォローボタンを作らないための prop。** 見た目のために
      * 別コンポーネントを立てると、`useFollow` を2か所から呼ぶことになり、
      * 「押しても数が動かない」「エラー文言が片方だけ古い」が必ず出る
      * （このリポジトリが何度も踏んでいる「同じものを二度作る」の形）。
      */
-    variant?: "profile" | "outline" | "followBack";
+    variant?: "profile" | "outline" | "followBack" | "list";
     /**
      * 読み上げ用の名前。**一覧に並べるときは必ず渡す。**
      * 文言だけだと「フォローバック、ボタン」が人数ぶん続いて、
@@ -85,22 +88,21 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale, va
             const open = isAuthenticated && countsKnown && n > 0;
             const inner = (
                 <>
-                    <span className="block font-bold tabular-nums leading-none" style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{shown(n)}</span>
-                    <span className="block text-white/60 mt-1 leading-none" style={{ fontSize: `${STAT_LABEL_PX}px` }}>{label}</span>
+                    <span className={STAT_NUMBER_CLASS} style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{shown(n)}</span>
+                    <span className={STAT_LABEL_CLASS} style={{ fontSize: `${STAT_LABEL_PX}px` }}>{label}</span>
                 </>
             );
             return open ? (
                 <button type="button" ref={ref} onClick={() => setSheet(kind)} aria-haspopup="dialog"
-                        className="flex-1 text-center hover:opacity-80 active:scale-95 transition"
+                        className={`${STAT_CELL_CLASS} hover:opacity-80 active:scale-95 transition`}
                         style={{ touchAction: "manipulation", minHeight: "44px" }}>
                     {inner}
                 </button>
-            ) : <div className="flex-1 text-center">{inner}</div>;
+            ) : <div className={STAT_CELL_CLASS}>{inner}</div>;
         };
         return (
             <>
                 {cell(followers, locale === "en" ? "followers" : "フォロワー", "followers", followersBtnRef)}
-                <span aria-hidden="true" className="w-px self-center bg-white/10" style={{ height: `${STAT_DIVIDER_PX}px` }} />
                 {cell(following, locale === "en" ? "following" : "フォロー中", "following", followingBtnRef)}
                 {sheet && (
                     <FollowingSheet
@@ -222,33 +224,24 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
             disabled={pending || !resolved}
             aria-pressed={isFollowing}
             aria-label={ariaLabel}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
-                compact
-                    ? "flex-shrink-0"
-                    : variant === "outline"
-                        ? "flex-shrink-0 px-4 py-2 text-sm"
-                        : "flex-1 px-4 py-2.5 text-sm"
-            } ${
-                isFollowing
-                    ? "bg-black/30 backdrop-blur-md ring-1 ring-white/15 text-white/85 hover:bg-black/40"
-                    : variant === "outline"
-                        ? "bg-transparent ring-1 ring-accent text-accent hover:bg-accent/10"
-                        : "bg-primary text-ink hover:brightness-110"
-            }`}
-            // **px で書く**（以前は 640px 未満で root が 14px に落ちて rem 系が縮んでいた（2026-10-30 束 0a で外した））。
-            // 小さい側はモックの画素から——フォローバックの錠剤は実測 28 画像px
-            // ＝ 29 CSS px だが、**押せる面は 32px まで上げる**。行の中の操作なので
-            // 44px は取れないが、29px は指に小さい（他の行内ボタンと同じ判断）。
-            // 写真ページ（`outline`）は 36px（モック 03 の実測）。
-            style={compact
-                ? { touchAction: "manipulation", minHeight: "32px", fontSize: "13px", paddingLeft: "12px", paddingRight: "12px" }
-                : { touchAction: "manipulation", minHeight: variant === "outline" ? "36px" : "44px" }}
+            // 2026-10-30 束 0b C8: 人のページは iOS の `ProfileFollowButtonLabel`（40・15・フォロー中は線と ▾）、
+            // 写真の詳細・お知らせ・一覧は `FollowPill`（36・13）。以前は場面ごとに 真鍮の線（写真）・白塗り 44（人）・32（お知らせ）と割れていた
+            className={variant === "profile"
+                ? `${PROFILE_FOLLOW_BTN} flex-shrink-0 ${isFollowing ? PROFILE_FOLLOW_ON : PROFILE_FOLLOW_OFF}`
+                : `${INLINE_BTN} flex-shrink-0 ${isFollowing ? FOLLOW_ON : FOLLOW_OFF}`}
+            style={variant === "profile"
+                ? { ...PROFILE_FOLLOW_STYLE, touchAction: "manipulation" }
+                : { ...INLINE_BTN_STYLE, ...(variant === "list" ? { minWidth: FOLLOW_LIST_MIN_W } : {}), touchAction: "manipulation" }}
         >
             {isFollowing
-                ? <><CheckIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />{locale === "en" ? "Following" : "フォロー中"}</>
-                : <><UserPlusIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />{compact
+                ? (variant === "profile"
+                    ? <>{locale === "en" ? "Following" : "フォロー中"}<ChevronDownIcon aria-hidden="true" style={{ width: 12, height: 12, strokeWidth: 2.5 }} /></>
+                    : (locale === "en" ? "Following" : "フォロー中"))
+                : compact
                     ? (locale === "en" ? "Follow back" : "フォローバック")
-                    : (locale === "en" ? "Follow" : "フォロー")}</>}
+                    : variant === "outline"
+                        ? (locale === "en" ? "Follow" : "フォロー")
+                        : (locale === "en" ? "Follow" : "フォローする")}
         </button>
     );
 }
