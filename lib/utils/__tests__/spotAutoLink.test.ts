@@ -105,6 +105,12 @@ describe("見直しで出た誤り（2026-10-31・2回目・本物の台帳）",
         expect(matcher.match({ title: "東京タワーより高い", location: "札幌市", coords: { lat: 43.06, lng: 141.35 }, geoApprox: true })).toBeNull();
     });
 
+    it("「川崎市」・地名から補った位置・題「東京タワーが見えた」→ 東京タワー を結ばない（題だけの一致は代表点から 5km まで）", () => {
+        expect(matcher.match({ title: "東京タワーが見えた", location: "川崎市", coords: { lat: 35.53, lng: 139.7 }, geoApprox: true })).toBeNull();
+        // 撮影地の欄に名前があれば 50km のまま
+        expect(slugOf.get(matcher.match({ location: "東京タワー", coords: { lat: 35.53, lng: 139.7 }, geoApprox: true }) ?? "")).toBe("tokyo-tower");
+    });
+
     it("「リヨン, フランス」・地名から補った位置・題「ヴァンドーム広場を思い出す」→ ヴァンドーム広場 を結ばない", () => {
         expect(matcher.match({ title: "ヴァンドーム広場を思い出す", location: "リヨン, フランス", coords: { lat: 45.76, lng: 4.84 }, geoApprox: true })).toBeNull();
     });
@@ -198,8 +204,11 @@ describe("決まり", () => {
     it("距離を省くのは、写真の位置が地名から補ったもの（geoApprox）のときだけ", () => {
         const vendome = spot(4, { name: "ヴァンドーム広場", region: { country: "フランス", city: "パリ" }, coords: { lat: 48.87, lng: 2.33 } });
         const mm = m([vendome]);
-        // 地名「パリ」から補った代表点なら、20km 離れていても結ぶ
-        expect(mm.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 49.05, lng: 2.33 }, geoApprox: true })).toBe(vendome.spotId);
+        // 地名「パリ」から補った代表点でも、題だけの一致は 5km まで（2026-10-31 判断・最後の見直し）
+        expect(mm.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 48.86, lng: 2.32 }, geoApprox: true })).toBe(vendome.spotId);
+        expect(mm.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 49.05, lng: 2.33 }, geoApprox: true })).toBeNull();
+        // 撮影地の欄に名前があれば、補った位置は 50km まで見る
+        expect(mm.match({ location: "ヴァンドーム広場, パリ", coords: { lat: 49.05, lng: 2.33 }, geoApprox: true })).toBe(vendome.spotId);
         // 本物の位置なら、撮影地が地域の名前だけでも 5km を見る（2026-10-31 確かめの指摘）
         expect(mm.match({ title: "ヴァンドーム広場", location: "パリ", coords: { lat: 49.05, lng: 2.33 } })).toBeNull();
         expect(mm.match({ title: "ヴァンドーム広場", location: "ホテル前", coords: { lat: 49.05, lng: 2.33 } })).toBeNull();

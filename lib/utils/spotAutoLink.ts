@@ -286,12 +286,19 @@ export function spotMatcher(index: SpotMatchIndex): SpotMatcher {
         const approx = !!photo.geoApprox;
         const limitKm = approx ? SPOT_AUTO_APPROX_KM : SPOT_AUTO_KM;
         const nameHit = (k: string) => (itemOnly(k) ? items.has(k) : hasWord(all, k));
-        const aliasHit = (k: string) => (itemOnly(k) ? items.has(k) : hasWord(loc, k));
+        const inLocation = (k: string) => (itemOnly(k) ? items.has(k) : hasWord(loc, k));
         let found: string | null = null;
         for (const row of index.spots) {
-            const hit = (row.n && nameHit(row.n)) || (loc.norm && row.a?.some(aliasHit));
+            const fromLocation = !!loc.norm && ((!!row.n && inLocation(row.n)) || !!row.a?.some(inLocation));
+            const hit = fromLocation || (!!row.n && nameHit(row.n));
             if (!hit) continue;
-            if (c && row.c && haversineKm(c, { lat: row.c[0], lng: row.c[1] }) > limitKm) continue;
+            // 2026-10-31 判断（最後の見直し）: 位置が地名から補ったもの（`geoApprox`）で、撮影地の欄には無く
+            // 題・説明にだけ名前がある写真は、代表点から 5km 以内のときだけ結ぶ。撮影地「川崎市」・補った位置・
+            // 題「東京タワーが見えた」が、50km の内なので東京タワーに結ばれていた（川崎市の代表点から約15km）。
+            // 題・説明の一致を丸ごと捨てると、撮影地「パリ」・題「ヴァンドーム広場」のような本番の写真
+            // （代表点から約1km）まで外れるので、距離を本物の位置と同じ 5km に絞る形にした
+            const km = approx && !fromLocation ? SPOT_AUTO_KM : limitKm;
+            if (c && row.c && haversineKm(c, { lat: row.c[0], lng: row.c[1] }) > km) continue;
             if ((!c || approx) && prefs.length > 0 && !(row.p && prefs.includes(row.p))) continue;
             if (found && found !== row.i) return null; // 2つ以上は結ばない
             found = row.i;
