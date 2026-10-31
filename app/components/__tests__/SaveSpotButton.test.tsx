@@ -147,3 +147,44 @@ describe("行きたいボタン", () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 });
+
+// 登録までのどこで人が離れているかを数える（journey.photo-ios#432 の 5・2026-10-31）
+describe("行きたいボタンの数え方（wish_tap）", () => {
+    const gtag = vi.fn();
+    beforeEach(() => {
+        gtag.mockReset();
+        (window as unknown as { gtag?: unknown }).gtag = gtag;
+    });
+
+    it("未ログインで押す → signed_in=0・リンクに via=wish（登録の画面まで運ぶ印）", () => {
+        auth.isAuthenticated = false;
+        render(<SaveSpotButton slug="hanauma-bay" name="ハナウマ湾" locale="ja" kind="spot" />);
+        const link = screen.getByRole("link", { name: "行きたい" });
+        expect(link.getAttribute("href")).toContain("via=wish");
+        link.addEventListener("click", (e) => e.preventDefault());
+        link.click();
+        expect(gtag).toHaveBeenCalledWith("event", "wish_tap", { signed_in: 0, kind: "spot" });
+        // slug は送らない
+        expect(JSON.stringify(gtag.mock.calls)).not.toContain("hanauma");
+    });
+
+    it("ログイン済みで保存する → signed_in=1・撮影地は kind=location", async () => {
+        fetchMock.mockResolvedValueOnce(ok([]));
+        render(<SaveSpotButton slug="パリ" name="パリ" locale="ja" />);
+        const btn = await screen.findByRole("button", { name: "行きたい" });
+        fetchMock.mockResolvedValueOnce(ok(["パリ"]));
+        btn.click();
+        await waitFor(() => expect(screen.getByRole("button", { name: "保存済み" })).toBeTruthy());
+        expect(gtag).toHaveBeenCalledWith("event", "wish_tap", { signed_in: 1, kind: "location" });
+    });
+
+    it("外すときは数えない", async () => {
+        fetchMock.mockResolvedValueOnce(ok(["パリ"]));
+        render(<SaveSpotButton slug="パリ" name="パリ" locale="ja" />);
+        const btn = await screen.findByRole("button", { name: "保存済み" });
+        fetchMock.mockResolvedValueOnce(ok([]));
+        btn.click();
+        await waitFor(() => expect(screen.getByRole("button", { name: "行きたい" })).toBeTruthy());
+        expect(gtag).not.toHaveBeenCalled();
+    });
+});
