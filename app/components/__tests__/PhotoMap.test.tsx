@@ -707,8 +707,9 @@ describe("ピンの形（iOS にそろえた）", () => {
         render(<PhotoMap photos={[]} locale="ja" spots={[SPOT]} />);
         await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
         const icon = spotIcon();
-        expect(icon.iconSize).toEqual([32, 32]);
-        expect(icon.iconAnchor).toEqual([16, 32]);
+        // 見た目は 32、押せる範囲は 44（iOS の `officialMarker`・束 2 の確かめ）。座標は 44 の枠の下端
+        expect(icon.iconSize).toEqual([44, 44]);
+        expect(icon.iconAnchor).toEqual([22, 44]);
         expect(icon.html.querySelector("svg.spot-map-pin__icon")).toBeTruthy();
         expect(icon.html.classList.contains("has-photo")).toBe(false);
     });
@@ -718,9 +719,18 @@ describe("ピンの形（iOS にそろえた）", () => {
         render(<PhotoMap photos={[]} locale="ja" spots={[withCover]} />);
         await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
         const icon = spotIcon();
-        expect(icon.iconSize).toEqual([40, 40]);
+        expect(icon.iconSize).toEqual([44, 44]);
         expect(icon.html.classList.contains("has-photo")).toBe(true);
         expect(icon.html.querySelector("img")!.getAttribute("src")).toBe("/images/spots/thumb/takaya.jpg");
+    });
+
+    it("撮影スポットのピンの枠は、見た目の丸を真ん中に置く（Leaflet の display: block に負けない2クラス）", async () => {
+        const { readFileSync } = await import("fs");
+        const css = readFileSync(`${process.cwd()}/app/globals.css`, "utf8");
+        const rule = css.slice(css.indexOf(".spot-map-pin-icon.leaflet-marker-icon"));
+        const body = rule.slice(rule.indexOf("{"), rule.indexOf("}"));
+        expect(body).toContain("display: flex");
+        expect(body).toContain("justify-content: center");
     });
 
     it("地図の地は暗くする（タイルの層だけに絵の反転）", async () => {

@@ -95,6 +95,19 @@ type Props = {
     heroSizes?: string;
 };
 
+/**
+ * 大きい1枚の形。スマホは 16:10（iOS の `PhotoGrid`）、768px 以上は **2×2 のマスを正方形**で取る
+ * （幅 = 2枚 + 隙間 10 = 高さ）。2026-10-31 判断（束 2 の確かめ）: 以前は PC で `aspect-auto h-full` にして
+ * 隣の2枚の段2つに高さを任せていたので、隣に段が無い並び（写真1枚・2枚・最後に大きい1枚が残る並び）では
+ * 高さがほぼ 0 になっていた
+ */
+export const HERO_ASPECT = "aspect-[16/10] md:aspect-square";
+/**
+ * `Thumb` に渡すマスの比。スマホ 16:10 と PC 1:1 の2つあるので、**画素がより要る方（1:1）**で申告する
+ * （横長の写真は正方形のマスの方が高さで決まり、大きい候補が要る。16:10 で申告すると PC で粗い候補を選ぶ）
+ */
+const HERO_CELL_ASPECT = 1;
+
 /** iOS の `PhotoGrid` の隙間（段どうし・段の中）と札の角 */
 const EDITORIAL_GAP = 10;
 const EDITORIAL_RADIUS = 18;
@@ -475,14 +488,14 @@ function EditorialTile({
                     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
                     if (onOpenPhoto?.(photo.id)) e.preventDefault();
                 } : undefined}
-                className={`relative block w-full overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${hero ? "aspect-[16/10] md:aspect-auto md:h-full" : "aspect-square"}`}
+                className={`relative block w-full overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${hero ? HERO_ASPECT : "aspect-square"}`}
                 aria-label={localizedTitle ? `${localizedTitle} を開く` : "写真を開く"}
                 title={localizedTitle}
                 style={{ borderRadius: EDITORIAL_RADIUS, backgroundColor: placeholderColor, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
                 data-photo-id={photo.id}
             >
                 <Thumb photo={photo} alt={localizedAlt} sizes={sizes} priority={isPriority}
-                       objectPosition={objectPosition} cellAspect={hero ? 16 / 10 : 1} />
+                       objectPosition={objectPosition} cellAspect={hero ? HERO_CELL_ASPECT : 1} />
                 {/* 白8%の縁（iOS の `strokeBorder(white 0.08)`）。写真の上に内側で描く */}
                 <span aria-hidden="true" className="absolute inset-0 ring-1 ring-inset ring-line pointer-events-none" style={{ borderRadius: EDITORIAL_RADIUS }} />
 

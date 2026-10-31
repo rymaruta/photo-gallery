@@ -648,6 +648,11 @@ body {
 .spot-map-pin-icon {
   background: transparent;
   border: 0;
+  /* 押せる範囲 44 の枠の真ん中に、見た目の丸（32／40）を置く（2026-10-31 束 2 の確かめ）。
+     2クラスで書く理由は `.photo-map-cluster` と同じ（Leaflet の display: block に負けない） */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 公式スポットの束（広く見ているとき）。**写真の束（真鍮の地に白い字）と逆に組む**

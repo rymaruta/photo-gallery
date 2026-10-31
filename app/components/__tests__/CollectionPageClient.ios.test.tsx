@@ -149,3 +149,29 @@ describe("相互リンクは押せるチップ", () => {
         expect(screen.getByRole("heading", { level: 2, name: "関連タグ" }).className).toContain("font-serif");
     });
 });
+
+describe("大きい1枚の高さ（束 2 の確かめ）", () => {
+    /**
+     * PC（768px 以上）で `aspect-auto h-full` にしていた頃は、隣に2枚の段が無い並び（1枚・2枚・最後に大きい1枚が残る）で
+     * 高さがほぼ 0 になった。**どの並びでも、大きい1枚は自分で正方形の高さを持つ**（2×2＋隙間で正方形）
+     */
+    it.each([1, 2, 4, 6])("写真 %i 枚: 大きい1枚はスマホ 16:10・PC 正方形で、高さを隣に任せない", (n) => {
+        render(<CollectionPageClient photos={photos.slice(0, n)} heading="h" description="d" breadcrumb="b" />);
+        const heroes = document.querySelectorAll("[data-layout=editorial] [data-tile=hero] a");
+        expect(heroes.length).toBeGreaterThan(0);
+        for (const a of heroes) {
+            expect(a.className).toContain("aspect-[16/10]");
+            expect(a.className).toContain("md:aspect-square");
+            expect(a.className).not.toContain("md:aspect-auto");
+            expect(a.className).not.toContain("md:h-full");
+        }
+    });
+
+    it("先に読むのは3枚（大きい1枚＋最初の2枚の段・ホームと同じ）", () => {
+        render(<CollectionPageClient photos={photos} heading="h" description="d" breadcrumb="b" />);
+        const imgs = [...document.querySelectorAll("[data-layout=editorial] a[data-photo-id]")]
+            .map((a) => a.querySelector("picture img, img:not([aria-hidden])")!.getAttribute("loading"));
+        expect(imgs.slice(0, 3)).toEqual(["eager", "eager", "eager"]);
+        expect(imgs.slice(3).every((l) => l === "lazy")).toBe(true);
+    });
+});

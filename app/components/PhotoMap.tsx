@@ -55,11 +55,12 @@ const CLUSTER_PX = PIN_PX + 3;
  * 指で押す的は Leaflet の当たり判定がアイコン全体なので、28×36 で足りる
  * （WCAG 2.5.8 の24px を超え、隣のピンとは升で離れている）。
  */
-// 2026-10-31 束 2 M3: iOS の `SpotMapMarker`。写真の無いスポットは **真鍮の丸 32 に墨のカメラの印・白92%の縁 2**、
-// 代表写真があれば **写真の丸 40・真鍮の縁 3**。下端が座標（尖りは無い）
-const SPOT_PIN_PX = 32;
-const SPOT_PIN_H = 32;
+// 2026-10-31 束 2 M3: iOS の `SpotMapMarker`。写真の無いスポットは **真鍮の丸 32 に墨のカメラの印・白92%の縁 2**
+// （寸法は CSS の `.spot-map-pin`）、代表写真があれば **写真の丸 40・真鍮の縁 3**。尖りは無い。
+// 上の「28×36 で足りる」は以前の形の話で、今は押せる範囲を 44 に広げてある（`SPOT_PIN_HIT_PX`）
 const SPOT_PHOTO_PIN_PX = 40;
+/** 撮影スポットのピンの押せる範囲（見た目は 32／40 のまま、真ん中に置く・2026-10-31 束 2 の確かめ） */
+const SPOT_PIN_HIT_PX = 44;
 const CELL_PX = 56;
 /**
  * 公式スポットの束の升（px）。**束の丸（36px）の2倍ほど**にする——束は升の中の重心に
@@ -419,8 +420,10 @@ export default function PhotoMap({
                         icon: L.divIcon({
                             html: el,
                             className: "spot-map-pin-icon",
-                            iconSize: coverSrc ? [SPOT_PHOTO_PIN_PX, SPOT_PHOTO_PIN_PX] : [SPOT_PIN_PX, SPOT_PIN_H],
-                            iconAnchor: coverSrc ? [SPOT_PHOTO_PIN_PX / 2, SPOT_PHOTO_PIN_PX] : [SPOT_PIN_PX / 2, SPOT_PIN_H],
+                            // 押せる範囲は 44（見た目の丸 32／40 はその真ん中・iOS の `officialMarker` の
+                            // `.frame(minTapTarget)`）。座標は 44 の枠の下端（iOS の `Annotation` の既定と同じ）
+                            iconSize: [SPOT_PIN_HIT_PX, SPOT_PIN_HIT_PX],
+                            iconAnchor: [SPOT_PIN_HIT_PX / 2, SPOT_PIN_HIT_PX],
                         }),
                         title: label,
                         alt: label,

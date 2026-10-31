@@ -40,6 +40,13 @@ import { GLASS_BTN, GLASS_ICON_STYLE } from "./buttonStyles";
  * するため（静的書き出しの HTML には最初から出さない ＝ 開くまで
  * 存在しない、が正しい姿）。
  */
+/**
+ * 帯の絵を一度に読む枚数（格子の `GRID_INITIAL_VISIBLE`／`GRID_STEP` と同じ 60）。
+ * `GalleryGrid` から読まないのは、試験が `GalleryGrid` ごと差し替えるため（数だけのために部品を読み込まない）
+ */
+const STRIP_INITIAL = 60;
+const STRIP_STEP = 60;
+
 /** 写真の無い撮影地の戻る・共有（見出しの下の素の行・40 の的・22 の絵） */
 const TOP_PLAIN = "inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors";
 const TOP_PLAIN_STYLE = { width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as const;
@@ -201,6 +208,26 @@ export default function SpotPageClient({
         setOpenIndex(i);
         return true;
     }, [photos]);
+
+    /**
+     * **帯の絵は最初の 60 枚だけ読む**（`STRIP_INITIAL`・2026-10-31 束 2 の確かめ）。
+     * リンク（`<a href="/photo/<id>">`）は全部の写真ぶん最初から出す——検索に載る頁の内部リンクを減らさない。
+     * 絵の無い札が帯の右の端に近づいたら（帯の中で 800px 手前）、次の 60 枚の絵を読む。
+     * 監視できない環境では全部読む（読まない方に倒すと、その環境では 61 枚目から絵が出ない）
+     */
+    const [stripShown, setStripShown] = React.useState(STRIP_INITIAL);
+    const stripMoreRef = React.useRef<HTMLLIElement>(null);
+    React.useEffect(() => {
+        if (stripShown >= photos.length) return;
+        if (typeof IntersectionObserver === "undefined") { setStripShown(photos.length); return; }
+        const el = stripMoreRef.current;
+        if (!el) return;
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) setStripShown((v) => Math.min(v + STRIP_STEP, photos.length));
+        }, { root: el.parentElement, rootMargin: "0px 800px" });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [stripShown, photos.length]);
 
     /** 戻る・共有・⋯ の行。`overPhoto` は代表写真の上（ガラスの丸）、そうでなければ見出しの下の素の行 */
     const topRow = (overPhoto: boolean) => (
@@ -569,8 +596,9 @@ export default function SpotPageClient({
             <section aria-labelledby="spot-photos-heading" className="mt-8">
                 <SectionHead id="spot-photos-heading" title={en ? `Photos here (${photos.length})` : `この撮影地の写真（${photos.length}）`} />
                 <ul className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 m-0 p-0 snap-x" style={{ listStyle: "none" }} data-testid="spot-photo-strip">
-                    {photos.map((p) => (
-                        <li key={p.id} className="m-0 p-0 flex-shrink-0 snap-start" style={{ width: 118 }}>
+                    {photos.map((p, i) => (
+                        <li key={p.id} className="m-0 p-0 flex-shrink-0 snap-start" style={{ width: 118 }}
+                            ref={i === stripShown ? stripMoreRef : undefined}>
                             <Link
                                 href={ROUTES.PHOTO(p.id)}
                                 prefetch={false}
@@ -582,7 +610,10 @@ export default function SpotPageClient({
                                 className="relative block overflow-hidden rounded-field focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
                                 style={{ aspectRatio: "3 / 4", backgroundColor: p.dominantColor ?? "var(--color-surface)", touchAction: "manipulation" }}
                             >
-                                <Thumb photo={p} alt={photoAltText(p, locale)} sizes={SPOT_STRIP_SIZES} cellAspect={3 / 4} />
+                                {i < stripShown
+                                    ? <Thumb photo={p} alt={photoAltText(p, locale)} sizes={SPOT_STRIP_SIZES} cellAspect={3 / 4} />
+                                    // まだ絵を読まない札。リンクの名前だけ持たせる（読み上げ・検索のリンクは減らさない）
+                                    : <span className="sr-only">{photoAltText(p, locale)}</span>}
                             </Link>
                         </li>
                     ))}

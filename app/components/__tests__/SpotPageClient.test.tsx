@@ -661,3 +661,33 @@ describe("撮影地の頁: iOS の形", () => {
         expect(screen.getByRole("heading", { level: 2, name: "この撮影地の写真（2）" })).toBeTruthy();
     });
 });
+
+/**
+ * **帯のリンクと絵の数**（2026-10-31 束 2 の確かめ）。リンクは写真の数だけ・絵は最初の 60 枚だけ
+ */
+describe("撮影地の頁: 帯のリンクと絵の数", () => {
+    it("写真が3枚以上でも、写真ページへのリンク（/photo/）は写真の数と同じ", async () => {
+        const { default: index } = await import("@/app/data/photo-index.json");
+        const ids = (index as { photoIds: string[] }).photoIds.slice(0, 5);
+        render(<SpotPageClient {...base} photos={ids.map((id) => ({ id, src: `https://x/uploads/${id}.jpg` })) as never} />);
+        const links = screen.getByTestId("spot-photo-strip").querySelectorAll('a[href^="/photo/"]');
+        expect(links).toHaveLength(5);
+    });
+
+    it("61 枚以上でもリンクは全部出し、絵は最初の 60 枚だけ読む（監視できる環境）", () => {
+        const io = vi.fn(function (this: unknown) { return { observe: vi.fn(), unobserve: vi.fn(), disconnect: vi.fn(), takeRecords: () => [] }; });
+        vi.stubGlobal("IntersectionObserver", io);
+        try {
+            const many = Array.from({ length: 65 }, (_, i) => ({ id: `m${i}`, src: `https://x/uploads/m${i}.jpg` }));
+            render(<SpotPageClient {...base} photos={many as never} />);
+            const strip = screen.getByTestId("spot-photo-strip");
+            expect(strip.querySelectorAll("a[data-photo-id]")).toHaveLength(65);
+            expect(strip.querySelectorAll("img")).toHaveLength(60);
+            // 絵の無い札もリンクの名前を持つ
+            expect(strip.querySelectorAll("a[data-photo-id]")[64].textContent).not.toBe("");
+            expect(io).toHaveBeenCalled();
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+});

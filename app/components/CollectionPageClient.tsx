@@ -106,7 +106,8 @@ export default function CollectionPageClient({ photos, heading, description, bre
                 </div>
             )}
 
-            <GalleryGrid photos={sorted} locale={locale} layout="editorial" sizes={EDITORIAL_PAIR_SIZES} heroSizes={EDITORIAL_HERO_SIZES} />
+            {/* 先に読むのは大きい1枚＋最初の2枚の段＝3枚（ホームと同じ・2026-10-31 束 2 の確かめ）。既定の 8 枚は画面の外まで先に読む */}
+            <GalleryGrid photos={sorted} locale={locale} layout="editorial" sizes={EDITORIAL_PAIR_SIZES} heroSizes={EDITORIAL_HERO_SIZES} priorityCount={3} />
 
             {/* **写真が少ないページにだけ。** 1枚だけのページは、それ自体は
                 このサイトにしか無い写真でも「見るものが1つ」で終わる。
@@ -115,7 +116,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
             {nearby.length > 0 && (
                 <section aria-labelledby="collection-nearby" className="mt-8">
                     <SectionHead id="collection-nearby" title={en ? "You might also like" : "ほかにこんな写真も"} />
-                    <GalleryGrid photos={nearby} locale={locale} layout="editorial" sizes={EDITORIAL_PAIR_SIZES} heroSizes={EDITORIAL_HERO_SIZES} />
+                    <GalleryGrid photos={nearby} locale={locale} layout="editorial" sizes={EDITORIAL_PAIR_SIZES} heroSizes={EDITORIAL_HERO_SIZES} priorityCount={0} />
                 </section>
             )}
 
