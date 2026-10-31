@@ -4,7 +4,9 @@ import React from "react";
 import Link from "next/link";
 import { ChevronRightIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import { ROUTES } from "../../lib/routes";
-import { dailyThemeFor, type DailyThemeEntry } from "../../lib/utils/dailyTheme";
+import { dailyThemeFor, hasJoinedTheme, type DailyThemeEntry } from "../../lib/utils/dailyTheme";
+import { useAuth } from "../auth/context";
+import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { parseDailyQuiz, quizStorageKey, QUIZ_TIME_ZONE, type DailyQuiz } from "../../lib/utils/dailyQuiz";
 import { todayIn } from "../../lib/utils/sunTimes";
 import { tagKey } from "../../lib/utils/collections";
@@ -25,6 +27,10 @@ import Thumb from "./Thumb";
  * 並び（iOS の `HomeTopCard.cards` のうち Web にあるもの）: 今日のテーマ → 今日の一問 → 撮影スポット（Web だけ・残す）。
  * 旅行プラン・旅の一冊・1年前・行きたい場所の季節の札は Web に無い機能（台帳の束 6）。
  *
+ * **2026-10-31 iOS #422（#417 ③）に合わせ直した**: 札の背はどれも 116、題・一行・出典は1行ずつ（出典は
+ * 真ん中を省き、末尾のライセンス名を残す）。今日のテーマの「参加する →」は題の右の小さいボタン（見た目 36・当たり 44）、
+ * 今日もう参加した日は押せない「✓ 参加済み」（`hasJoinedTheme`）。
+ *
  * **電話の幅は横にめくる**（左右 16・次の札を 24 見せる・1 枚ずつ止まる）。**PC（1024 以上）は 3 枚を並べる**
  * （PC の幅の決まり W4: めくらずに並べる）。背はいちばん高い札にそろえる。
  *
@@ -39,6 +45,7 @@ export default function HomeTopCards({ locale, photos, seasonal = null }: {
     seasonal?: HomeSeasonal | null;
 }) {
     const en = locale === "en";
+    const { userId } = useAuth();
     const [theme, setTheme] = React.useState<DailyThemeEntry | null>(null);
     const [quiz, setQuiz] = React.useState<{ quiz: DailyQuiz; answered: boolean } | null>(null);
 
@@ -69,9 +76,13 @@ export default function HomeTopCards({ locale, photos, seasonal = null }: {
         return hits.sort((a, b) => (Number(b.likes) || 0) - (Number(a.likes) || 0))[0] ?? null;
     }, [photos, theme]);
 
+    // 今日もう参加したか（自分の写真のうち、今日投稿したテーマのタグの1枚）。描くのは載ったあと（端末の日付）
+    const joined = React.useMemo(() => !!theme && !!userId
+        && hasJoinedTheme(theme, photos.filter((p) => p.userId === userId), tagKey), [theme, userId, photos]);
+
     const spot = seasonal?.spots[0] ?? null;
-    const credit = (c: { author: string; license?: string; text?: string } | null | undefined) =>
-        c ? `${en ? "Photo: " : "写真: "}${c.text || c.author}${c.license ? ` / ${c.license}` : ""}` : undefined;
+    const credit = (c: { author: string; license?: string; text?: string } | null | undefined): Credit | undefined =>
+        c ? { head: `${en ? "Photo: " : "写真: "}${c.text || c.author}`, tail: c.license ? ` / ${c.license}` : "" } : undefined;
 
     return (
         <section aria-label={en ? "Today" : "今日の札"} className="mb-4 -mx-4 sm:mx-0" data-testid="home-top-cards">
@@ -80,7 +91,7 @@ export default function HomeTopCards({ locale, photos, seasonal = null }: {
                 // 切り取りの外に出て、電話の幅で頁ごと 796px に広がった（2026-10-31 実測）
                 style={{ listStyle: "none", scrollSnapType: "x mandatory", scrollPaddingLeft: "16px" }}>
                 <li className={CARD_LI} style={CARD_LI_STYLE}>
-                    <ThemeCard theme={theme} photo={themePhoto} en={en} />
+                    <ThemeCard theme={theme} photo={themePhoto} en={en} joined={joined} />
                 </li>
                 <li className={CARD_LI} style={CARD_LI_STYLE}>
                     <TopCard
@@ -120,7 +131,10 @@ export default function HomeTopCards({ locale, photos, seasonal = null }: {
 const CARD_LI = "shrink-0 w-[calc(100%-40px)] lg:shrink lg:w-auto flex";
 const CARD_LI_STYLE: React.CSSProperties = { scrollSnapAlign: "start" };
 
-const CARD_FACE = "flex w-full min-h-[116px] rounded-2xl bg-surface ring-1 ring-inset ring-line overflow-hidden text-white hover:bg-surface-2 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent";
+/** 出典の1行。**真ん中を省く**——作者名（頭）を切り、ライセンス名（尾）は残す（iOS の `.truncationMode(.middle)`） */
+type Credit = { head: string; tail: string };
+
+const CARD_FACE = "flex w-full h-[116px] rounded-2xl bg-surface ring-1 ring-inset ring-line overflow-hidden text-white hover:bg-surface-2 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent";
 
 /** 眉（真鍮・消える線）。英字の飾りは読み上げに出さず、日本語の名前を読ませる（iOS の `JPEyebrowLine(spoken:)`） */
 function Eyebrow({ text, spoken, trailing }: { text: string; spoken: string; trailing?: string }) {
@@ -134,7 +148,7 @@ function Eyebrow({ text, spoken, trailing }: { text: string; spoken: string; tra
 }
 
 function TopCard({ href, testId, eyebrow, spoken, title, line, detail, imageUrl }: {
-    href: string; testId: string; eyebrow: string; spoken: string; title: string; line: string; detail?: string; imageUrl?: string;
+    href: string; testId: string; eyebrow: string; spoken: string; title: string; line: string; detail?: Credit; imageUrl?: string;
 }) {
     return (
         <Link href={href} prefetch={false} data-testid={testId} className={CARD_FACE} style={{ touchAction: "manipulation" }}>
@@ -147,9 +161,14 @@ function TopCard({ href, testId, eyebrow, spoken, title, line, detail, imageUrl 
             <span className="min-w-0 flex-1 flex items-center gap-2 pl-4 pr-3 py-3">
                 <span className="min-w-0 flex-1 flex flex-col gap-1 self-start">
                     <Eyebrow text={eyebrow} spoken={spoken} />
-                    <span className="font-serif font-bold line-clamp-2" style={{ fontSize: "18px", lineHeight: "24px" }}>{title}</span>
-                    <span className="text-text-2 line-clamp-2" style={{ fontSize: "12px", lineHeight: "16px" }}>{line}</span>
-                    {detail && <span className="text-text-3 line-clamp-2" style={{ fontSize: "12px", lineHeight: "16px" }}>{detail}</span>}
+                    <span className="font-serif font-bold truncate" style={{ fontSize: "18px", lineHeight: "24px" }}>{title}</span>
+                    <span className="text-text-2 truncate" style={{ fontSize: "12px", lineHeight: "16px" }}>{line}</span>
+                    {detail && (
+                        <span className="flex min-w-0 text-text-3" style={{ fontSize: "12px", lineHeight: "16px" }} data-testid="top-card-credit">
+                            <span className="truncate min-w-0">{detail.head}</span>
+                            {detail.tail && <span className="flex-shrink-0 whitespace-nowrap">{detail.tail}</span>}
+                        </span>
+                    )}
                 </span>
                 <ChevronRightIcon aria-hidden="true" className="flex-shrink-0 text-text-2" style={{ width: 14, height: 14, strokeWidth: 2 }} />
             </span>
@@ -157,33 +176,48 @@ function TopCard({ href, testId, eyebrow, spoken, title, line, detail, imageUrl 
     );
 }
 
-/** 今日のテーマ（iOS の `DailyThemeCard`）。「参加する →」はテーマのタグを入れた投稿画面へ */
-function ThemeCard({ theme, photo, en }: { theme: DailyThemeEntry | null; photo: Photo | null; en: boolean }) {
+/**
+ * 今日のテーマ（iOS の `DailyThemeCard`・#422）。眉の右に #タグ、題の右に「参加する →」（見た目 36・当たり 44・
+ * 白の塗りに墨・テーマのタグを入れた投稿画面へ）、その下に一言（1行）。今日もう参加した日は押せない「✓ 参加済み」
+ */
+function ThemeCard({ theme, photo, en, joined }: { theme: DailyThemeEntry | null; photo: Photo | null; en: boolean; joined: boolean }) {
     const href = theme ? `${ROUTES.UPLOAD}?tag=${encodeURIComponent(theme.tag)}` : ROUTES.UPLOAD;
+    const pill = "relative inline-flex items-center justify-center gap-1 rounded-full font-semibold whitespace-nowrap flex-shrink-0 px-[14px]";
+    const pillStyle = { minHeight: "36px", fontSize: "13px", lineHeight: "18px" } as const;
     return (
-        <div className={`${CARD_FACE} relative flex-col gap-2 p-4 hover:bg-surface`} data-testid="home-theme-card">
+        <div className={`${CARD_FACE} relative flex-col justify-start gap-1 px-4 py-3 hover:bg-surface`} data-testid="home-theme-card">
             {photo && (
-                // **写真は脇役**（右に 160・35% で薄く・左へ消える）。字は写真の上に重ねない側に置く
+                // **写真は脇役**（右に 160・35% で薄く・左へ消える）
                 <span aria-hidden="true" className="absolute inset-y-0 right-0 w-[160px] pointer-events-none"
                       style={{ opacity: 0.35, maskImage: "linear-gradient(to right, transparent, black)", WebkitMaskImage: "linear-gradient(to right, transparent, black)" }}>
                     <Thumb photo={photo} alt="" sizes="160px" />
                 </span>
             )}
-            <span className="relative flex flex-col gap-2">
+            <span className="relative flex flex-col gap-1 min-w-0">
                 <Eyebrow text="TODAY'S THEME" spoken={en ? "Today's theme" : "今日のテーマ"} trailing={theme ? `#${theme.tag}` : undefined} />
-                <span className="font-serif font-bold" style={{ fontSize: "18px", lineHeight: "24px" }}>
-                    {theme ? (en ? theme.title.en : theme.title.ja) : " "}
+                <span className="flex items-center gap-2 min-w-0">
+                    <span className="flex-1 min-w-0 font-serif font-bold truncate" style={{ fontSize: "18px", lineHeight: "24px" }}>
+                        {theme ? (en ? theme.title.en : theme.title.ja) : "\u00a0"}
+                    </span>
+                    {joined ? (
+                        <span className={`${pill} bg-surface-2 text-white`} style={pillStyle} data-testid="home-theme-joined">
+                            <CheckCircleIcon aria-hidden="true" style={{ width: 14, height: 14 }} />
+                            {en ? "Joined" : "参加済み"}
+                        </span>
+                    ) : (
+                        <Link href={href} prefetch={false} data-testid="home-theme-entry"
+                              aria-label={theme ? (en ? `Join today's theme #${theme.tag}` : `今日のテーマ #${theme.tag} に参加する`) : (en ? "Join today's theme" : "今日のテーマに参加する")}
+                              // 見た目 36・当たりは上下 4 ずつ広げて 44（`INLINE_BTN` と同じ形）
+                              className={`${pill} bg-primary text-ink hover:brightness-110 transition before:absolute before:inset-x-0 before:-inset-y-[4px] before:content-[''] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent`}
+                              style={{ ...pillStyle, touchAction: "manipulation" }}>
+                            {en ? "Join" : "参加する"}
+                            <ArrowRightIcon aria-hidden="true" style={{ width: 12, height: 12, strokeWidth: 2.4 }} />
+                        </Link>
+                    )}
                 </span>
-                <span className="text-text-2" style={{ fontSize: "12px", lineHeight: "16px" }}>
-                    {theme ? (en ? theme.prompt.en : theme.prompt.ja) : " "}
+                <span className="text-text-2 truncate" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                    {theme ? (en ? theme.prompt.en : theme.prompt.ja) : "\u00a0"}
                 </span>
-                <Link href={href} prefetch={false} data-testid="home-theme-entry"
-                      aria-label={theme ? (en ? `Join today's theme #${theme.tag}` : `今日のテーマ #${theme.tag} に参加する`) : (en ? "Join today's theme" : "今日のテーマに参加する")}
-                      className="mt-1 inline-flex items-center justify-center gap-1 rounded-full bg-primary text-ink font-semibold hover:brightness-110 transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
-                      style={{ minHeight: "44px", fontSize: "15px", touchAction: "manipulation" }}>
-                    {en ? "Join" : "参加する"}
-                    <ArrowRightIcon aria-hidden="true" style={{ width: 14, height: 14, strokeWidth: 2.2 }} />
-                </Link>
             </span>
         </div>
     );

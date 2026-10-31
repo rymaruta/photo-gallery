@@ -41,6 +41,11 @@ describe("色の棚", () => {
         expect(colorFamilyOf("#555555")).toBeNull();
         expect(colorFamilyOf("zzz")).toBeNull();
     });
+    it("🔴 色相の分け目 75: 黄（#d9c84a・約 53°）は夕日の側、黄緑（#a0d040・約 80°）は緑（iOS と同じ境目）", () => {
+        expect(colorFamilyOf("#d9c84a")).toBe("orange");
+        expect(colorFamilyOf("#a0d040")).toBe("green");
+    });
+
     it("外の景色の分類だけ（料理は入れない）・白は風景と自然だけ", () => {
         expect(colorAllows({ category: "food" } as Photo, "orange")).toBe(false);
         expect(colorAllows({ category: "建築" } as Photo, "orange")).toBe(true);

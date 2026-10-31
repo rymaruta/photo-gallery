@@ -231,7 +231,9 @@ export function visibleColorBuckets<T extends Pick<Photo, "dominantColor">>(
     /**
      * 色の決め方を差し替える口。**既定は `dominantColor`**。
      *
-     * 画面は `useBlurColors` が決めたぶんだけ差し替えて渡す
+     * 以前は画面（`ColorJourney`）が `useBlurColors` で決めたぶんを差し替えて渡していた（2026-10-31 束 1 で
+     * さがすの色を iOS の `ColorFamilies`＝`lib/utils/searchShelves.ts` にしたので、どちらも外した。いまの呼び手は
+     * 監査の台本 `scripts/audit-photo-colors.ts` だけ）
      * ——`dominantColor` は「いちばん多い1ビン＝たいてい影」で、
      * 本番39枚のうち**21枚で中身と食い違っていた**（実測 2026-09-24）。
      */

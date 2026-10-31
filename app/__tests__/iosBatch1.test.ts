@@ -53,3 +53,15 @@ describe("S1: スモークのさがすは、対象の「写真」でチップを
         expect(smoke).toContain('await tapOrClick(page, `[data-testid="search-category-chips"] button[aria-pressed="false"]`);');
     });
 });
+
+describe("束 1 の確かめの直し", () => {
+    it("本人のページにもマップの札（訪れた場所を見る手立てを失わない）", () => {
+        expect(read("app/users/UserProfileClient.tsx")).toContain('const OWNER_TABS: TabKey[] = ["posts", "map", "timeline", "trips"];');
+    });
+    it("人のページの読み込み失敗の札も、時計の帯のぶん下げる", () => {
+        expect(read("app/users/UserProfileClient.tsx")).toMatch(/pt-\[calc\(12px\+env\(safe-area-inset-top,0px\)\)\] lg:pt-3" data-testid="profile-load-error"/);
+    });
+    it("消した useBlurColors を注記が指したままにしない", () => {
+        expect(read("lib/color/buckets.ts")).not.toMatch(/画面は `useBlurColors` が決めたぶんだけ差し替えて渡す/);
+    });
+});

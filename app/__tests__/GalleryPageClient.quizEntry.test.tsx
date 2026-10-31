@@ -67,9 +67,14 @@ describe("ホームの上段の札", () => {
     it("札の形は iOS と同じ（背 116・角 16・地 surface・白8% の縁・明朝 18 の題・眉は真鍮）", async () => {
         render(<ToastProvider><GalleryPageClient /></ToastProvider>);
         const quiz = await screen.findByTestId("home-quiz-entry");
-        for (const c of ["min-h-[116px]", "rounded-2xl", "bg-surface", "ring-line"]) expect(quiz.className).toContain(c);
+        // 背はどれも 116（iOS #422・2行に伸びて並びの背が 156 にならない）
+        for (const c of ["h-[116px]", "rounded-2xl", "bg-surface", "ring-line"]) expect(quiz.className.split(/\s+/)).toContain(c);
+        // 「以上 116」ではなく「116」（min-h だと2行に伸びて並びの背が上がる）
+        expect(screen.getByTestId("home-theme-card").className.split(/\s+/)).toContain("h-[116px]");
+        expect(quiz.className).not.toContain("min-h-[116px]");
         const title = quiz.querySelector(".font-serif") as HTMLElement;
         expect(title.style.fontSize).toBe("18px");
+        expect(title.className, "題は1行").toContain("truncate");
         expect(quiz.querySelector(".eyebrow")!.className).toContain("text-accent");
     });
 
@@ -128,7 +133,11 @@ describe("ホームの今日のテーマの札", () => {
         const tag = dailyThemeFor().tag;
         await waitFor(() => expect(entry.getAttribute("href")).toBe(`/user/upload?tag=${encodeURIComponent(tag)}`));
         expect(entry.textContent).toContain("参加する");
-        expect(entry.style.minHeight).toBe("44px");
+        // 題の右の小さいボタン（見た目 36・当たりは上下 4 ずつ広げて 44）
+        expect(entry.style.minHeight).toBe("36px");
+        expect(entry.className).toContain("before:-inset-y-[4px]");
+        const title = screen.getByTestId("home-theme-card").querySelector(".font-serif")!;
+        expect(title.parentElement!.contains(entry), "参加するは題の右（同じ行）").toBe(true);
         const card = screen.getByTestId("home-theme-card");
         expect(card.textContent).toContain(`#${tag}`);
         expect(card.textContent).toContain("今日のテーマ");
@@ -153,9 +162,38 @@ describe("今日の一問の札の写真と出典（その日のファイルが�
             const entry = await screen.findByTestId("home-quiz-entry");
             await waitFor(() => expect(entry.querySelector("img")?.getAttribute("src")).toBe("https://upload.wikimedia.org/a.jpg"));
             expect(entry.textContent).toContain("写真: Taro / CC BY 4.0");
+            // 出典は1行で、**真ん中を省く**（作者を切り、ライセンス名は切らない）
+            const credit = screen.getByTestId("top-card-credit");
+            expect(credit.firstElementChild!.className).toContain("truncate");
+            expect(credit.lastElementChild!.textContent).toBe(" / CC BY 4.0");
+            expect(credit.lastElementChild!.className).toContain("flex-shrink-0");
             expect(entry.textContent).toContain("答えました");
         } finally {
             window.localStorage.removeItem(`journey-photo:quiz:${ymd}`);
         }
+    });
+});
+
+describe("今日のテーマの参加済み（iOS の `DailyTheme.hasJoined`）", () => {
+    it("今日テーマのタグで投稿した人には、押せない「参加済み」を出す", async () => {
+        const { dailyThemeFor } = await import("@/lib/utils/dailyTheme");
+        const tag = dailyThemeFor().tag;
+        authState.current = { isAuthenticated: true, userId: "me", loading: false };
+        photosState.current = [{ id: "m1", src: "https://cdn/m.jpg", userId: "me", tags: [tag], createdAt: new Date().toISOString(), date: "2026-10-31" }];
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        const joined = await screen.findByTestId("home-theme-joined");
+        expect(joined.textContent).toContain("参加済み");
+        expect(joined.tagName, "押せない印").toBe("SPAN");
+        expect(screen.queryByTestId("home-theme-entry")).toBeNull();
+    });
+
+    it("昨日の投稿・ほかの人の投稿では参加済みにしない", async () => {
+        const { dailyThemeFor, hasJoinedTheme } = await import("@/lib/utils/dailyTheme");
+        const { tagKey } = await import("@/lib/utils/collections");
+        const theme = dailyThemeFor();
+        const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+        expect(hasJoinedTheme(theme, [{ tags: [theme.tag], createdAt: yesterday }], tagKey)).toBe(false);
+        expect(hasJoinedTheme(theme, [{ tags: ["別のタグ"], createdAt: new Date().toISOString() }], tagKey)).toBe(false);
+        expect(hasJoinedTheme(theme, [{ tags: [theme.tag], createdAt: new Date().toISOString() }], tagKey)).toBe(true);
     });
 });

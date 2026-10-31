@@ -129,7 +129,9 @@ type TabKey = "posts" | "map" | "timeline" | "trips";
  * Web だけの年表は残す。旅の棚は札に並べず、「すべての旅 · N冊」で開く（`trips` は選べるが札は無い）。
  * 本人のページ（マイページ）は今のまま（iOS のマイページの直しは束 5）
  */
-const OWNER_TABS: TabKey[] = ["posts", "timeline", "trips"];
+// 2026-10-31 判断（束 1 の確かめ）: **本人のページにもマップの札を出す。** iOS のマイページに地図の区分は無いが、
+// Web は「訪れた場所」のチップを外した（U6）ので、札が無いと本人が自分の撮影地を見る手立てが無くなる。今ある機能を失わない
+const OWNER_TABS: TabKey[] = ["posts", "map", "timeline", "trips"];
 const VISITOR_TABS: TabKey[] = ["posts", "map", "timeline"];
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
@@ -1244,7 +1246,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
             {loadError && (
                 // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
                 // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
+                // スマホは見出しを外したので、ホーム画面から起動したとき時計の帯のぶん下げる（束 1 の確かめの直し）
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-[calc(12px+env(safe-area-inset-top,0px))] lg:pt-3" data-testid="profile-load-error">
                     <p className="text-xs text-danger bg-danger/10 ring-1 ring-danger/20 rounded-lg px-3 py-2">
                         {loadError === "ownPhotos"
                             ? (locale === "en"

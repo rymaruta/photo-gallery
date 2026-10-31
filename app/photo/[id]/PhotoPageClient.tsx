@@ -94,9 +94,10 @@ const TOP_BUTTON = `pointer-events-auto ${GLASS_BTN} lg:bg-transparent lg:backdr
 
 /**
  * **写真の上の道しるべの行**（iOS の `placeRow`・`spotGuideRow`・束 1 P2）。写真の上なので白だけ・12・
- * 白60%の下線・影。当たりは 44（見た目の行は 28 で、上下 8 を負の余白で詰める）
+ * 白60%の下線・影。当たりは 44（行の当たりどうしは重ねない）
  */
-const FOOT_ROW = "flex items-center gap-1.5 min-w-0 max-w-full text-white -my-2 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white rounded-sm";
+// 2026-10-31 束 1 の確かめの直し: 負の余白（-my-2）で2行の当たりが上下 8px ずつ重なっていたのを外した（行は 44 ずつ並ぶ）
+const FOOT_ROW = "flex items-center gap-1.5 min-w-0 max-w-full text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white rounded-sm";
 const FOOT_ROW_STYLE = { fontSize: "12px", lineHeight: "16px", minHeight: "44px", textShadow: "0 1px 3px rgb(0 0 0 / 0.6)", touchAction: "manipulation" } as const;
 /** 前後の写真の札（二行の行 64 を1つずつ札にしたもの・C11） */
 const ROW_CARD_TALL = `${ROW_TALL} ${CARD}`;
