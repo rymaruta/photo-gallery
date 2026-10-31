@@ -215,7 +215,23 @@ describe("confirmSignUp", () => {
             (_code: string, _f: boolean, cb: (e: null) => void) => cb(null));
         await confirmSignUp("uuid-1", "123456");
 
-        expect(mockConfirmReg).toHaveBeenCalledWith("123456", false, expect.any(Function));
+        // 4つ目は ClientMetadata（渡さなければ undefined）
+        expect(mockConfirmReg).toHaveBeenCalledWith("123456", false, expect.any(Function), undefined);
+    });
+
+    // 登録までの数え方（journey.photo-ios#432）: ClientMetadata を PostConfirmation のトリガーへ届ける
+    it("ClientMetadata をそのまま Cognito に渡す", async () => {
+        mockConfirmReg.mockImplementation(
+            (_code: string, _f: boolean, cb: (e: null) => void) => cb(null));
+        await confirmSignUp("uuid-1", "123456", { platform: "web", from: "wish" });
+        expect(mockConfirmReg).toHaveBeenCalledWith("123456", false, expect.any(Function), { platform: "web", from: "wish" });
+    });
+
+    it("もう確認済み（NotAuthorizedException）は成功だが alreadyConfirmed を付ける", async () => {
+        mockConfirmReg.mockImplementation(
+            (_code: string, _f: boolean, cb: (e: { name: string; message: string }) => void) =>
+                cb({ name: "NotAuthorizedException", message: "User cannot be confirmed. Current status is CONFIRMED" }));
+        expect(await confirmSignUp("uuid-1", "123456")).toEqual({ success: true, alreadyConfirmed: true });
     });
 
     it("既に他のアカウントで使われているメールは、理由が分かる文言で止まる", async () => {
