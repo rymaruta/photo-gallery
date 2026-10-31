@@ -16,7 +16,6 @@ import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 const photos = vi.hoisted(() => [] as Record<string, unknown>[]);
 vi.mock("@/lib/server/photos", () => ({
     loadAllPhotos: async () => photos,
-    resolveOgImage: async () => "https://cdn/og.jpg",
 }));
 vi.mock("../../../../lib/server/staticParams", () => ({ withPlaceholderParam: (v: unknown) => v }));
 

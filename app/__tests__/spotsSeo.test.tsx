@@ -13,12 +13,18 @@ import type { Spot } from "../../lib/data/spots";
  */
 const ledger = vi.hoisted(() => ({ spots: [] as unknown[] }));
 vi.mock("../../lib/data/spots", () => ({ get SPOTS() { return ledger.spots; } }));
+// ビルド時の写真の一覧（スポットに結ばれた利用者の公開写真・2026-10-31 #432）
+const store = vi.hoisted(() => ({ photos: [] as unknown[] }));
+vi.mock("../../lib/server/photos", async (orig) => ({
+    ...(await orig<typeof import("../../lib/server/photos")>()),
+    loadAllPhotos: async () => store.photos,
+}));
 // 一覧の画面は見ない（ここで見るのは構造化データだけ）
 vi.mock("../components/SpotAreaIndexClient", () => ({ default: () => <div data-testid="area-index" /> }));
 
 import SpotIndexPage from "../spots/page";
 import { generateMetadata as spotMetadata } from "../spots/[slug]/page";
-import { siteConfig } from "../../lib/utils/seo";
+import { siteConfig, SHARE_IMAGE } from "../../lib/utils/seo";
 
 function spot(slug: string, over: Partial<Spot> = {}): Spot {
     return {
@@ -45,7 +51,7 @@ function itemListOf(container: HTMLElement) {
     return blocks.filter((b) => b["@type"] === "ItemList");
 }
 
-beforeEach(() => { ledger.spots = []; });
+beforeEach(() => { ledger.spots = []; store.photos = []; });
 
 describe("/spots の一覧の構造化データ（ItemList）", () => {
     it("画面に並ぶ地域のリンクを、同じ順で1つの ItemList に載せる", async () => {
@@ -103,15 +109,47 @@ describe("スポットのページの OGP 画像", () => {
         expect((m.openGraph as { description?: string }).description).toBe(m.description);
     });
 
-    it("代表写真が無いスポットは、サイトの既定の画像に落とす（小さいカード）", async () => {
+    // 2026-10-31（#432）: 落とし先は正方形のアイコン（`siteConfig.ogImage`）だった——検索結果・共有カードで
+    // 「写真ではなくアイコン」に見える。サイトの固定の代表画像（1200×630・大きいカード）にする
+    it("代表写真も結ばれた写真も無いスポットは、サイトの固定の代表画像に落とす（大きいカード）", async () => {
         ledger.spots = [spot("nophoto")];
         const m = await meta("nophoto");
-        const fallback = `${siteConfig.url}${siteConfig.ogImage}`;
-        const og = m.openGraph as { images?: Array<{ url: string }> };
-        expect(og.images?.map((i) => i.url), "OGP の画像が無い").toEqual([fallback]);
+        const fallback = `${siteConfig.url}${SHARE_IMAGE.path}`;
+        const og = m.openGraph as { images?: Array<{ url: string; width?: number; height?: number }> };
+        expect(og.images?.map((i) => i.url), "OGP の画像が無い・アイコンのまま").toEqual([fallback]);
+        expect([og.images?.[0].width, og.images?.[0].height]).toEqual([1200, 630]);
         const tw = m.twitter as { card?: string; images?: string[] };
         expect(tw.images).toEqual([fallback]);
-        expect(tw.card).toBe("summary");
+        expect(tw.card).toBe("summary_large_image");
+        expect(og.images?.map((i) => i.url)).not.toContain(`${siteConfig.url}${siteConfig.ogImage}`);
+    });
+
+    it("代表写真が無く、スポットに結ばれた公開写真があれば、その写真（新しい順の先頭）", async () => {
+        ledger.spots = [spot("linked")];
+        const id = spot("linked").spotId;
+        store.photos = [
+            { id: "a", src: "https://journey-photo.com/uploads/u1/a.jpg", published: true, spotId: id, createdAt: "2026-01-01T00:00:00Z", date: "2026-01-01" },
+            { id: "b", src: "https://journey-photo.com/uploads/u1/b.jpg", published: true, spotId: id, createdAt: "2026-05-01T00:00:00Z", date: "2026-05-01", width: 1600, height: 1200 },
+            // 別のスポットの写真は拾わない
+            { id: "c", src: "https://journey-photo.com/uploads/u1/c.jpg", published: true, spotId: "sp_other000000", createdAt: "2026-10-01T00:00:00Z", date: "2026-10-01" },
+        ];
+        const m = await meta("linked");
+        const og = m.openGraph as { images?: Array<{ url: string; width?: number }> };
+        expect(og.images?.map((i) => i.url)).toEqual(["https://journey-photo.com/uploads/u1/b.jpg"]);
+        expect(og.images?.[0].width).toBe(1600);
+        expect((m.twitter as { images?: string[] }).images).toEqual(["https://journey-photo.com/uploads/u1/b.jpg"]);
+    });
+
+    it("非公開・公開範囲を絞った写真は、結ばれていても出さない", async () => {
+        ledger.spots = [spot("private")];
+        const id = spot("private").spotId;
+        store.photos = [
+            { id: "p", src: "https://journey-photo.com/uploads/u1/p.jpg", published: false, spotId: id, createdAt: "2026-05-01T00:00:00Z" },
+            { id: "f", src: "https://journey-photo.com/uploads/u1/f.jpg", published: true, audience: "followers", spotId: id, createdAt: "2026-06-01T00:00:00Z" },
+        ];
+        const m = await meta("private");
+        const og = m.openGraph as { images?: Array<{ url: string }> };
+        expect(og.images?.map((i) => i.url)).toEqual([`${siteConfig.url}${SHARE_IMAGE.path}`]);
     });
 
     it("代表写真があるスポットは、今までどおりその写真（大きいカード）", async () => {
