@@ -217,15 +217,12 @@ export const SPOT_HERO_SIZES = [
 ].join(", ");
 
 /**
- * 「周辺のスポット」のカード（モック⑨）。容器は `max-w-6xl` ＋ `px-4`、
- * 2列（640px 未満）→ 3列（sm）→ 4列（lg）。隙間は `gap-3`。
- *
- * 全部 rem で書いて Tailwind のメディアクエリに追随させる（`GRID_SIZES_*` と同じ理由。
- * 640px 未満の px の行は root 14px を外したので消した・2026-10-30 束 0a）。
+ * 「近くの撮影地」の札（iOS の `SpotDetailParts.nearbyCard`: 幅 180 の横に流す札・2026-10-31 束 2）。
+ * 幅は画面によらず 180 なので式は持たない。以前は 2〜4列の格子だった
  */
-export const SPOT_NEARBY_SIZES = [
-    "(max-width:39.99rem) calc(50vw - 1.375rem)",    // 2列: (100vw - 1rem*2 - 0.75rem) / 2
-    "(max-width:63.99rem) calc(33.33vw - 1.1667rem)",// 3列: (100vw - 2rem - 1.5rem) / 3
-    "(max-width:71.99rem) calc(25vw - 1.0625rem)",   // 4列: (100vw - 2rem - 2.25rem) / 4
-    "16.9375rem",                                    // 容器 72rem で頭打ち: (72 - 2 - 2.25) / 4
-].join(", ");
+export const SPOT_NEARBY_SIZES = "180px";
+
+/**
+ * 「この撮影地の写真」の帯の1枚（iOS の `SpotDetailView.spotPhotos`: 幅 118・3:4・角 12・横に流す・2026-10-31 束 2）
+ */
+export const SPOT_STRIP_SIZES = "118px";
