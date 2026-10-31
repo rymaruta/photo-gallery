@@ -42,3 +42,11 @@ describe("U6: 人のページの訪れた場所のチップは外し、マップ
         expect(src).toContain("<ProfileMapTab photos={visiblePhotos}");
     });
 });
+
+describe("S1: スモークのさがすは、対象の「写真」でチップを出してからカテゴリで絞る", () => {
+    it("発見の面の丸や札（aria-pressed）を絞り込みのチップと取り違えない", () => {
+        const smoke = read("scripts/e2e-smoke.mjs");
+        expect(smoke).toContain('[data-testid="search-scope"] [data-scope="photos"]');
+        expect(smoke).toContain('await tapOrClick(page, `[data-testid="search-category-chips"] button[aria-pressed="false"]`);');
+    });
+});

@@ -61,7 +61,8 @@ describe("派生の実際の幅を申告する", () => {
         );
         expect(container.querySelector('source[type="image/webp"]')?.getAttribute("srcset")).toBe(`${A} 192w, ${B} 384w`);
         const grid = readFileSync(join(__dirname, "../GalleryGrid.tsx"), "utf8");
-        expect(grid).toMatch(/cellAspect=\{4 \/ 3\}/);
+        // さがすの札（`searchTiles`・2026-10-31 束 1 S9）は縦 3:4。どちらもマスの形を渡す
+        expect(grid).toMatch(/cellAspect=\{searchTiles \? 3 \/ 4 : 4 \/ 3\}/);
     });
 });
 

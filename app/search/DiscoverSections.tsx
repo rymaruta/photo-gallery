@@ -4,11 +4,16 @@ import React from "react";
 import Link from "next/link";
 import type { Photo } from "@/lib/data/photos";
 import { collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry } from "@/lib/utils/collections";
-import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "../components/Thumb";
 import SharedSectionHead from "../components/SectionHead";
-import { CHIP_OFF, CHIP_SIZE, CHIP_HIT, CHIP_ROW } from "@/app/components/chipStyles";
-import { placeLine, placeParts } from "@/lib/utils/placeName";
+import { placeParts } from "@/lib/utils/placeName";
+import { CameraIcon } from "@heroicons/react/24/outline";
+import { featuredGroups } from "@/lib/utils/featured";
+import { colorShelves, gearShelves, COLOR_TEXT, GEAR_TEXT } from "@/lib/utils/searchShelves";
+import { photoAltText } from "@/lib/utils/photoAlt";
+import { ROUTES } from "@/lib/routes";
+import GalleryGrid from "../components/GalleryGrid";
+import { GRID_SIZES_SEARCH, GRID_COLUMNS_SEARCH } from "../components/gridSizes";
 
 /**
  * 「さがす」の発見の面（最終版モックの中段・owner の指示書 7）。
@@ -24,9 +29,9 @@ import { placeLine, placeParts } from "@/lib/utils/placeName";
  * |---|---|---|
  * | カテゴリの丸いチップ | ✅ そのカテゴリの最新の1枚を絵にする | `category` は実データにある |
  * | 撮影スポット | ✅ 撮影地を**枚数順**に（「人気」とは呼ばない） | 集計は枚数だけ。閲覧数も保存数も数えていない |
- * | 機材から探す | ✅ 機種別（`/camera/*`） | 広角/標準/望遠は**35mm換算が要る**——保存しているのは実焦点距離で、センサーの大きさが分からない。分けると嘘になる |
+ * | 機材から探す | ✅ 広角・標準・望遠（iOS の `GearGroups`・実焦点距離で分ける。範囲を札に出して隠さない）＋機種別の索引（`/camera`） | 2026-10-31 束 1 S7: 以前は「35mm換算が無いので分けると嘘」として機種名だけだった。iOS 1.1.48 が範囲を明示して分けたので合わせた |
  * | 注目スポット・今週末に行きたい場所 | ❌ | 運営が選ぶ仕組みも、行きたい数の公開集計も無い |
- * | 色から探す | 別部品（`ColorJourney`） | |
+ * | 色から探す | ✅ iOS の `ColorFamilies`（空・海…の 5 つ・外の景色の分類だけ）`searchShelves.ts` | |
  *
  * 数え方は**本体の関数をそのまま使う**（`collectEntries`）。撮影地の緩い一致
  * （「パリ」と「パリ, フランス」）もあちらが持っている——自前で数え直すと、
@@ -148,86 +153,87 @@ function SectionHead(props: { id: string; eyebrow: string; title: string; href: 
     return <SharedSectionHead {...props} testId="discover-section-head" />;
 }
 
-export default function DiscoverSections({ photos, locale, categoryDisplayMap }: Props) {
+/**
+ * 2026-10-31 判断（束 1 S4・S5・S7・S8・iOS の `SearchView` の発見の面）: **iOS の順と形に寄せる**。
+ *
+ *     撮影地（写真の多い撮影地・地図で見る ›）  156×116・角 14・名前は写真の上（明朝 18）・枚数なし・国だけの札は出さない
+ *     おすすめ（PICKS · カテゴリ）             owner が選んだ写真 120×160・角 10 の横の帯（カテゴリの頁へ「すべて見る」）
+ *     色から探す（COLORS）                   写真の丸 62＋題材の名前（空・海…）を 5 等分で左から。押すとその色の写真
+ *     機材から探す（GEAR）                   札 3 枚（広角・標準・望遠・〜35mm…）。押すとその焦点距離の写真
+ *
+ * 以前は カテゴリの丸 6 つ → 撮影地の札（「地域・5枚」）→ 機種名のチップ の順で、色は別の部品（`ColorJourney`）の
+ * 色の点＋件数のチップだった。カテゴリの丸は、何かを探しはじめたときのチップ（`FilterBar` の `layout="search"`）へ。
+ * 機種名で探す行き先（`/camera/*`）は機材の節の「機種で見る ›」（機材の索引）に残す（内部リンク＝SEO）。
+ * iOS の「いまの季節の写真」「季節・時間帯から探す」は Web に無い機能（台帳の束 6）なので足さない。
+ *
+ * 色と機材は iOS では別の画面へ進むが、Web は**押した棚の写真をその場に開く**（押し直すと閉じる・
+ * 以前の `ColorJourney` と同じ開き方）。写真の行き先・開き方は下の結果の格子と同じ（`onOpenPhoto`）
+ */
+export default function DiscoverSections({ photos, locale, categoryDisplayMap, onOpenPhoto }: Props & {
+    /** 静的ページの無い新着写真をその場で開く（下の格子と同じもの） */
+    onOpenPhoto?: (photoId: string) => boolean;
+}) {
     const isJa = locale !== "en";
-    // › は `MoreLink` が印で付ける（字に書くと二重になる・2026-10-30 束 0b C10）
     const more = isJa ? "すべて見る" : "See all";
-    const shown = SHOWN;
-    /**
-     * 溢れの逃がし方。⚠️ **`overflow-x-auto` と `flex-wrap` は共存できない**
-     * ので、`lg:` で `overflow-visible` へ戻してから折り返させる
-     * （`FilterBar` の `WRAPPING_ROW` と同じ形）。柱は最初から折り返す。
-     */
-    const row = "flex gap-3 overflow-x-auto no-scrollbar lg:overflow-visible lg:flex-wrap";
+    const row = "flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:overflow-visible lg:flex-wrap";
 
-    const categories = React.useMemo(() => collectEntries(photos, "category").slice(0, shown), [photos, shown]);
-    const spots = React.useMemo(() => collectEntries(photos, "location").slice(0, shown), [photos, shown]);
-    const cameras = React.useMemo(() => collectEntries(photos, "camera").slice(0, shown), [photos, shown]);
+    // 撮影地: 枚数の多い順（数え方は集約ページと同じ `collectEntries`）。**国だけの撮影地は出さない**（iOS の `spotName`）
+    const spots = React.useMemo(
+        () => {
+            // **同じ名前の札は1枚にまとめる**（iOS の `popularSpots`・「パリ」と「パリ, フランス」を2枚の「パリ」にしない）。
+            // 先に来た（枚数の多い）方の行き先を使う
+            const seen = new Set<string>();
+            return collectEntries(photos, "location")
+                .filter((e) => placeParts(e.label).kind !== "country")
+                .filter((e) => {
+                    const key = placeParts(e.label).title.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                })
+                .slice(0, SHOWN);
+        },
+        [photos],
+    );
+    const featured = React.useMemo(() => featuredGroups(photos, categoryDisplayMap)[0] ?? null, [photos, categoryDisplayMap]);
+    const colors = React.useMemo(() => colorShelves(photos), [photos]);
+    const gear = React.useMemo(() => gearShelves(photos), [photos]);
+    const [open, setOpen] = React.useState<string | null>(null);
 
-    // 代表写真は**スラッグで突き合わせる**（生の値だと別名で保存された写真に当たらない）
-    const coverFor = React.useCallback((entry: CollectionEntry, type: "category" | "location") =>
+    const coverFor = React.useCallback((entry: CollectionEntry) =>
         coverOf(photos, (p) => {
-            const raw = type === "category" ? p.category : p.location;
-            if (typeof raw !== "string" || !raw) return false;
-            return collectionPath(type, entry.slug) === collectionPath(type, slugOf(raw, type));
+            if (typeof p.location !== "string" || !p.location) return false;
+            return collectionPath("location", entry.slug) === collectionPath("location", slugOf(p.location, "location"));
         }), [photos]);
 
-    if (categories.length === 0 && spots.length === 0 && cameras.length === 0) return null;
+    if (spots.length === 0 && !featured && colors.length === 0 && gear.length === 0) return null;
+
+    const openShelf = open?.startsWith("color:")
+        ? colors.find((c) => `color:${c.family}` === open)?.photos
+        : open?.startsWith("gear:") ? gear.find((g) => `gear:${g.group}` === open)?.photos : undefined;
 
     return (
-        <div className="space-y-6 mb-6">
-            {categories.length > 0 && (
-                <section aria-labelledby="discover-categories">
-                    <SectionHead id="discover-categories" eyebrow="CATEGORIES" title={isJa ? "カテゴリからさがす" : "Browse by category"}
-                                 href={collectionIndexPath("category")} moreLabel={more} />
-                    <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
-                        {categories.map((c) => {
-                            const cover = coverFor(c, "category");
-                            return (
-                                <li key={c.slug} className="flex-shrink-0">
-                                    <ItemLink href={linkTo("category", c.slug)}
-                                          className="block text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
-                                          style={{ width: "72px", touchAction: "manipulation" }}>
-                                        <span className="block relative rounded-full overflow-hidden bg-surface ring-1 ring-line"
-                                              style={{ width: "72px", height: "72px" }}>
-                                            {cover && <Thumb photo={cover} alt="" sizes="72px" />}
-                                        </span>
-                                        <span className="block mt-1.5 text-white truncate" style={{ fontSize: "12px" }}>
-                                            {categoryDisplayMap[c.slug] ?? c.label}
-                                        </span>
-                                    </ItemLink>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </section>
-            )}
-
+        <div className="flex flex-col gap-8 mb-8" data-testid="discover-sections">
             {spots.length > 0 && (
                 <section aria-labelledby="discover-spots">
-                    {/* **「人気」とは呼ばない。** 数えているのは投稿の枚数だけで、
-                        閲覧数も保存数も持っていない（指示書 7） */}
+                    {/* **「人気」とは呼ばない。** 数えているのは投稿の枚数だけで、閲覧数も保存数も持っていない（指示書 7） */}
                     <SectionHead id="discover-spots" eyebrow="PLACES" title={isJa ? "写真の多い撮影地" : "Places with the most photos"}
-                                 href={collectionIndexPath("location")} moreLabel={more} />
-                    <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
+                                 href={ROUTES.MAP} moreLabel={isJa ? "地図で見る" : "View on map"} />
+                    <ul className={`${row} m-0`} style={{ listStyle: "none" }}>
                         {spots.map((s) => {
-                            const cover = coverFor(s, "location");
+                            const cover = coverFor(s);
+                            const name = placeParts(s.label).title;
                             return (
                                 <li key={s.slug} className="flex-shrink-0">
                                     <ItemLink href={linkTo("location", s.slug)}
-                                          className="block rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                          style={{ width: "150px", touchAction: "manipulation" }}>
-                                        <span className="block relative bg-surface ring-1 ring-line rounded-xl overflow-hidden"
-                                              style={{ width: "150px", height: "100px" }}>
-                                            {cover && <Thumb photo={cover} alt="" sizes="150px" />}
-                                        </span>
-                                        {/* **見出しは具体的な部分だけ**、地域は2行目に（長い住所を
-                                            見出しにしない・地域の束と場所を見分ける・`placeParts`） */}
-                                        <span className="block mt-1.5 text-white truncate" style={{ fontSize: "13px" }} title={s.label}>{placeParts(s.label).title}</span>
-                                        {/* 地域が長くても**枚数は切らない**（地域の方だけ省略する） */}
-                                        <span className="flex text-white/70" style={{ fontSize: "12px" }}>
-                                            <span className="truncate min-w-0">{placeLine(s.label, isJa)}</span>
-                                            <span className="shrink-0">{isJa ? `${s.count}枚` : `${s.count} photos`}</span>
+                                          className="relative block rounded-xl overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                          style={{ width: "156px", height: "116px", touchAction: "manipulation" }}>
+                                        {cover && <Thumb photo={cover} alt="" sizes="156px" />}
+                                        {/* 名前は写真の上（白・下に黒 0→80% のぼかし）。写真の上なので真鍮は置かない */}
+                                        <span className="absolute inset-x-0 bottom-0 px-3 pt-8 pb-2.5 font-serif font-bold text-white truncate"
+                                              title={s.label}
+                                              style={{ fontSize: "18px", lineHeight: "24px", background: "linear-gradient(to bottom, rgb(0 0 0 / 0), rgb(0 0 0 / 0.8))" }}>
+                                            {name}
                                         </span>
                                     </ItemLink>
                                 </li>
@@ -237,27 +243,88 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                 </section>
             )}
 
-            {cameras.length > 0 && (
-                <section aria-labelledby="discover-cameras">
-                    {/* **「広角・標準・望遠」にはしない。** 保存しているのは実焦点距離で、
-                        センサーの大きさを持っていない＝35mm換算に直せない。
-                        APS-C の 28mm を「広角」と出すと嘘になる（指示書: 実際のデータが
-                        存在しない限り表示しない） */}
-                    <SectionHead id="discover-cameras" eyebrow="GEAR" title={isJa ? "機材からさがす" : "Browse by camera"}
-                                 href={collectionIndexPath("camera")} moreLabel={more} />
-                    <ul className={CHIP_ROW} style={{ listStyle: "none" }}>
-                        {cameras.map((c) => (
-                            <li key={c.slug}>
-                                <ItemLink href={linkTo("camera", c.slug)}
-                                      className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                      style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
-                                    {dedupeCameraName(c.label)}
-                                    <span className="text-white/60" style={{ fontSize: "12px" }}>{c.count}</span>
+            {featured && (
+                <section aria-labelledby="discover-picks">
+                    <SectionHead id="discover-picks" eyebrow={`PICKS · ${featured.label}`} title={isJa ? "おすすめ" : "Picks"}
+                                 href={linkTo("category", featured.slug)} moreLabel={more} />
+                    <ul className={`${row} m-0`} style={{ listStyle: "none" }} data-testid="discover-picks">
+                        {featured.photos.map((p) => (
+                            <li key={p.id} className="flex-shrink-0">
+                                <ItemLink href={ROUTES.PHOTO(p.id)}
+                                      className="relative block rounded-lg overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                      style={{ width: "120px", height: "160px", touchAction: "manipulation" }}>
+                                    <Thumb photo={p} alt={photoAltText(p, isJa ? "ja" : "en")} sizes="120px" cellAspect={3 / 4} />
                                 </ItemLink>
                             </li>
                         ))}
                     </ul>
                 </section>
+            )}
+
+            {colors.length > 0 && (
+                <section aria-labelledby="discover-colors">
+                    <SharedSectionHead id="discover-colors" eyebrow="COLORS" title={isJa ? "色から探す" : "Browse by color"} testId="discover-section-head" />
+                    {/* 5 等分の位置に左から詰める（色が 3 つでも丸が左右に離れて浮かない・iOS #419 ③） */}
+                    <ul className="grid grid-cols-5 lg:flex lg:gap-6 gap-y-3 m-0 p-0 -mx-2 lg:mx-0" style={{ listStyle: "none" }} data-testid="discover-colors">
+                        {colors.map((c) => {
+                            const key = `color:${c.family}`;
+                            const on = open === key;
+                            const t = COLOR_TEXT[c.family];
+                            return (
+                                <li key={c.family} className="flex justify-center lg:block">
+                                    <button type="button" onClick={() => setOpen(on ? null : key)} aria-pressed={on}
+                                            aria-label={isJa ? `${t.label.ja}（${t.note.ja}）・${c.count}枚` : `${t.label.en} (${t.note.en}), ${c.count} photos`}
+                                            className="flex flex-col items-center gap-1.5 w-[68px] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
+                                            style={{ touchAction: "manipulation" }}>
+                                        <span className={`relative block rounded-full overflow-hidden bg-surface ${on ? "ring-[2.5px] ring-white" : "ring-1 ring-line"}`}
+                                              style={{ width: "62px", height: "62px" }}>
+                                            <Thumb photo={c.photos[0]} alt="" sizes="62px" cellAspect={1} />
+                                        </span>
+                                        <span aria-hidden="true" className={`text-center leading-4 line-clamp-2 ${on ? "text-white" : "text-text-2"}`} style={{ fontSize: "12px" }}>
+                                            {isJa ? t.note.ja : t.note.en}
+                                        </span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </section>
+            )}
+
+            {gear.length > 0 && (
+                <section aria-labelledby="discover-gear">
+                    {/* 機種名で探す（`/camera/*`）は索引へ（Web だけ・内部リンク） */}
+                    <SectionHead id="discover-gear" eyebrow="GEAR" title={isJa ? "機材から探す" : "Browse by gear"}
+                                 href={collectionIndexPath("camera")} moreLabel={isJa ? "機種で見る" : "By camera"} />
+                    <ul className="grid grid-cols-3 gap-2 m-0 p-0" style={{ listStyle: "none" }} data-testid="discover-gear">
+                        {gear.map((g) => {
+                            const key = `gear:${g.group}`;
+                            const on = open === key;
+                            const t = GEAR_TEXT[g.group];
+                            return (
+                                <li key={g.group} className="flex">
+                                    <button type="button" onClick={() => setOpen(on ? null : key)} aria-pressed={on}
+                                            aria-label={isJa ? `${t.label.ja} ${t.range.ja}` : `${t.label.en} ${t.range.en}`}
+                                            className={`w-full min-h-[88px] flex flex-col items-start gap-1.5 rounded-xl px-3 py-2.5 text-left transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent ${on ? "bg-surface-2 ring-[1.5px] ring-inset ring-white" : "bg-surface ring-1 ring-inset ring-line hover:bg-surface-2"}`}
+                                            style={{ touchAction: "manipulation" }}>
+                                        <CameraIcon aria-hidden="true" className="text-text-2" style={{ width: 22, height: 22, strokeWidth: 1.4 }} />
+                                        <span aria-hidden="true" className="flex flex-col gap-0.5">
+                                            <span className="text-white line-clamp-2" style={{ fontSize: "15px", lineHeight: "20px" }}>{isJa ? t.label.ja : t.label.en}</span>
+                                            <span className="text-text-3 tabular-nums" style={{ fontSize: "12px", lineHeight: "16px" }}>{isJa ? t.range.ja : t.range.en}</span>
+                                        </span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </section>
+            )}
+
+            {openShelf && openShelf.length > 0 && (
+                <div data-testid="discover-open-shelf">
+                    <GalleryGrid photos={openShelf} locale={isJa ? "ja" : "en"} categoryDisplayMap={categoryDisplayMap}
+                                 onOpenPhoto={onOpenPhoto} sizes={GRID_SIZES_SEARCH} columnsClassName={GRID_COLUMNS_SEARCH} searchTiles />
+                </div>
             )}
         </div>
     );

@@ -54,6 +54,11 @@ type Props = {
      */
     priorityCount?: number;
     /**
+     * **「さがす」の写真の札**（iOS の `SearchGrid`・2026-10-31 束 1 S9）: 縦 3:4・角 14・隙間 10。
+     * 題・撮影地の帯はそのまま。既定（4:3・角なし・隙間 4/6）は他の画面の形
+     */
+    searchTiles?: boolean;
+    /**
      * `<picture>` の `sizes`。**画面の容器ごとに違うので呼ぶ側が必ず渡す。**
      *
      * **既定値は置かない。** 置くと、容器の違う画面に足したときに黙って
@@ -109,6 +114,7 @@ export default function GalleryGrid({
     sizes,
     // 既定は `GRID_SIZES_5XL` / `GRID_SIZES_6XL` が前提にしている列数
     columnsClassName = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
+    searchTiles = false,
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
@@ -147,7 +153,7 @@ export default function GalleryGrid({
     return (
         <>
         {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更） */}
-        <div className={`grid ${columnsClassName} gap-1 sm:gap-1.5`}>
+        <div className={`grid ${columnsClassName} ${searchTiles ? "gap-2.5" : "gap-1 sm:gap-1.5"}`} data-tiles={searchTiles ? "search" : undefined}>
             {shown.map((p, idx) => {
                 // 題が無ければ空。サーバーが入れていた「無題」も題として扱わない（`photoTitle.ts`）
                 // 言語ごとに「無題」を落とす（`photoOwnTitle`。写真ページの h1 と同じ判定）
@@ -174,6 +180,7 @@ export default function GalleryGrid({
                         openInPlace={openInPlace}
                         priorityCount={priorityCount}
                         sizes={sizes}
+                        searchTiles={searchTiles}
                     />
                 );
             })}
@@ -198,6 +205,7 @@ const GalleryItem = React.memo(function GalleryItem({
     openInPlace,
     priorityCount,
     sizes,
+    searchTiles = false,
 }: {
     photo: Photo;
     index: number;
@@ -210,6 +218,7 @@ const GalleryItem = React.memo(function GalleryItem({
     openInPlace?: boolean;
     priorityCount?: number;
     sizes: string;
+    searchTiles?: boolean;
 }) {
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
@@ -290,8 +299,8 @@ const GalleryItem = React.memo(function GalleryItem({
                 data-photo-id={photo.id}
             >
                 <div
-                    className="relative w-full overflow-hidden"
-                    style={{ paddingTop: "75%", backgroundColor: placeholderColor, fontSize: 0, lineHeight: 0 }}
+                    className={`relative w-full overflow-hidden ${searchTiles ? "rounded-xl" : ""}`}
+                    style={{ paddingTop: searchTiles ? "133.333%" : "75%", backgroundColor: placeholderColor, fontSize: 0, lineHeight: 0 }}
                 >
                     <div className="absolute inset-0" aria-hidden={true} />
 
@@ -303,7 +312,7 @@ const GalleryItem = React.memo(function GalleryItem({
                         priority={isPriority}
                         objectPosition={objectPosition}
                         // マスは 4:3（上の paddingTop: 75%）
-                        cellAspect={4 / 3}
+                        cellAspect={searchTiles ? 3 / 4 : 4 / 3}
                     />
 
                                 {/* お気に入りアイコン */}
