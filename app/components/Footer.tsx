@@ -36,7 +36,7 @@ export default function Footer() {
 
                     <nav
                         aria-label={locale === "en" ? "Footer" : "フッター"}
-                        className="grid w-full max-w-[640px] grid-cols-2 gap-x-5 gap-y-1 sm:grid-cols-4 sm:gap-x-6"
+                        className="grid w-full max-w-[640px] grid-cols-2 gap-x-5 sm:grid-cols-4 sm:gap-x-6"
                     >
                         {links.map(({ href, label }) => (
                             <Link
@@ -44,7 +44,7 @@ export default function Footer() {
                                 href={href}
                                 prefetch={false}
                                 className="inline-flex min-h-[44px] items-center justify-center px-1 text-text-2 transition-colors hover:text-accent"
-                                style={{ fontSize: "15px", lineHeight: "21px", touchAction: "manipulation" }}
+                                style={{ fontSize: "13px", lineHeight: "18px", touchAction: "manipulation" }}
                             >
                                 {label}
                             </Link>
