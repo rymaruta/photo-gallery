@@ -51,18 +51,7 @@ export default function Footer() {
                         ))}
                     </nav>
 
-                    <div className="flex flex-col items-center gap-2">
-                        <p className="text-[13px] leading-[18px] text-text-3">© Journey Photo</p>
-                        <p className="max-w-full text-[12px] leading-[18px] text-text-3" data-testid="font-license">
-                            {locale === "en" ? "Headings: " : "見出しの字: "}Shippori Mincho B1 © 2021 The Shippori Mincho Project Authors ·{" "}
-                            <a
-                                href="/licenses/ShipporiMinchoB1-OFL.txt"
-                                className="inline-flex min-h-[44px] items-center text-accent underline underline-offset-2 transition-colors hover:text-accent-strong"
-                            >
-                                SIL Open Font License 1.1
-                            </a>
-                        </p>
-                    </div>
+                    <p className="text-[13px] leading-[18px] text-text-3">© Journey Photo</p>
                 </div>
             </div>
         </footer>
