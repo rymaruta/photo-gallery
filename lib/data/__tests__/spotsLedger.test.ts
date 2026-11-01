@@ -264,12 +264,18 @@ describe("撮影スポット台帳（content/spots.json）", () => {
      * 確認済み。
      */
     const SIMPLIFIED = "针现这说门车东马鸟岛关开长书们华丽亿产众优传伤农冲决对时过还进远连边";
+    /**
+     * 上の字でも、日本語の固有名詞で正しく使う語。比べる前に外す。
+     * 「冲」は伊藤若冲の名の正しい字（2026-10-31・義仲寺の天井画で掛かった）。
+     */
+    const JAPANESE_WORDS = ["若冲"];
 
     it("日本語で使わない簡体字が混ざっていない", () => {
         const hits: string[] = [];
         const walk = (v: unknown, path: string) => {
             if (typeof v === "string") {
-                for (const ch of v) {
+                const text = JAPANESE_WORDS.reduce((t, w) => t.split(w).join(""), v);
+                for (const ch of text) {
                     if (SIMPLIFIED.includes(ch)) hits.push(`${path}: 「${ch}」（${v.slice(0, 30)}）`);
                 }
             } else if (Array.isArray(v)) {
