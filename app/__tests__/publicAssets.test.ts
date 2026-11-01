@@ -27,6 +27,7 @@ const ALLOWED: [file: string, why: string][] = [
     ["offline.html", "Service Worker が `PRECACHE_URLS` で名前を持つ（`public/sw.js`）。ソースの文字列としては `OFFLINE_URL` 定数"],
     ["sw.js", "`ServiceWorkerRegister.tsx` が `/sw.js` として登録する"],
     ["manifest.webmanifest", "`app/layout.tsx` の `manifest` が指す"],
+    ["licenses/ShipporiMinchoB1-OFL.txt", "Shippori Mincho B1 のライセンス全文をリポジトリに保管するため。フッターには表示せず、ライセンス文書として保持する"],
 ];
 
 function listPublic(dir = PUBLIC_DIR): string[] {
