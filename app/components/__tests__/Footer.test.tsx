@@ -27,8 +27,6 @@ describe("フッターの導線", () => {
             ["行きたい場所", ROUTES.SAVED_SPOTS],
             ["利用規約", ROUTES.TERMS],
             ["プライバシーポリシー", ROUTES.PRIVACY],
-            // 見出しの字（自前で配る Shippori Mincho B1）のライセンス全文（2026-10-21）
-            ["SIL Open Font License 1.1", "/licenses/ShipporiMinchoB1-OFL.txt"],
         ]);
     });
 });
