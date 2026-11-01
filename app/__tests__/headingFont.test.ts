@@ -44,11 +44,11 @@ describe("見出しの明朝", () => {
         expect(page).toMatch(/<h1[^>]*fontFamily: DISPLAY_MINCHO_STACK/);
     });
 
-    it("ライセンスの表示がフッターにある（SIL OFL 1.1）", () => {
+    it("ライセンス全文をリポジトリに保持し、フッターには表示しない", () => {
         const footer = read("app/components/Footer.tsx");
-        expect(footer).toContain("Shippori Mincho B1");
-        expect(footer).toContain("SIL Open Font License 1.1");
-        expect(footer).toContain('href="/licenses/ShipporiMinchoB1-OFL.txt"');
+        expect(footer).not.toContain("Shippori Mincho B1");
+        expect(footer).not.toContain("SIL Open Font License 1.1");
+        expect(footer).not.toContain('/licenses/ShipporiMinchoB1-OFL.txt');
         // 置いたライセンスの全文は配布元の写し（著作権表示と OFL 1.1 の本文）
         const ofl = read("public/licenses/ShipporiMinchoB1-OFL.txt");
         expect(ofl).toMatch(/^Copyright 2021 The Shippori Mincho Project Authors/);
